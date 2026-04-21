@@ -30,12 +30,20 @@ impl OpenAiCompatibleClient {
     }
 
     fn build_payload(&self, request: &LlmRequest) -> Value {
-        json!({
-            "model": request.model,
-            "messages": build_messages(request),
-            "max_tokens": request.max_tokens,
-            "response_format": response_format_for(request.structured_output_mode),
-        })
+        let mut payload = serde_json::Map::from_iter([
+            ("model".to_string(), Value::String(request.model.clone())),
+            (
+                "messages".to_string(),
+                Value::Array(build_messages(request)),
+            ),
+            ("max_tokens".to_string(), Value::from(request.max_tokens)),
+        ]);
+
+        if let Some(response_format) = response_format_for(request) {
+            payload.insert("response_format".to_string(), response_format);
+        }
+
+        Value::Object(payload)
     }
 
     async fn post_chat_completions(&self, request: &LlmRequest) -> Result<Value, AppError> {
@@ -168,21 +176,22 @@ fn build_messages(request: &LlmRequest) -> Vec<Value> {
     messages
 }
 
-fn response_format_for(mode: StructuredOutputMode) -> Value {
-    match mode {
-        StructuredOutputMode::NativeJsonSchema => json!({
+fn response_format_for(request: &LlmRequest) -> Option<Value> {
+    match request.structured_output_mode {
+        StructuredOutputMode::NativeJsonSchema => Some(json!({
             "type": "json_schema",
             "json_schema": {
                 "name": "structured_output",
-                "schema": {
-                    "type": "object"
-                }
+                "schema": request
+                    .output_json_schema
+                    .clone()
+                    .unwrap_or_else(|| json!({"type": "object"}))
             }
-        }),
-        StructuredOutputMode::JsonObject => json!({
+        })),
+        StructuredOutputMode::JsonObject => Some(json!({
             "type": "json_object"
-        }),
-        StructuredOutputMode::PromptEnforcedJson => Value::Null,
+        })),
+        StructuredOutputMode::PromptEnforcedJson => None,
     }
 }
 
@@ -190,5 +199,101 @@ fn provider_error(error: reqwest::Error) -> AppError {
     AppError::Provider {
         message: error.to_string(),
         source: Some(Box::new(error)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_request(mode: StructuredOutputMode) -> LlmRequest {
+        LlmRequest {
+            provider: "dashscope".to_string(),
+            model: "qwen-plus".to_string(),
+            system_prompt: "Return JSON".to_string(),
+            developer_instructions: vec!["Do not invent fields".to_string()],
+            input_json: json!({"symbol": "000001.SZ"}),
+            max_tokens: 1024,
+            timeout_secs: 30,
+            structured_output_mode: mode,
+            output_json_schema: Some(json!({
+                "type": "object",
+                "required": ["symbol"],
+                "properties": {
+                    "symbol": { "type": "string" }
+                }
+            })),
+        }
+    }
+
+    #[test]
+    fn build_payload_includes_actual_schema_for_native_json_schema_mode() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let payload = client.build_payload(&sample_request(StructuredOutputMode::NativeJsonSchema));
+
+        assert_eq!(payload["model"], "qwen-plus");
+        assert_eq!(payload["max_tokens"], 1024);
+        assert_eq!(
+            payload["response_format"]["json_schema"]["schema"],
+            json!({
+                "type": "object",
+                "required": ["symbol"],
+                "properties": {
+                    "symbol": { "type": "string" }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn build_payload_uses_json_object_response_format_when_requested() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let payload = client.build_payload(&sample_request(StructuredOutputMode::JsonObject));
+
+        assert_eq!(payload["response_format"], json!({"type": "json_object"}));
+    }
+
+    #[test]
+    fn build_payload_omits_response_format_for_prompt_enforced_json() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let payload =
+            client.build_payload(&sample_request(StructuredOutputMode::PromptEnforcedJson));
+
+        assert!(payload.get("response_format").is_none());
+    }
+
+    #[test]
+    fn parse_response_json_reads_string_content() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let parsed = client
+            .parse_response_json(&json!({
+                "choices": [{
+                    "message": {
+                        "content": "{\"symbol\":\"000001.SZ\"}"
+                    }
+                }]
+            }))
+            .unwrap();
+
+        assert_eq!(parsed, json!({"symbol": "000001.SZ"}));
+    }
+
+    #[test]
+    fn parse_response_json_reads_text_parts_content() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let parsed = client
+            .parse_response_json(&json!({
+                "choices": [{
+                    "message": {
+                        "content": [
+                            { "type": "output_text", "text": "{\"symbol\":" },
+                            { "type": "output_text", "text": "\"000001.SZ\"}" }
+                        ]
+                    }
+                }]
+            }))
+            .unwrap();
+
+        assert_eq!(parsed, json!({"symbol": "000001.SZ"}));
     }
 }

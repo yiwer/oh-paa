@@ -1,8 +1,9 @@
 use pa_core::AppError;
 use pa_orchestrator::{
     AnalysisBarState, AnalysisStepSpec, ExecutionOutcome, Executor, FixtureLlmClient,
-    ModelExecutionProfile, OpenAiCompatibleClient, OpenAiProviderRuntime, PromptResultSemantics,
-    PromptTemplateSpec, StepExecutionBinding, StepRegistry,
+    ModelExecutionProfile, OpenAiCompatibleClient, OpenAiProviderRuntime, PromptRegistry,
+    PromptResultSemantics, PromptSpec, PromptTemplateSpec, RetryPolicyClass, StepExecutionBinding,
+    StepRegistry,
 };
 
 fn make_registry(output_json_schema: serde_json::Value) -> StepRegistry {
@@ -83,6 +84,21 @@ fn make_execution_profile(profile_key: &str) -> ModelExecutionProfile {
     }
 }
 
+fn make_legacy_spec(output_json_schema: serde_json::Value) -> PromptSpec {
+    PromptSpec {
+        prompt_key: "shared_bar_analysis".to_string(),
+        prompt_version: "v1".to_string(),
+        task_type: "shared_bar_analysis".to_string(),
+        system_prompt: "Return JSON only".to_string(),
+        input_schema_version: "v1".to_string(),
+        output_schema_version: "v1".to_string(),
+        output_json_schema,
+        retry_policy_class: RetryPolicyClass::LlmStructuredOutput,
+        result_semantics: PromptResultSemantics::SharedAsset,
+        bar_state_support: vec![AnalysisBarState::Closed],
+    }
+}
+
 #[test]
 fn openai_compatible_client_is_publicly_constructible() {
     let providers = std::collections::BTreeMap::from([(
@@ -94,6 +110,52 @@ fn openai_compatible_client_is_publicly_constructible() {
     )]);
 
     let _client = OpenAiCompatibleClient::new(providers);
+}
+
+#[tokio::test]
+async fn executor_supports_legacy_prompt_registry_specs() {
+    let registry = PromptRegistry::default()
+        .with_spec(make_legacy_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
+    let expected = serde_json::json!({
+        "bullish_case": {"entry": "breakout"},
+        "bearish_case": {"entry": "pullback"}
+    });
+    let executor = Executor::new(registry, FixtureLlmClient::with_json(expected.clone()));
+
+    let outcome = executor
+        .execute_json(
+            "shared_bar_analysis",
+            "v1",
+            &serde_json::json!({"foo": "bar"}),
+        )
+        .await
+        .unwrap();
+
+    match outcome {
+        ExecutionOutcome::Success(attempt) => {
+            assert_eq!(attempt.llm_provider, "legacy-prompt-spec");
+            assert_eq!(attempt.model, "legacy-prompt-spec");
+            assert_eq!(
+                attempt.request_payload_json["structured_output_mode"],
+                "prompt_enforced_json"
+            );
+            assert!(
+                attempt
+                    .request_payload_json
+                    .get("output_json_schema")
+                    .is_none()
+            );
+        }
+        other => panic!("expected success output, got: {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -154,6 +216,14 @@ async fn executor_fails_when_output_does_not_match_schema() {
                     "system_prompt": "Return JSON only",
                     "developer_instructions": ["Do not invent data"],
                     "input_json": {"foo": "bar"},
+                    "output_json_schema": {
+                        "type": "object",
+                        "required": ["bullish_case", "bearish_case"],
+                        "properties": {
+                            "bullish_case": { "type": "object" },
+                            "bearish_case": { "type": "object" }
+                        }
+                    },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
                     "structured_output_mode": "native_json_schema"
@@ -216,6 +286,14 @@ async fn executor_returns_valid_structured_output() {
                     "system_prompt": "Return JSON only",
                     "developer_instructions": ["Do not invent data"],
                     "input_json": {"foo": "bar"},
+                    "output_json_schema": {
+                        "type": "object",
+                        "required": ["bullish_case", "bearish_case"],
+                        "properties": {
+                            "bullish_case": { "type": "object" },
+                            "bearish_case": { "type": "object" }
+                        }
+                    },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
                     "structured_output_mode": "native_json_schema"
@@ -286,6 +364,10 @@ async fn executor_uses_bound_execution_profile_metadata() {
             assert_eq!(attempt.llm_provider, "dashscope");
             assert_eq!(attempt.model, "qwen-plus");
             assert_eq!(attempt.request_payload_json["max_tokens"], 12000);
+            assert_eq!(
+                attempt.request_payload_json["output_json_schema"],
+                serde_json::json!({"type":"object"})
+            );
         }
         other => panic!("expected success, got {other:?}"),
     }
@@ -310,7 +392,7 @@ async fn executor_errors_when_execution_binding_is_missing() {
             step_key: "shared_pa_state_bar".into(),
             step_version: "v1".into(),
             system_prompt: "Return JSON".into(),
-            developer_instructions: vec![],
+            developer_instructions: vec!["must use binding".into()],
         })
         .unwrap();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
@@ -363,6 +445,9 @@ async fn executor_returns_outbound_failure_with_attempt_context() {
                     "system_prompt": "Return JSON only",
                     "developer_instructions": ["Do not invent data"],
                     "input_json": {"foo": "bar"},
+                    "output_json_schema": {
+                        "type": "object"
+                    },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
                     "structured_output_mode": "native_json_schema"

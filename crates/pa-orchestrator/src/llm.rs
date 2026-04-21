@@ -15,6 +15,7 @@ pub struct LlmRequest {
     pub system_prompt: String,
     pub developer_instructions: Vec<String>,
     pub input_json: Value,
+    pub output_json_schema: Option<Value>,
     pub max_tokens: u32,
     pub timeout_secs: u64,
     pub structured_output_mode: StructuredOutputMode,
@@ -90,16 +91,7 @@ impl FixtureLlmClient {
 #[async_trait]
 impl LlmClient for FixtureLlmClient {
     async fn generate_json(&self, request: &LlmRequest) -> LlmCallEnvelope {
-        let request_payload_json = serde_json::json!({
-            "provider": request.provider,
-            "model": request.model,
-            "system_prompt": request.system_prompt,
-            "developer_instructions": request.developer_instructions,
-            "input_json": request.input_json,
-            "max_tokens": request.max_tokens,
-            "timeout_secs": request.timeout_secs,
-            "structured_output_mode": structured_output_mode_name(request.structured_output_mode),
-        });
+        let request_payload_json = request_payload_json(request);
 
         match &self.response {
             FixtureResponse::Success(output_json) => LlmCallEnvelope::Success(LlmSuccessEnvelope {
@@ -124,6 +116,47 @@ impl LlmClient for FixtureLlmClient {
             }),
         }
     }
+}
+
+pub(crate) fn request_payload_json(request: &LlmRequest) -> Value {
+    let mut payload = serde_json::Map::from_iter([
+        (
+            "provider".to_string(),
+            Value::String(request.provider.clone()),
+        ),
+        ("model".to_string(), Value::String(request.model.clone())),
+        (
+            "system_prompt".to_string(),
+            Value::String(request.system_prompt.clone()),
+        ),
+        (
+            "developer_instructions".to_string(),
+            Value::Array(
+                request
+                    .developer_instructions
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect(),
+            ),
+        ),
+        ("input_json".to_string(), request.input_json.clone()),
+        ("max_tokens".to_string(), Value::from(request.max_tokens)),
+        (
+            "timeout_secs".to_string(),
+            Value::from(request.timeout_secs),
+        ),
+        (
+            "structured_output_mode".to_string(),
+            Value::String(structured_output_mode_name(request.structured_output_mode).to_string()),
+        ),
+    ]);
+
+    if let Some(output_json_schema) = &request.output_json_schema {
+        payload.insert("output_json_schema".to_string(), output_json_schema.clone());
+    }
+
+    Value::Object(payload)
 }
 
 pub(crate) fn structured_output_mode_name(mode: StructuredOutputMode) -> &'static str {

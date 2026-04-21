@@ -1,52 +1,25 @@
 use chrono::{TimeZone, Utc};
 use pa_core::Timeframe;
 use pa_orchestrator::{
-    AnalysisBarState, AnalysisSnapshot, AnalysisStepSpec, AnalysisTask, AnalysisTaskStatus,
-    Executor, FixtureLlmClient, InMemoryOrchestrationRepository, ModelExecutionProfile,
-    OrchestrationRepository, PromptResultSemantics, PromptTemplateSpec, StepExecutionBinding,
-    StepRegistry, run_single_task,
+    AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, Executor,
+    FixtureLlmClient, InMemoryOrchestrationRepository, OrchestrationRepository, PromptRegistry,
+    PromptResultSemantics, PromptSpec, RetryPolicyClass, run_single_task,
 };
 use uuid::Uuid;
 
-fn make_registry(output_json_schema: serde_json::Value) -> StepRegistry {
-    StepRegistry::default()
-        .with_step(AnalysisStepSpec {
-            step_key: "shared_bar_analysis".to_string(),
-            step_version: "v1".to_string(),
-            task_type: "shared_bar_analysis".to_string(),
-            input_schema_version: "v1".to_string(),
-            output_schema_version: "v1".to_string(),
-            output_json_schema,
-            result_semantics: PromptResultSemantics::SharedAsset,
-            bar_state_support: vec![AnalysisBarState::Closed],
-            dependency_policy: "market_runtime_only".to_string(),
-        })
-        .unwrap()
-        .with_prompt_template(PromptTemplateSpec {
-            step_key: "shared_bar_analysis".to_string(),
-            step_version: "v1".to_string(),
-            system_prompt: "Return JSON only".to_string(),
-            developer_instructions: vec![],
-        })
-        .unwrap()
-        .with_execution_profile(ModelExecutionProfile {
-            profile_key: "analysis_fixture_profile".to_string(),
-            provider: "fixture".to_string(),
-            model: "fixture-json".to_string(),
-            max_tokens: 4096,
-            timeout_secs: 60,
-            max_retries: 1,
-            retry_initial_backoff_ms: 200,
-            supports_json_schema: true,
-            supports_reasoning: false,
-        })
-        .unwrap()
-        .with_binding(StepExecutionBinding {
-            step_key: "shared_bar_analysis".to_string(),
-            step_version: "v1".to_string(),
-            execution_profile: "analysis_fixture_profile".to_string(),
-        })
-        .unwrap()
+fn make_spec(output_json_schema: serde_json::Value) -> PromptSpec {
+    PromptSpec {
+        prompt_key: "shared_bar_analysis".to_string(),
+        prompt_version: "v1".to_string(),
+        task_type: "shared_bar_analysis".to_string(),
+        system_prompt: "Return JSON only".to_string(),
+        input_schema_version: "v1".to_string(),
+        output_schema_version: "v1".to_string(),
+        output_json_schema,
+        retry_policy_class: RetryPolicyClass::LlmStructuredOutput,
+        result_semantics: PromptResultSemantics::SharedAsset,
+        bar_state_support: vec![AnalysisBarState::Closed],
+    }
 }
 
 fn make_task_and_snapshot(max_attempts: u32) -> (AnalysisTask, AnalysisSnapshot) {
@@ -127,14 +100,16 @@ async fn worker_success_path_persists_result_and_completes_task() {
         "bullish_case": {"entry": "breakout"},
         "bearish_case": {"entry": "pullback"}
     });
-    let registry = make_registry(serde_json::json!({
-        "type": "object",
-        "required": ["bullish_case", "bearish_case"],
-        "properties": {
-            "bullish_case": { "type": "object" },
-            "bearish_case": { "type": "object" }
-        }
-    }));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(output.clone()));
 
     let consumed = run_single_task(&repository, &executor).await.unwrap();
@@ -160,7 +135,9 @@ async fn worker_retryable_failure_returns_task_to_retry_waiting() {
         .await
         .unwrap();
 
-    let registry = make_registry(serde_json::json!({"type": "object"}));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_provider_error("provider request timed out"),
@@ -188,7 +165,9 @@ async fn worker_can_reclaim_retry_waiting_tasks() {
         .await
         .unwrap();
 
-    let registry = make_registry(serde_json::json!({"type": "object"}));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_provider_error("provider request timed out"),
@@ -215,7 +194,9 @@ async fn worker_retry_exhaustion_moves_task_to_dead_letter() {
         .await
         .unwrap();
 
-    let registry = make_registry(serde_json::json!({"type": "object"}));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_provider_error("provider request timed out"),
@@ -246,14 +227,16 @@ async fn worker_non_retryable_validation_failure_marks_terminal_failed() {
         .await
         .unwrap();
 
-    let registry = make_registry(serde_json::json!({
-        "type": "object",
-        "required": ["bullish_case", "bearish_case"],
-        "properties": {
-            "bullish_case": { "type": "object" },
-            "bearish_case": { "type": "object" }
-        }
-    }));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_json(serde_json::json!({"bullish_case": {}})),
@@ -283,7 +266,9 @@ async fn worker_releases_claim_when_snapshot_load_fails() {
         .unwrap();
     repository.remove_snapshot(snapshot_id);
 
-    let registry = make_registry(serde_json::json!({"type": "object"}));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
 
     let err = run_single_task(&repository, &executor).await.unwrap_err();
@@ -309,14 +294,16 @@ async fn worker_outcome_persist_failure_does_not_leave_partial_side_effects() {
         "bullish_case": {"entry": "breakout"},
         "bearish_case": {"entry": "pullback"}
     });
-    let registry = make_registry(serde_json::json!({
-        "type": "object",
-        "required": ["bullish_case", "bearish_case"],
-        "properties": {
-            "bullish_case": { "type": "object" },
-            "bearish_case": { "type": "object" }
-        }
-    }));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(output));
 
     let err = run_single_task(&repository, &executor).await.unwrap_err();
