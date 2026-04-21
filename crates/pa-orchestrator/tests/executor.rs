@@ -70,14 +70,21 @@ async fn executor_fails_when_output_does_not_match_schema() {
                     "input_json": {"foo": "bar"}
                 })
             );
-            assert_eq!(attempt.raw_response_json, serde_json::json!({"bullish_case": {}}));
-            assert_eq!(attempt.parsed_output_json, serde_json::json!({"bullish_case": {}}));
+            assert_eq!(
+                attempt.raw_response_json,
+                Some(serde_json::json!({"bullish_case": {}}))
+            );
+            assert_eq!(
+                attempt.parsed_output_json,
+                Some(serde_json::json!({"bullish_case": {}}))
+            );
             assert!(
                 attempt
                     .schema_validation_error
                     .as_deref()
                     .is_some_and(|message| message.contains("bearish_case"))
             );
+            assert_eq!(attempt.outbound_error_message, None);
         }
         other => panic!("expected schema validation failure, got: {other:?}"),
     }
@@ -117,11 +124,61 @@ async fn executor_returns_valid_structured_output() {
                     "input_json": {"foo": "bar"}
                 })
             );
-            assert_eq!(attempt.raw_response_json, expected);
-            assert_eq!(attempt.parsed_output_json, expected);
+            assert_eq!(attempt.raw_response_json, Some(expected.clone()));
+            assert_eq!(attempt.parsed_output_json, Some(expected));
             assert_eq!(attempt.schema_validation_error, None);
+            assert_eq!(attempt.outbound_error_message, None);
         }
         other => panic!("expected success output, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn executor_returns_outbound_failure_with_attempt_context() {
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object"
+        })))
+        .unwrap();
+    let executor = Executor::new(
+        registry,
+        FixtureLlmClient::with_provider_error("upstream timeout"),
+    );
+
+    let outcome = executor
+        .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
+        .await
+        .unwrap();
+
+    match outcome {
+        ExecutionOutcome::OutboundCallFailed { attempt, error } => {
+            assert_eq!(attempt.llm_provider, "fixture");
+            assert_eq!(attempt.model, "fixture-json");
+            assert_eq!(
+                attempt.request_payload_json,
+                serde_json::json!({
+                    "system_prompt": "Return JSON only",
+                    "input_json": {"foo": "bar"}
+                })
+            );
+            assert_eq!(attempt.raw_response_json, None);
+            assert_eq!(attempt.parsed_output_json, None);
+            assert_eq!(attempt.schema_validation_error, None);
+            assert!(
+                attempt
+                    .outbound_error_message
+                    .as_deref()
+                    .is_some_and(|message| message.contains("provider error"))
+            );
+
+            match error {
+                AppError::Provider { message, .. } => {
+                    assert!(message.contains("upstream timeout"));
+                }
+                other => panic!("expected provider error, got: {other}"),
+            }
+        }
+        other => panic!("expected outbound failure output, got: {other:?}"),
     }
 }
 

@@ -1,22 +1,27 @@
 use pa_core::AppError;
 use serde_json::Value;
 
-use crate::{LlmClient, PromptRegistry};
+use crate::{LlmCallEnvelope, LlmClient, LlmRequest, PromptRegistry};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ExecutionAttempt {
     pub llm_provider: String,
     pub model: String,
     pub request_payload_json: Value,
-    pub raw_response_json: Value,
-    pub parsed_output_json: Value,
+    pub raw_response_json: Option<Value>,
+    pub parsed_output_json: Option<Value>,
     pub schema_validation_error: Option<String>,
+    pub outbound_error_message: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum ExecutionOutcome {
     Success(ExecutionAttempt),
     SchemaValidationFailed(ExecutionAttempt),
+    OutboundCallFailed {
+        attempt: ExecutionAttempt,
+        error: AppError,
+    },
 }
 
 #[derive(Debug)]
@@ -50,34 +55,58 @@ where
                 source: None,
             })?;
 
-        let llm_response = self
-            .llm_client
-            .generate_json(&registered_spec.spec.system_prompt, input_json)
-            .await?;
-
-        let mut attempt = ExecutionAttempt {
-            llm_provider: llm_response.llm_provider,
-            model: llm_response.model,
-            request_payload_json: serde_json::json!({
-                "system_prompt": &registered_spec.spec.system_prompt,
-                "input_json": input_json,
-            }),
-            raw_response_json: llm_response.raw_response_json,
-            parsed_output_json: llm_response.parsed_output_json,
-            schema_validation_error: None,
+        let llm_request = LlmRequest {
+            system_prompt: registered_spec.spec.system_prompt.clone(),
+            input_json: input_json.clone(),
         };
 
-        let first_schema_error = registered_spec
-            .output_validator
-            .iter_errors(&attempt.parsed_output_json)
-            .next()
-            .map(|error| error.to_string());
+        let llm_outcome = self.llm_client.generate_json(&llm_request).await;
 
-        if let Some(first) = first_schema_error {
-            attempt.schema_validation_error = Some(first);
-            return Ok(ExecutionOutcome::SchemaValidationFailed(attempt));
+        match llm_outcome {
+            LlmCallEnvelope::Failure(failed_call) => {
+                let attempt = ExecutionAttempt {
+                    llm_provider: failed_call.llm_provider,
+                    model: failed_call.model,
+                    request_payload_json: failed_call.request_payload_json,
+                    raw_response_json: failed_call.raw_response_json,
+                    parsed_output_json: None,
+                    schema_validation_error: None,
+                    outbound_error_message: Some(failed_call.error.to_string()),
+                };
+                Ok(ExecutionOutcome::OutboundCallFailed {
+                    attempt,
+                    error: failed_call.error,
+                })
+            }
+            LlmCallEnvelope::Success(successful_call) => {
+                let mut attempt = ExecutionAttempt {
+                    llm_provider: successful_call.llm_provider,
+                    model: successful_call.model,
+                    request_payload_json: successful_call.request_payload_json,
+                    raw_response_json: Some(successful_call.raw_response_json),
+                    parsed_output_json: Some(successful_call.parsed_output_json),
+                    schema_validation_error: None,
+                    outbound_error_message: None,
+                };
+
+                let parsed_output_json = attempt
+                    .parsed_output_json
+                    .as_ref()
+                    .expect("success payload should include parsed_output_json");
+
+                let first_schema_error = registered_spec
+                    .output_validator
+                    .iter_errors(parsed_output_json)
+                    .next()
+                    .map(|error| error.to_string());
+
+                if let Some(first) = first_schema_error {
+                    attempt.schema_validation_error = Some(first);
+                    return Ok(ExecutionOutcome::SchemaValidationFailed(attempt));
+                }
+
+                Ok(ExecutionOutcome::Success(attempt))
+            }
         }
-
-        Ok(ExecutionOutcome::Success(attempt))
     }
 }
