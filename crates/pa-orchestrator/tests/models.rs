@@ -127,4 +127,5 @@ fn step_registry_resolves_step_template_profile_and_binding() {
     assert_eq!(resolved.step.task_type, "shared_pa_state_bar");
     assert_eq!(resolved.profile.model, "qwen-plus");
     assert_eq!(resolved.prompt.developer_instructions.len(), 1);
+    assert_eq!(resolved.binding.execution_profile, "pa_state_extract_fast");
 }

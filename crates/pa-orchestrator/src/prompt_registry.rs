@@ -23,6 +23,7 @@ pub struct ResolvedStep<'a> {
     pub step: &'a AnalysisStepSpec,
     pub prompt: &'a PromptTemplateSpec,
     pub profile: &'a ModelExecutionProfile,
+    pub binding: &'a StepExecutionBinding,
 }
 
 #[derive(Debug, Default)]
@@ -142,6 +143,7 @@ impl StepRegistry {
             step: &step.spec,
             prompt,
             profile,
+            binding,
         })
     }
 

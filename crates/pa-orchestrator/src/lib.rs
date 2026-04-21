@@ -19,8 +19,8 @@ pub use models::{
     PromptResultSemantics, PromptSpec, PromptTemplateSpec, RetryPolicyClass, StepExecutionBinding,
     TaskEnvelope,
 };
-pub use prompt_registry::StepRegistry;
 pub use prompt_registry::StepRegistry as PromptRegistry;
+pub use prompt_registry::{ResolvedStep, StepRegistry};
 pub use repository::{InMemoryOrchestrationRepository, InsertTaskResult, OrchestrationRepository};
 pub use retry::{RetryDecision, classify_retry};
 pub use worker::{run_single_task, run_single_task_with_worker_id};
