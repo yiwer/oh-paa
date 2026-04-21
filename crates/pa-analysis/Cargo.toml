@@ -7,6 +7,7 @@ edition.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 pa-core = { path = "../pa-core" }
+pa-orchestrator = { path = "../pa-orchestrator" }
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
