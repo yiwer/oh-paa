@@ -1,0 +1,16 @@
+[package]
+name = "pa-market"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+pa-core = { path = "../pa-core" }
+rust_decimal.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+chrono.workspace = true
+rust_decimal.workspace = true
+uuid.workspace = true
