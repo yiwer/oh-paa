@@ -1,7 +1,9 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 use pa_analysis::{
-    SharedBarAnalysisInput, SharedDailyContextInput, build_shared_bar_analysis_task,
-    build_shared_daily_context_task, shared_bar_analysis_v1, shared_daily_context_v1,
+    SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput,
+    build_shared_bar_analysis_task, build_shared_daily_context_task,
+    build_shared_pa_state_bar_task, shared_bar_analysis_v1, shared_daily_context_v1,
+    shared_pa_state_bar_v1,
 };
 use pa_core::Timeframe;
 use pa_orchestrator::{AnalysisBarState, build_shared_bar_dedupe_key, sha256_json};
@@ -55,6 +57,48 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
 }
 
 #[test]
+fn closed_pa_state_task_has_dedupe_key_and_open_task_does_not() {
+    let bar_open_time = chrono::DateTime::parse_from_rfc3339("2026-04-21T01:45:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let bar_close_time = chrono::DateTime::parse_from_rfc3339("2026-04-21T02:00:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    let closed = build_shared_pa_state_bar_task(SharedPaStateBarInput {
+        instrument_id: Uuid::nil(),
+        timeframe: Timeframe::M15,
+        bar_state: AnalysisBarState::Closed,
+        bar_open_time,
+        bar_close_time,
+        bar_json: serde_json::json!({"kind":"canonical_closed_bar"}),
+        market_context_json: serde_json::json!({"market":{"market_code":"crypto"}}),
+    })
+    .unwrap();
+
+    let open = build_shared_pa_state_bar_task(SharedPaStateBarInput {
+        instrument_id: Uuid::nil(),
+        timeframe: Timeframe::M15,
+        bar_state: AnalysisBarState::Open,
+        bar_open_time,
+        bar_close_time,
+        bar_json: serde_json::json!({"kind":"derived_open_bar"}),
+        market_context_json: serde_json::json!({"market":{"market_code":"crypto"}}),
+    })
+    .unwrap();
+
+    assert!(closed.task.dedupe_key.is_some());
+    assert!(open.task.dedupe_key.is_none());
+    assert_eq!(closed.task.task_type, "shared_pa_state_bar");
+    assert_eq!(closed.task.prompt_key, "shared_pa_state_bar");
+    assert_eq!(closed.task.prompt_version, "v1");
+    assert_eq!(
+        closed.snapshot.schema_version,
+        shared_pa_state_bar_v1().input_schema_version
+    );
+}
+
+#[test]
 fn shared_daily_context_task_snapshot_captures_required_pa_inputs() {
     let input = SharedDailyContextInput {
         instrument_id: Uuid::new_v4(),
@@ -102,6 +146,37 @@ fn shared_daily_context_task_snapshot_captures_required_pa_inputs() {
 
 #[test]
 fn shared_prompt_specs_include_required_pa_contract_fields() {
+    let pa_state_spec = shared_pa_state_bar_v1();
+    let pa_state_required = required_fields(&pa_state_spec.output_json_schema);
+
+    for field in [
+        "bar_identity",
+        "market_session_context",
+        "bar_observation",
+        "bar_shape",
+        "location_context",
+        "multi_timeframe_alignment",
+        "support_resistance_map",
+        "signal_assessment",
+        "decision_tree_state",
+        "evidence_log",
+    ] {
+        assert!(pa_state_required.contains(&field.to_string()));
+    }
+
+    let pa_state_decision_required =
+        required_fields(&pa_state_spec.output_json_schema["properties"]["decision_tree_state"]);
+    for field in [
+        "trend_context",
+        "location_context",
+        "signal_quality",
+        "confirmation_state",
+        "invalidation_conditions",
+        "bias_balance",
+    ] {
+        assert!(pa_state_decision_required.contains(&field.to_string()));
+    }
+
     let bar_spec = shared_bar_analysis_v1();
     let bar_required = required_fields(&bar_spec.output_json_schema);
 

@@ -22,6 +22,17 @@ pub struct DailyMarketContext {
     pub context_json: Value,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PaStateBar {
+    pub instrument_id: Uuid,
+    pub timeframe: Timeframe,
+    pub bar_state: AnalysisBarState,
+    pub bar_open_time: DateTime<Utc>,
+    pub bar_close_time: DateTime<Utc>,
+    pub analysis_version: String,
+    pub state_json: Value,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SharedBarAnalysisInput {
     pub instrument_id: Uuid,
@@ -48,6 +59,33 @@ pub struct SharedBarAnalysisOutput {
     pub reversal_scenarios: Value,
     pub invalidation_levels: Value,
     pub execution_bias_notes: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SharedPaStateBarInput {
+    pub instrument_id: Uuid,
+    #[serde(with = "timeframe_serde")]
+    pub timeframe: Timeframe,
+    #[serde(with = "bar_state_serde")]
+    pub bar_state: AnalysisBarState,
+    pub bar_open_time: DateTime<Utc>,
+    pub bar_close_time: DateTime<Utc>,
+    pub bar_json: Value,
+    pub market_context_json: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SharedPaStateBarOutput {
+    pub bar_identity: Value,
+    pub market_session_context: Value,
+    pub bar_observation: Value,
+    pub bar_shape: Value,
+    pub location_context: Value,
+    pub multi_timeframe_alignment: Value,
+    pub support_resistance_map: Value,
+    pub signal_assessment: Value,
+    pub decision_tree_state: Value,
+    pub evidence_log: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

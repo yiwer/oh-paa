@@ -1,4 +1,7 @@
-use pa_orchestrator::{AnalysisBarState, PromptResultSemantics, PromptSpec, RetryPolicyClass};
+use pa_orchestrator::{
+    AnalysisBarState, AnalysisStepSpec, PromptResultSemantics, PromptSpec, PromptTemplateSpec,
+    RetryPolicyClass,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct PromptMetadata {
@@ -24,6 +27,88 @@ pub(crate) const SHARED_DAILY_CONTEXT_PROMPT_METADATA: PromptMetadata = PromptMe
     input_schema_version: "v1",
     output_schema_version: "v1",
 };
+
+pub(crate) const SHARED_PA_STATE_BAR_PROMPT_METADATA: PromptMetadata = PromptMetadata {
+    prompt_key: "shared_pa_state_bar",
+    prompt_version: "v1",
+    task_type: "shared_pa_state_bar",
+    input_schema_version: "v1",
+    output_schema_version: "v1",
+};
+
+pub fn shared_pa_state_bar_v1() -> AnalysisStepSpec {
+    AnalysisStepSpec {
+        step_key: SHARED_PA_STATE_BAR_PROMPT_METADATA.prompt_key.to_string(),
+        step_version: SHARED_PA_STATE_BAR_PROMPT_METADATA
+            .prompt_version
+            .to_string(),
+        task_type: SHARED_PA_STATE_BAR_PROMPT_METADATA.task_type.to_string(),
+        input_schema_version: SHARED_PA_STATE_BAR_PROMPT_METADATA
+            .input_schema_version
+            .to_string(),
+        output_schema_version: SHARED_PA_STATE_BAR_PROMPT_METADATA
+            .output_schema_version
+            .to_string(),
+        output_json_schema: serde_json::json!({
+            "type":"object",
+            "required":[
+                "bar_identity",
+                "market_session_context",
+                "bar_observation",
+                "bar_shape",
+                "location_context",
+                "multi_timeframe_alignment",
+                "support_resistance_map",
+                "signal_assessment",
+                "decision_tree_state",
+                "evidence_log"
+            ],
+            "properties": {
+                "bar_identity": { "type":"object" },
+                "market_session_context": { "type":"object" },
+                "bar_observation": { "type":"object" },
+                "bar_shape": { "type":"object" },
+                "location_context": { "type":"object" },
+                "multi_timeframe_alignment": { "type":"object" },
+                "support_resistance_map": { "type":"object" },
+                "signal_assessment": { "type":"object" },
+                "decision_tree_state": {
+                    "type":"object",
+                    "required":[
+                        "trend_context",
+                        "location_context",
+                        "signal_quality",
+                        "confirmation_state",
+                        "invalidation_conditions",
+                        "bias_balance"
+                    ]
+                },
+                "evidence_log": { "type":"object" }
+            }
+        }),
+        result_semantics: PromptResultSemantics::SharedAsset,
+        bar_state_support: vec![AnalysisBarState::Closed, AnalysisBarState::Open],
+        dependency_policy: "market_runtime_only".into(),
+    }
+}
+
+pub fn shared_pa_state_bar_prompt_v1() -> PromptTemplateSpec {
+    PromptTemplateSpec {
+        step_key: SHARED_PA_STATE_BAR_PROMPT_METADATA.prompt_key.to_string(),
+        step_version: SHARED_PA_STATE_BAR_PROMPT_METADATA
+            .prompt_version
+            .to_string(),
+        system_prompt: "You are a price-action analyst. Produce strict JSON that captures reusable PA state for the target bar without final trade commentary."
+            .to_string(),
+        developer_instructions: vec![
+            "Summarize reusable price-action state rather than directional advice.".to_string(),
+            "Ground every conclusion in evidence from the provided bar and market context."
+                .to_string(),
+            "Return JSON only and preserve the required decision_tree_state fields."
+                .to_string(),
+        ],
+    }
+}
 
 pub fn shared_bar_analysis_v1() -> PromptSpec {
     PromptSpec {
