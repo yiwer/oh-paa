@@ -8,6 +8,7 @@ async-trait.workspace = true
 chrono.workspace = true
 pa-analysis = { path = "../pa-analysis" }
 pa-core = { path = "../pa-core" }
+pa-orchestrator = { path = "../pa-orchestrator" }
 rust_decimal.workspace = true
 serde.workspace = true
 serde_json.workspace = true
