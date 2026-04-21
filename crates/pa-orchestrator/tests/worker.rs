@@ -151,6 +151,32 @@ async fn worker_retryable_failure_returns_task_to_retry_waiting() {
 }
 
 #[tokio::test]
+async fn worker_can_reclaim_retry_waiting_tasks() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let (task, snapshot) = make_task_and_snapshot(2);
+    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
+    let executor = Executor::new(
+        registry,
+        FixtureLlmClient::with_provider_error("provider request timed out"),
+    );
+
+    let first = run_single_task(&repository, &executor).await.unwrap();
+    let second = run_single_task(&repository, &executor).await.unwrap();
+    assert!(first);
+    assert!(second);
+
+    let task = repository.only_task();
+    assert_eq!(task.status, AnalysisTaskStatus::DeadLetter);
+    assert_eq!(task.attempt_count, 2);
+    assert_eq!(repository.attempts().len(), 2);
+    assert_eq!(repository.dead_letters().len(), 1);
+}
+
+#[tokio::test]
 async fn worker_retry_exhaustion_moves_task_to_dead_letter() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(1);
@@ -212,4 +238,26 @@ async fn worker_non_retryable_validation_failure_marks_terminal_failed() {
     assert_eq!(repository.attempts().len(), 1);
     assert_eq!(repository.attempts()[0].status, "schema_validation_failed");
     assert_eq!(repository.dead_letters().len(), 0);
+}
+
+#[tokio::test]
+async fn worker_releases_claim_when_snapshot_load_fails() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let (task, snapshot) = make_task_and_snapshot(3);
+    let snapshot_id = snapshot.id;
+    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository.remove_snapshot(snapshot_id);
+
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
+    let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
+
+    let err = run_single_task(&repository, &executor).await.unwrap_err();
+    assert!(err.to_string().contains("snapshot not found"));
+
+    let task = repository.only_task();
+    assert_eq!(task.status, AnalysisTaskStatus::Pending);
+    assert_eq!(task.attempt_count, 0);
+    assert_eq!(repository.attempts().len(), 0);
 }

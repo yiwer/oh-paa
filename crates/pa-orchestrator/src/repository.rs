@@ -31,6 +31,8 @@ pub trait OrchestrationRepository: Send + Sync {
 
     async fn claim_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError>;
 
+    async fn release_claimed_task(&self, task_id: Uuid, message: &str) -> Result<(), AppError>;
+
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError>;
 
     async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError>;
@@ -90,6 +92,10 @@ impl InMemoryOrchestrationRepository {
 
     pub fn dead_letters(&self) -> Vec<AnalysisDeadLetter> {
         self.lock_state().dead_letters.clone()
+    }
+
+    pub fn remove_snapshot(&self, snapshot_id: Uuid) {
+        self.lock_state().snapshots.remove(&snapshot_id);
     }
 }
 
@@ -153,7 +159,10 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
         let mut state = self.lock_state();
         for task_id in state.pending_order.clone() {
             if let Some(task) = state.tasks.get_mut(&task_id)
-                && matches!(task.status, AnalysisTaskStatus::Pending)
+                && matches!(
+                    task.status,
+                    AnalysisTaskStatus::Pending | AnalysisTaskStatus::RetryWaiting
+                )
             {
                 task.status = AnalysisTaskStatus::Running;
                 if task.started_at.is_none() {
@@ -164,6 +173,22 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
         }
 
         Ok(None)
+    }
+
+    async fn release_claimed_task(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if matches!(task.status, AnalysisTaskStatus::Running) {
+            task.status = AnalysisTaskStatus::Pending;
+        }
+        task.last_error_code = Some("claim_released".to_string());
+        task.last_error_message = Some(message.to_string());
+
+        Ok(())
     }
 
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError> {

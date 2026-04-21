@@ -30,7 +30,12 @@ where
     let Some(task) = repository.claim_next_pending_task().await? else {
         return Ok(false);
     };
-    let snapshot = repository.load_snapshot(task.snapshot_id).await?;
+    let snapshot = with_claim_recovery(
+        repository,
+        task.id,
+        repository.load_snapshot(task.snapshot_id),
+    )
+    .await?;
     let execution = executor
         .execute_json(&task.prompt_key, &task.prompt_version, &snapshot.input_json)
         .await;
@@ -44,17 +49,30 @@ where
                 task.max_attempts,
             ) {
                 RetryDecision::RetryNow => {
-                    repository
-                        .mark_task_retry_waiting(task.id, &error.to_string())
-                        .await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.mark_task_retry_waiting(task.id, &error.to_string()),
+                    )
+                    .await?;
                 }
                 RetryDecision::FailTerminal => {
-                    repository.mark_task_failed(task.id, &error.to_string()).await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.mark_task_failed(task.id, &error.to_string()),
+                    )
+                    .await?;
                 }
                 RetryDecision::MoveToDeadLetter => {
                     let dead_letter =
                         AnalysisDeadLetter::from_task_and_error(&task, &snapshot, &error, None);
-                    repository.insert_dead_letter(dead_letter).await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.insert_dead_letter(dead_letter),
+                    )
+                    .await?;
                 }
             }
 
@@ -69,9 +87,14 @@ where
                 .clone()
                 .unwrap_or(serde_json::Value::Null);
             let attempt_row = build_attempt_row(&task, attempt, worker_id, "succeeded");
-            repository.append_attempt(attempt_row).await?;
+            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
             let result = AnalysisResult::from_task(&task, output_json);
-            repository.insert_result_and_complete(result).await?;
+            with_claim_recovery(
+                repository,
+                task.id,
+                repository.insert_result_and_complete(result),
+            )
+            .await?;
         }
         ExecutionOutcome::SchemaValidationFailed(attempt) => {
             let attempt_row =
@@ -79,8 +102,13 @@ where
             let error_message = attempt_row.error_message.clone().unwrap_or_else(|| {
                 "schema validation failed without additional detail".to_string()
             });
-            repository.append_attempt(attempt_row).await?;
-            repository.mark_task_failed(task.id, &error_message).await?;
+            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
+            with_claim_recovery(
+                repository,
+                task.id,
+                repository.mark_task_failed(task.id, &error_message),
+            )
+            .await?;
         }
         ExecutionOutcome::OutboundCallFailed { attempt, error } => {
             let attempt_row = build_attempt_row(&task, attempt, worker_id, "outbound_failed");
@@ -89,7 +117,7 @@ where
                 .error_message
                 .clone()
                 .unwrap_or_else(|| error.to_string());
-            repository.append_attempt(attempt_row).await?;
+            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
 
             match classify_retry(
                 &error,
@@ -97,10 +125,20 @@ where
                 task.max_attempts,
             ) {
                 RetryDecision::RetryNow => {
-                    repository.mark_task_retry_waiting(task.id, &error_message).await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.mark_task_retry_waiting(task.id, &error_message),
+                    )
+                    .await?;
                 }
                 RetryDecision::FailTerminal => {
-                    repository.mark_task_failed(task.id, &error_message).await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.mark_task_failed(task.id, &error_message),
+                    )
+                    .await?;
                 }
                 RetryDecision::MoveToDeadLetter => {
                     let dead_letter = AnalysisDeadLetter::from_task_and_error(
@@ -109,7 +147,12 @@ where
                         &error,
                         Some(attempt_id),
                     );
-                    repository.insert_dead_letter(dead_letter).await?;
+                    with_claim_recovery(
+                        repository,
+                        task.id,
+                        repository.insert_dead_letter(dead_letter),
+                    )
+                    .await?;
                 }
             }
         }
@@ -150,5 +193,24 @@ fn attempt_error_type(status: &str) -> Option<&'static str> {
         "schema_validation_failed" => Some("validation"),
         "outbound_failed" => Some("provider"),
         _ => None,
+    }
+}
+
+async fn with_claim_recovery<R, T>(
+    repository: &R,
+    task_id: Uuid,
+    operation: impl std::future::Future<Output = Result<T, AppError>>,
+) -> Result<T, AppError>
+where
+    R: OrchestrationRepository + ?Sized,
+{
+    match operation.await {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            let _ = repository
+                .release_claimed_task(task_id, &err.to_string())
+                .await;
+            Err(err)
+        }
     }
 }
