@@ -56,30 +56,26 @@ where
                 source: None,
             })?;
 
-        let llm_request =
-            if let Some(resolved) = self.step_registry.resolve(prompt_key, prompt_version) {
-                LlmRequest {
-                    provider: resolved.profile.provider.clone(),
-                    model: resolved.profile.model.clone(),
-                    system_prompt: resolved.prompt.system_prompt.clone(),
-                    developer_instructions: resolved.prompt.developer_instructions.clone(),
-                    input_json: input_json.clone(),
-                    max_tokens: resolved.profile.max_tokens,
-                    timeout_secs: resolved.profile.timeout_secs,
-                    structured_output_mode: choose_structured_output_mode(resolved.profile),
-                }
-            } else {
-                LlmRequest {
-                    provider: "fixture".to_string(),
-                    model: "fixture-json".to_string(),
-                    system_prompt: registered_spec.spec.system_prompt.clone(),
-                    developer_instructions: registered_spec.spec.developer_instructions.clone(),
-                    input_json: input_json.clone(),
-                    max_tokens: 0,
-                    timeout_secs: 0,
-                    structured_output_mode: StructuredOutputMode::PromptEnforcedJson,
-                }
-            };
+        let resolved =
+            self.step_registry
+                .resolve(prompt_key, prompt_version)
+                .ok_or_else(|| AppError::Analysis {
+                    message: format!(
+                        "missing execution profile binding for step registration: {prompt_key}:{prompt_version}"
+                    ),
+                    source: None,
+                })?;
+
+        let llm_request = LlmRequest {
+            provider: resolved.profile.provider.clone(),
+            model: resolved.profile.model.clone(),
+            system_prompt: resolved.prompt.system_prompt.clone(),
+            developer_instructions: resolved.prompt.developer_instructions.clone(),
+            input_json: input_json.clone(),
+            max_tokens: resolved.profile.max_tokens,
+            timeout_secs: resolved.profile.timeout_secs,
+            structured_output_mode: choose_structured_output_mode(resolved.profile),
+        };
 
         let llm_outcome = self.llm_client.generate_json(&llm_request).await;
 

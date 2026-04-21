@@ -6,6 +6,8 @@ use async_trait::async_trait;
 use pa_core::AppError;
 use serde_json::Value;
 
+pub use openai_client::{OpenAiCompatibleClient, OpenAiProviderRuntime};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlmRequest {
     pub provider: String,

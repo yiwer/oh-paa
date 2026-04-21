@@ -1,8 +1,8 @@
 use pa_core::AppError;
 use pa_orchestrator::{
     AnalysisBarState, AnalysisStepSpec, ExecutionOutcome, Executor, FixtureLlmClient,
-    ModelExecutionProfile, PromptResultSemantics, PromptTemplateSpec, StepExecutionBinding,
-    StepRegistry,
+    ModelExecutionProfile, OpenAiCompatibleClient, OpenAiProviderRuntime, PromptResultSemantics,
+    PromptTemplateSpec, StepExecutionBinding, StepRegistry,
 };
 
 fn make_registry(output_json_schema: serde_json::Value) -> StepRegistry {
@@ -81,6 +81,19 @@ fn make_execution_profile(profile_key: &str) -> ModelExecutionProfile {
         supports_json_schema: true,
         supports_reasoning: false,
     }
+}
+
+#[test]
+fn openai_compatible_client_is_publicly_constructible() {
+    let providers = std::collections::BTreeMap::from([(
+        "dashscope".to_string(),
+        OpenAiProviderRuntime {
+            base_url: "https://example.test/v1".to_string(),
+            api_key: "secret".to_string(),
+        },
+    )]);
+
+    let _client = OpenAiCompatibleClient::new(providers);
 }
 
 #[tokio::test]
@@ -275,6 +288,47 @@ async fn executor_uses_bound_execution_profile_metadata() {
             assert_eq!(attempt.request_payload_json["max_tokens"], 12000);
         }
         other => panic!("expected success, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn executor_errors_when_execution_binding_is_missing() {
+    let registry = StepRegistry::default()
+        .with_step(AnalysisStepSpec {
+            step_key: "shared_pa_state_bar".into(),
+            step_version: "v1".into(),
+            task_type: "shared_pa_state_bar".into(),
+            input_schema_version: "v1".into(),
+            output_schema_version: "v1".into(),
+            output_json_schema: serde_json::json!({"type":"object"}),
+            result_semantics: PromptResultSemantics::SharedAsset,
+            bar_state_support: vec![AnalysisBarState::Closed],
+            dependency_policy: "market_runtime_only".into(),
+        })
+        .unwrap()
+        .with_prompt_template(PromptTemplateSpec {
+            step_key: "shared_pa_state_bar".into(),
+            step_version: "v1".into(),
+            system_prompt: "Return JSON".into(),
+            developer_instructions: vec![],
+        })
+        .unwrap();
+    let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
+
+    let err = executor
+        .execute_json(
+            "shared_pa_state_bar",
+            "v1",
+            &serde_json::json!({"bar_identity":{}}),
+        )
+        .await
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("missing execution profile binding"));
+        }
+        other => panic!("expected analysis error, got {other}"),
     }
 }
 
