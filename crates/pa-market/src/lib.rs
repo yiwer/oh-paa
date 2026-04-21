@@ -14,4 +14,4 @@ pub use provider::{MarketDataProvider, ProviderRouter};
 pub use repository::{
     CanonicalKlineRepository, CanonicalKlineRow, InMemoryCanonicalKlineRepository,
 };
-pub use service::backfill_canonical_klines;
+pub use service::{BackfillCanonicalKlinesRequest, backfill_canonical_klines};

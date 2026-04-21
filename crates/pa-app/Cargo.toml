@@ -1,0 +1,13 @@
+[package]
+name = "pa-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+pa-api = { path = "../pa-api" }
+pa-core = { path = "../pa-core" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

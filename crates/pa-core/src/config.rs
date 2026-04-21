@@ -39,3 +39,7 @@ impl AppConfig {
         })
     }
 }
+
+pub fn load() -> Result<AppConfig, AppError> {
+    AppConfig::load()
+}

@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "crates/pa-api",
     "crates/pa-analysis",
+    "crates/pa-app",
     "crates/pa-core",
     "crates/pa-instrument",
     "crates/pa-market",

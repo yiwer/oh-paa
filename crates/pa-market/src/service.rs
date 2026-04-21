@@ -8,23 +8,28 @@ use crate::{
     repository::{CanonicalKlineRepository, CanonicalKlineRow},
 };
 
+#[derive(Debug, Clone)]
+pub struct BackfillCanonicalKlinesRequest<'a> {
+    pub instrument_id: Uuid,
+    pub provider_symbol: &'a str,
+    pub timeframe: Timeframe,
+    pub limit: usize,
+    pub primary_provider: &'a str,
+    pub fallback_provider: &'a str,
+}
+
 pub async fn backfill_canonical_klines(
     router: &ProviderRouter,
     repository: &dyn CanonicalKlineRepository,
-    instrument_id: Uuid,
-    provider_symbol: &str,
-    timeframe: Timeframe,
-    limit: usize,
-    primary_provider: &str,
-    fallback_provider: &str,
+    request: BackfillCanonicalKlinesRequest<'_>,
 ) -> Result<(), AppError> {
     let routed = router
         .fetch_klines_with_fallback_source(
-            primary_provider,
-            fallback_provider,
-            provider_symbol,
-            timeframe,
-            limit,
+            request.primary_provider,
+            request.fallback_provider,
+            request.provider_symbol,
+            request.timeframe,
+            request.limit,
         )
         .await?;
 
@@ -36,8 +41,8 @@ pub async fn backfill_canonical_klines(
 
         repository
             .upsert_canonical_kline(CanonicalKlineRow {
-                instrument_id,
-                timeframe,
+                instrument_id: request.instrument_id,
+                timeframe: request.timeframe,
                 open_time: normalized.open_time,
                 close_time: normalized.close_time,
                 open: normalized.open,

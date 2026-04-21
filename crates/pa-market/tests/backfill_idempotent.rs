@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use pa_core::{AppError, Timeframe};
 use pa_market::{
-    InMemoryCanonicalKlineRepository, MarketDataProvider, ProviderKline, ProviderRouter,
-    ProviderTick, backfill_canonical_klines,
+    BackfillCanonicalKlinesRequest, InMemoryCanonicalKlineRepository, MarketDataProvider,
+    ProviderKline, ProviderRouter, ProviderTick, backfill_canonical_klines,
 };
 use uuid::Uuid;
 
@@ -60,30 +60,21 @@ async fn repeated_backfill_upserts_canonical_rows_by_instrument_timeframe_and_op
         klines: Ok(Vec::new()),
     }));
 
-    backfill_canonical_klines(
-        &router,
-        &repository,
+    let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        "000001.SZ",
-        Timeframe::M15,
-        100,
-        "primary",
-        "fallback",
-    )
-    .await
-    .expect("first backfill should succeed");
-    backfill_canonical_klines(
-        &router,
-        &repository,
-        instrument_id,
-        "000001.SZ",
-        Timeframe::M15,
-        100,
-        "primary",
-        "fallback",
-    )
-    .await
-    .expect("repeat backfill should still succeed");
+        provider_symbol: "000001.SZ",
+        timeframe: Timeframe::M15,
+        limit: 100,
+        primary_provider: "primary",
+        fallback_provider: "fallback",
+    };
+
+    backfill_canonical_klines(&router, &repository, request.clone())
+        .await
+        .expect("first backfill should succeed");
+    backfill_canonical_klines(&router, &repository, request)
+        .await
+        .expect("repeat backfill should still succeed");
 
     let rows = repository.rows();
 
@@ -110,18 +101,18 @@ async fn backfill_skips_bars_whose_close_time_is_still_in_the_future() {
         klines: Ok(Vec::new()),
     }));
 
-    backfill_canonical_klines(
-        &router,
-        &repository,
+    let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        "000001.SZ",
-        Timeframe::M15,
-        100,
-        "primary",
-        "fallback",
-    )
-    .await
-    .expect("future bars should be skipped without failing backfill");
+        provider_symbol: "000001.SZ",
+        timeframe: Timeframe::M15,
+        limit: 100,
+        primary_provider: "primary",
+        fallback_provider: "fallback",
+    };
+
+    backfill_canonical_klines(&router, &repository, request)
+        .await
+        .expect("future bars should be skipped without failing backfill");
 
     assert!(repository.rows().is_empty());
 }
@@ -141,18 +132,18 @@ async fn backfill_persists_fallback_provider_name_when_primary_returns_empty() {
         klines: Ok(vec![ProviderKline::fixture()]),
     }));
 
-    backfill_canonical_klines(
-        &router,
-        &repository,
+    let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        "000001.SZ",
-        Timeframe::M15,
-        100,
-        "primary",
-        "fallback",
-    )
-    .await
-    .expect("fallback backfill should succeed");
+        provider_symbol: "000001.SZ",
+        timeframe: Timeframe::M15,
+        limit: 100,
+        primary_provider: "primary",
+        fallback_provider: "fallback",
+    };
+
+    backfill_canonical_klines(&router, &repository, request)
+        .await
+        .expect("fallback backfill should succeed");
 
     let rows = repository.rows();
 

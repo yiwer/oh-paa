@@ -1,0 +1,13 @@
+[package]
+name = "pa-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+http-body-util = "0.1"
+tokio.workspace = true
+tower = "0.5"
