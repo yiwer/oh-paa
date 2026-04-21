@@ -922,6 +922,9 @@ dependencies = [
  "chrono",
  "pa-core",
  "rust_decimal",
+ "serde",
+ "serde_json",
+ "tokio",
  "uuid",
 ]
 
