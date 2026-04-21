@@ -27,11 +27,9 @@ where
     R: OrchestrationRepository + ?Sized,
     C: LlmClient,
 {
-    let Some(task) = repository.fetch_next_pending_task().await? else {
+    let Some(task) = repository.claim_next_pending_task().await? else {
         return Ok(false);
     };
-
-    repository.mark_task_running(task.id).await?;
     let snapshot = repository.load_snapshot(task.snapshot_id).await?;
     let execution = executor
         .execute_json(&task.prompt_key, &task.prompt_version, &snapshot.input_json)

@@ -29,6 +29,8 @@ pub trait OrchestrationRepository: Send + Sync {
 
     async fn fetch_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError>;
 
+    async fn claim_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError>;
+
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError>;
 
     async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError>;
@@ -140,6 +142,23 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
             if let Some(task) = state.tasks.get(task_id)
                 && matches!(task.status, AnalysisTaskStatus::Pending)
             {
+                return Ok(Some(task.clone()));
+            }
+        }
+
+        Ok(None)
+    }
+
+    async fn claim_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError> {
+        let mut state = self.lock_state();
+        for task_id in state.pending_order.clone() {
+            if let Some(task) = state.tasks.get_mut(&task_id)
+                && matches!(task.status, AnalysisTaskStatus::Pending)
+            {
+                task.status = AnalysisTaskStatus::Running;
+                if task.started_at.is_none() {
+                    task.started_at = Some(Utc::now());
+                }
                 return Ok(Some(task.clone()));
             }
         }

@@ -68,6 +68,23 @@ fn make_task_and_snapshot(max_attempts: u32) -> (AnalysisTask, AnalysisSnapshot)
 }
 
 #[tokio::test]
+async fn claim_next_pending_task_transitions_to_running_atomically() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let (task, snapshot) = make_task_and_snapshot(3);
+    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+
+    let first_claim = repository.claim_next_pending_task().await.unwrap();
+    let second_claim = repository.claim_next_pending_task().await.unwrap();
+
+    assert!(first_claim.is_some());
+    assert!(second_claim.is_none());
+
+    let persisted = repository.only_task();
+    assert_eq!(persisted.status, AnalysisTaskStatus::Running);
+    assert!(persisted.started_at.is_some());
+}
+
+#[tokio::test]
 async fn worker_success_path_persists_result_and_completes_task() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
