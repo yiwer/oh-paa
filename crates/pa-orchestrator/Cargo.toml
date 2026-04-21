@@ -1,0 +1,10 @@
+[package]
+name = "pa-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+pa-core = { path = "../pa-core" }

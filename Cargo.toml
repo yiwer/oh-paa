@@ -6,6 +6,7 @@ members = [
     "crates/pa-core",
     "crates/pa-instrument",
     "crates/pa-market",
+    "crates/pa-orchestrator",
     "crates/pa-user",
 ]
 resolver = "2"
@@ -19,6 +20,7 @@ anyhow = "1"
 async-trait = "0.1"
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
+jsonschema = "0.28"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rust_decimal = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
