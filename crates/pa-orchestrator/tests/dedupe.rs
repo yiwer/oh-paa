@@ -38,8 +38,8 @@ fn closed_bar_dedupe_key_exists_and_open_bar_dedupe_key_does_not() {
 async fn closed_bar_duplicate_task_is_suppressed_in_memory() {
     let repository = InMemoryOrchestrationRepository::default();
     let dedupe_key = Some("closed:shared:m15".to_string());
-    let first = make_task_and_snapshot(dedupe_key.clone());
-    let second = make_task_and_snapshot(dedupe_key);
+    let first = make_task_and_snapshot(dedupe_key.clone(), AnalysisBarState::Closed);
+    let second = make_task_and_snapshot(dedupe_key, AnalysisBarState::Closed);
 
     let first_insert = repository
         .insert_task_with_snapshot(first.0.clone(), first.1.clone())
@@ -64,8 +64,10 @@ async fn closed_bar_duplicate_task_is_suppressed_in_memory() {
 #[tokio::test]
 async fn open_bar_task_allows_repeated_insertions_in_memory() {
     let repository = InMemoryOrchestrationRepository::default();
-    let first = make_task_and_snapshot(None);
-    let second = make_task_and_snapshot(None);
+    let first = make_task_and_snapshot(None, AnalysisBarState::Open);
+    let second = make_task_and_snapshot(None, AnalysisBarState::Open);
+    assert_eq!(first.0.bar_state, AnalysisBarState::Open);
+    assert_eq!(second.0.bar_state, AnalysisBarState::Open);
 
     let first_insert = repository
         .insert_task_with_snapshot(first.0.clone(), first.1)
@@ -90,7 +92,10 @@ async fn open_bar_task_allows_repeated_insertions_in_memory() {
     assert_eq!(repository.fetch_next_pending_task().await.unwrap(), None);
 }
 
-fn make_task_and_snapshot(dedupe_key: Option<String>) -> (AnalysisTask, AnalysisSnapshot) {
+fn make_task_and_snapshot(
+    dedupe_key: Option<String>,
+    bar_state: AnalysisBarState,
+) -> (AnalysisTask, AnalysisSnapshot) {
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
     let scheduled_at = Utc.with_ymd_and_hms(2026, 4, 21, 10, 0, 0).unwrap();
@@ -103,7 +108,7 @@ fn make_task_and_snapshot(dedupe_key: Option<String>) -> (AnalysisTask, Analysis
             instrument_id: Uuid::new_v4(),
             user_id: None,
             timeframe: Some(Timeframe::M15),
-            bar_state: AnalysisBarState::Closed,
+            bar_state,
             bar_open_time: None,
             bar_close_time: Some(Utc.with_ymd_and_hms(2026, 4, 21, 2, 0, 0).unwrap()),
             trading_date: None,
