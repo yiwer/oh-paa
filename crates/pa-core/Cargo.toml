@@ -1,0 +1,11 @@
+[package]
+name = "pa-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
