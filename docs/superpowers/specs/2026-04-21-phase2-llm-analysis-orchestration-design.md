@@ -209,6 +209,7 @@ Rules:
 - the full input JSON is persisted at task-creation time
 - workers execute from this snapshot only
 - later data changes do not alter historical execution inputs
+- task-to-snapshot ownership must be enforced as a real 1:1 database relationship rather than a loose UUID convention
 
 ### 6.3 `analysis_attempts`
 
@@ -231,7 +232,12 @@ Required fields:
 - `error_type` nullable
 - `error_message` nullable
 - `started_at`
-- `finished_at`
+- `finished_at` nullable
+
+Rules:
+
+- `task_id + attempt_no` must be unique
+- an in-flight attempt may exist before `finished_at` is known
 
 ### 6.4 `analysis_results`
 
@@ -386,6 +392,7 @@ Rules:
 - retryable failures return the task to retry flow until `max_attempts` is reached
 - non-retryable failures terminate immediately
 - tasks exceeding retry budget are moved to `dead_letter`
+- retry classification must be conservative; broad provider/storage buckets are not sufficient when they already contain deterministic parse or config failures
 
 ## 10. Execution Rules
 
