@@ -26,6 +26,12 @@ pub trait MarketDataProvider: Send + Sync {
 
 pub type ProviderMap = HashMap<&'static str, Arc<dyn MarketDataProvider>>;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RoutedKlines {
+    pub provider_name: String,
+    pub klines: Vec<ProviderKline>,
+}
+
 #[derive(Default)]
 pub struct ProviderRouter {
     providers: ProviderMap,
@@ -55,23 +61,47 @@ impl ProviderRouter {
         timeframe: Timeframe,
         limit: usize,
     ) -> Result<Vec<ProviderKline>, AppError> {
+        let routed = self
+            .fetch_klines_with_fallback_source(primary, fallback, provider_symbol, timeframe, limit)
+            .await?;
+
+        Ok(routed.klines)
+    }
+
+    pub async fn fetch_klines_with_fallback_source(
+        &self,
+        primary: &str,
+        fallback: &str,
+        provider_symbol: &str,
+        timeframe: Timeframe,
+        limit: usize,
+    ) -> Result<RoutedKlines, AppError> {
         let primary_result = self
             .fetch_klines_from(primary, provider_symbol, timeframe, limit)
             .await;
 
         match primary_result {
-            Ok(klines) if !klines.is_empty() => Ok(klines),
-            Ok(_) => {
-                self.fetch_klines_from(fallback, provider_symbol, timeframe, limit)
-                    .await
-            }
+            Ok(klines) if !klines.is_empty() => Ok(RoutedKlines {
+                provider_name: primary.to_string(),
+                klines,
+            }),
+            Ok(_) => self
+                .fetch_klines_from(fallback, provider_symbol, timeframe, limit)
+                .await
+                .map(|klines| RoutedKlines {
+                    provider_name: fallback.to_string(),
+                    klines,
+                }),
             Err(AppError::Validation { .. }) => {
                 Err(primary_result.expect_err("primary result is validation error"))
             }
-            Err(_) => {
-                self.fetch_klines_from(fallback, provider_symbol, timeframe, limit)
-                    .await
-            }
+            Err(_) => self
+                .fetch_klines_from(fallback, provider_symbol, timeframe, limit)
+                .await
+                .map(|klines| RoutedKlines {
+                    provider_name: fallback.to_string(),
+                    klines,
+                }),
         }
     }
 
