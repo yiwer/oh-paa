@@ -2,6 +2,7 @@ use pa_core::AppError;
 use serde_json::Value;
 
 use crate::llm::StructuredOutputMode;
+use crate::prompt_registry::{RegisteredPromptSpec, RegistrationProvenance};
 use crate::{LlmCallEnvelope, LlmClient, LlmRequest, ModelExecutionProfile, StepRegistry};
 
 #[derive(Debug, Clone)]
@@ -137,7 +138,7 @@ where
 
     async fn execute_legacy_prompt_spec(
         &self,
-        registered_spec: crate::prompt_registry::RegisteredPromptSpec<'_>,
+        registered_spec: RegisteredPromptSpec<'_>,
         input_json: &Value,
     ) -> Result<ExecutionOutcome, AppError> {
         let llm_request = LlmRequest {
@@ -211,10 +212,9 @@ fn choose_structured_output_mode(profile: &ModelExecutionProfile) -> StructuredO
     }
 }
 
-fn is_legacy_prompt_spec_registration(
-    registered_spec: &crate::prompt_registry::RegisteredPromptSpec<'_>,
-) -> bool {
-    // Legacy `with_spec()` registrations currently normalize to prompt-only entries with no
-    // developer instructions or bound execution profile metadata.
-    registered_spec.spec.developer_instructions.is_empty()
+fn is_legacy_prompt_spec_registration(registered_spec: &RegisteredPromptSpec<'_>) -> bool {
+    matches!(
+        registered_spec.provenance,
+        RegistrationProvenance::LegacyPromptSpec
+    )
 }

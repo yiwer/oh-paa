@@ -392,7 +392,7 @@ async fn executor_errors_when_execution_binding_is_missing() {
             step_key: "shared_pa_state_bar".into(),
             step_version: "v1".into(),
             system_prompt: "Return JSON".into(),
-            developer_instructions: vec!["must use binding".into()],
+            developer_instructions: vec![],
         })
         .unwrap();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));

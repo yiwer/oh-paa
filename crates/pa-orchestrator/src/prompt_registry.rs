@@ -10,12 +10,20 @@ use crate::{
 struct RegisteredStepSpec {
     spec: AnalysisStepSpec,
     output_validator: jsonschema::Validator,
+    provenance: RegistrationProvenance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RegistrationProvenance {
+    LegacyPromptSpec,
+    StepRegistration,
 }
 
 #[derive(Debug)]
 pub(crate) struct RegisteredPromptSpec<'a> {
     pub(crate) spec: &'a PromptTemplateSpec,
     pub(crate) output_validator: &'a jsonschema::Validator,
+    pub(crate) provenance: RegistrationProvenance,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,10 +62,19 @@ impl StepRegistry {
             developer_instructions: Vec::new(),
         };
 
-        self.with_step(step)?.with_prompt_template(prompt)
+        self.with_step_internal(step, RegistrationProvenance::LegacyPromptSpec)?
+            .with_prompt_template(prompt)
     }
 
-    pub fn with_step(mut self, spec: AnalysisStepSpec) -> Result<Self, AppError> {
+    pub fn with_step(self, spec: AnalysisStepSpec) -> Result<Self, AppError> {
+        self.with_step_internal(spec, RegistrationProvenance::StepRegistration)
+    }
+
+    fn with_step_internal(
+        mut self,
+        spec: AnalysisStepSpec,
+        provenance: RegistrationProvenance,
+    ) -> Result<Self, AppError> {
         let key = (spec.step_key.clone(), spec.step_version.clone());
         if self.steps.contains_key(&key) {
             return Err(AppError::Analysis {
@@ -82,6 +99,7 @@ impl StepRegistry {
             RegisteredStepSpec {
                 spec,
                 output_validator,
+                provenance,
             },
         );
 
@@ -185,6 +203,7 @@ impl StepRegistry {
         Some(RegisteredPromptSpec {
             spec: prompt,
             output_validator: &step.output_validator,
+            provenance: step.provenance,
         })
     }
 }
