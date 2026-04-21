@@ -4,7 +4,15 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+pa-core = { path = "../pa-core" }
 serde_json.workspace = true
+sha2 = "0.10"
+uuid.workspace = true
 
 [dev-dependencies]
 pa-core = { path = "../pa-core" }
+chrono.workspace = true
+tokio.workspace = true
+uuid.workspace = true

@@ -1,4 +1,7 @@
+use chrono::{DateTime, NaiveDate, Utc};
+use pa_core::Timeframe;
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalysisTaskStatus {
@@ -110,4 +113,81 @@ pub struct PromptSpec {
     pub retry_policy_class: RetryPolicyClass,
     pub result_semantics: PromptResultSemantics,
     pub bar_state_support: Vec<AnalysisBarState>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisTask {
+    pub id: Uuid,
+    pub task_type: String,
+    pub status: AnalysisTaskStatus,
+    pub instrument_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub timeframe: Option<Timeframe>,
+    pub bar_state: AnalysisBarState,
+    pub bar_open_time: Option<DateTime<Utc>>,
+    pub bar_close_time: Option<DateTime<Utc>>,
+    pub trading_date: Option<NaiveDate>,
+    pub trigger_type: String,
+    pub prompt_key: String,
+    pub prompt_version: String,
+    pub snapshot_id: Uuid,
+    pub dedupe_key: Option<String>,
+    pub attempt_count: u32,
+    pub max_attempts: u32,
+    pub scheduled_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisSnapshot {
+    pub id: Uuid,
+    pub task_id: Uuid,
+    pub input_json: Value,
+    pub input_hash: String,
+    pub schema_version: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisAttempt {
+    pub id: Uuid,
+    pub task_id: Uuid,
+    pub attempt_no: u32,
+    pub worker_id: String,
+    pub llm_provider: String,
+    pub model: String,
+    pub request_payload_json: Value,
+    pub raw_response_json: Option<Value>,
+    pub parsed_output_json: Option<Value>,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisResult {
+    pub id: Uuid,
+    pub task_id: Uuid,
+    pub task_type: String,
+    pub instrument_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub timeframe: Option<Timeframe>,
+    pub bar_state: AnalysisBarState,
+    pub bar_open_time: Option<DateTime<Utc>>,
+    pub bar_close_time: Option<DateTime<Utc>>,
+    pub trading_date: Option<NaiveDate>,
+    pub prompt_key: String,
+    pub prompt_version: String,
+    pub output_json: Value,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisDeadLetter {
+    pub id: Uuid,
+    pub task_id: Uuid,
+    pub final_error_type: String,
+    pub final_error_message: String,
+    pub archived_snapshot_json: Value,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TaskEnvelope {
+    pub task: AnalysisTask,
+    pub snapshot: AnalysisSnapshot,
 }
