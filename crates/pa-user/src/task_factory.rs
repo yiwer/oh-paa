@@ -1,5 +1,5 @@
 use chrono::Utc;
-use pa_core::AppError;
+use pa_core::{AppError, Timeframe};
 use pa_orchestrator::{
     sha256_json, AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, TaskEnvelope,
 };
@@ -44,7 +44,13 @@ pub fn build_manual_user_analysis_task(input: ManualUserAnalysisInput) -> Result
             "{task_type}:{user_id}:{instrument_id}:{timeframe}:{identity}:{prompt_key}:{prompt_version}:{context_hash}",
             task_type = USER_POSITION_ADVICE_PROMPT_METADATA.task_type,
             timeframe = timeframe.as_str(),
-            identity = user_analysis_identity(bar_state, bar_open_time, bar_close_time, trading_date)?,
+            identity = user_analysis_identity(
+                timeframe,
+                bar_state,
+                bar_open_time,
+                bar_close_time,
+                trading_date,
+            )?,
             prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
             prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
         )),
@@ -120,7 +126,13 @@ pub fn build_scheduled_user_analysis_task(
     let dedupe_key = Some(format!(
         "user_scheduled_analysis:{schedule_id}:{user_id}:{instrument_id}:{timeframe}:{identity}:{prompt_key}:{prompt_version}:{context_hash}",
         timeframe = timeframe.as_str(),
-        identity = user_analysis_identity(bar_state, bar_open_time, bar_close_time, trading_date)?,
+        identity = user_analysis_identity(
+            timeframe,
+            bar_state,
+            bar_open_time,
+            bar_close_time,
+            trading_date,
+        )?,
         prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
         prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
     ));
@@ -199,6 +211,7 @@ fn task_defining_context_hash(
 }
 
 fn user_analysis_identity(
+    timeframe: Timeframe,
     bar_state: AnalysisBarState,
     bar_open_time: Option<chrono::DateTime<Utc>>,
     bar_close_time: Option<chrono::DateTime<Utc>>,
@@ -230,13 +243,20 @@ fn user_analysis_identity(
                 ));
             }
 
-            if let Some(trading_date) = trading_date {
+            if matches!(timeframe, Timeframe::D1) {
+                let trading_date = trading_date.ok_or_else(|| AppError::Analysis {
+                    message: "closed daily user analysis tasks require trading_date".to_string(),
+                    source: None,
+                })?;
+
                 return Ok(format!("closed:trading_date={trading_date}"));
             }
 
             Err(AppError::Analysis {
-                message: "closed user analysis tasks require bar_close_time or trading_date"
-                    .to_string(),
+                message: format!(
+                    "closed user analysis tasks require bar_close_time for timeframe={}",
+                    timeframe.as_str()
+                ),
                 source: None,
             })
         }

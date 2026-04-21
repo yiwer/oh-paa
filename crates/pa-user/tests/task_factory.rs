@@ -137,6 +137,32 @@ fn manual_user_task_rejects_none_bar_state() {
 }
 
 #[test]
+fn closed_intraday_manual_user_task_requires_bar_close_time() {
+    let input = ManualUserAnalysisInput {
+        user_id: Uuid::new_v4(),
+        instrument_id: Uuid::new_v4(),
+        timeframe: Timeframe::H1,
+        bar_state: AnalysisBarState::Closed,
+        bar_open_time: Some(Utc.with_ymd_and_hms(2026, 4, 21, 1, 0, 0).unwrap()),
+        bar_close_time: None,
+        trading_date: Some(NaiveDate::from_ymd_opt(2026, 4, 21).unwrap()),
+        positions_json: serde_json::json!([]),
+        subscriptions_json: serde_json::json!([]),
+        shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
+        shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+    };
+
+    let error = build_manual_user_analysis_task(input).unwrap_err();
+    match error {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("bar_close_time"));
+            assert!(message.contains("closed"));
+        }
+        other => panic!("expected analysis error, got {other:?}"),
+    }
+}
+
+#[test]
 fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_context() {
     let schedule_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
@@ -179,6 +205,33 @@ fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_con
         .as_deref()
         .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version)));
     assert_ne!(envelope.task.dedupe_key, changed_shared_bar.task.dedupe_key);
+}
+
+#[test]
+fn closed_intraday_scheduled_user_task_requires_bar_close_time() {
+    let input = ScheduledUserAnalysisInput {
+        schedule_id: Uuid::new_v4(),
+        user_id: Uuid::new_v4(),
+        instrument_id: Uuid::new_v4(),
+        timeframe: Timeframe::M15,
+        bar_state: AnalysisBarState::Closed,
+        bar_open_time: Some(Utc.with_ymd_and_hms(2026, 4, 21, 1, 45, 0).unwrap()),
+        bar_close_time: None,
+        trading_date: Some(NaiveDate::from_ymd_opt(2026, 4, 21).unwrap()),
+        positions_json: serde_json::json!([]),
+        subscriptions_json: serde_json::json!([]),
+        shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
+        shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+    };
+
+    let error = build_scheduled_user_analysis_task(input).unwrap_err();
+    match error {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("bar_close_time"));
+            assert!(message.contains("closed"));
+        }
+        other => panic!("expected analysis error, got {other:?}"),
+    }
 }
 
 #[test]
