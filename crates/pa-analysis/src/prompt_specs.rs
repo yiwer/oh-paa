@@ -1,15 +1,43 @@
 use pa_orchestrator::{AnalysisBarState, PromptResultSemantics, PromptSpec, RetryPolicyClass};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PromptMetadata {
+    pub prompt_key: &'static str,
+    pub prompt_version: &'static str,
+    pub task_type: &'static str,
+    pub input_schema_version: &'static str,
+    pub output_schema_version: &'static str,
+}
+
+pub(crate) const SHARED_BAR_ANALYSIS_PROMPT_METADATA: PromptMetadata = PromptMetadata {
+    prompt_key: "shared_bar_analysis",
+    prompt_version: "v1",
+    task_type: "shared_bar_analysis",
+    input_schema_version: "v1",
+    output_schema_version: "v1",
+};
+
+pub(crate) const SHARED_DAILY_CONTEXT_PROMPT_METADATA: PromptMetadata = PromptMetadata {
+    prompt_key: "shared_daily_context",
+    prompt_version: "v1",
+    task_type: "shared_daily_context",
+    input_schema_version: "v1",
+    output_schema_version: "v1",
+};
+
 pub fn shared_bar_analysis_v1() -> PromptSpec {
     PromptSpec {
-        prompt_key: "shared_bar_analysis".to_string(),
-        prompt_version: "v1".to_string(),
-        task_type: "shared_bar_analysis".to_string(),
-        system_prompt:
-            "You are a price-action analyst. Produce strict JSON and include both bullish and bearish scenarios."
-                .to_string(),
-        input_schema_version: "v1".to_string(),
-        output_schema_version: "v1".to_string(),
+        prompt_key: SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_key.to_string(),
+        prompt_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_version.to_string(),
+        task_type: SHARED_BAR_ANALYSIS_PROMPT_METADATA.task_type.to_string(),
+        system_prompt: "You are a price-action analyst. Produce strict JSON and include both bullish and bearish scenarios."
+            .to_string(),
+        input_schema_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA
+            .input_schema_version
+            .to_string(),
+        output_schema_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA
+            .output_schema_version
+            .to_string(),
         output_json_schema: serde_json::json!({
             "type": "object",
             "required": [
@@ -50,14 +78,17 @@ pub fn shared_bar_analysis_v1() -> PromptSpec {
 
 pub fn shared_daily_context_v1() -> PromptSpec {
     PromptSpec {
-        prompt_key: "shared_daily_context".to_string(),
-        prompt_version: "v1".to_string(),
-        task_type: "shared_daily_context".to_string(),
-        system_prompt:
-            "You are a price-action analyst. Produce strict JSON with explicit PA decision-tree state."
-                .to_string(),
-        input_schema_version: "v1".to_string(),
-        output_schema_version: "v1".to_string(),
+        prompt_key: SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_key.to_string(),
+        prompt_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_version.to_string(),
+        task_type: SHARED_DAILY_CONTEXT_PROMPT_METADATA.task_type.to_string(),
+        system_prompt: "You are a price-action analyst. Produce strict JSON with explicit PA decision-tree state."
+            .to_string(),
+        input_schema_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA
+            .input_schema_version
+            .to_string(),
+        output_schema_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA
+            .output_schema_version
+            .to_string(),
         output_json_schema: serde_json::json!({
             "type": "object",
             "required": [

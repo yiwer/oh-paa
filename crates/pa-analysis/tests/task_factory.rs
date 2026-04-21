@@ -24,6 +24,7 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
     };
 
     let closed = build_shared_bar_analysis_task(input.clone()).unwrap();
+    let expected_input_json = serde_json::to_value(&input).unwrap();
     let open = build_shared_bar_analysis_task(SharedBarAnalysisInput {
         bar_state: AnalysisBarState::Open,
         ..input
@@ -34,11 +35,18 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
         instrument_id,
         Timeframe::M15,
         bar_close_time,
-        "shared_bar_analysis",
-        "v1",
+        &shared_bar_analysis_v1().prompt_key,
+        &shared_bar_analysis_v1().prompt_version,
         AnalysisBarState::Closed,
     );
 
+    assert_eq!(
+        closed.snapshot.schema_version,
+        shared_bar_analysis_v1().input_schema_version
+    );
+    assert_eq!(closed.snapshot.input_json, expected_input_json);
+    assert_eq!(closed.task.prompt_key, shared_bar_analysis_v1().prompt_key);
+    assert_eq!(closed.task.prompt_version, shared_bar_analysis_v1().prompt_version);
     assert_eq!(closed.task.dedupe_key, expected_closed_key);
     assert_eq!(open.task.dedupe_key, None);
 }
@@ -65,21 +73,19 @@ fn shared_daily_context_task_snapshot_captures_required_pa_inputs() {
     assert_eq!(envelope.task.timeframe, None);
     assert_eq!(envelope.task.trading_date, Some(input.trading_date));
     assert!(envelope.task.dedupe_key.is_some());
-    assert_eq!(envelope.snapshot.schema_version, "v1");
+    assert_eq!(
+        envelope.snapshot.schema_version,
+        shared_daily_context_v1().input_schema_version
+    );
+    assert_eq!(envelope.task.prompt_key, shared_daily_context_v1().prompt_key);
+    assert_eq!(
+        envelope.task.prompt_version,
+        shared_daily_context_v1().prompt_version
+    );
 
     assert_eq!(
         envelope.snapshot.input_json,
-        serde_json::json!({
-            "instrument_id": input.instrument_id,
-            "trading_date": input.trading_date.to_string(),
-            "m15_structure_json": input.m15_structure_json,
-            "h1_structure_json": input.h1_structure_json,
-            "d1_structure_json": input.d1_structure_json,
-            "recent_shared_bar_analyses_json": input.recent_shared_bar_analyses_json,
-            "key_levels_json": input.key_levels_json,
-            "signal_bar_candidates_json": input.signal_bar_candidates_json,
-            "market_background_json": input.market_background_json
-        })
+        serde_json::to_value(&input).unwrap()
     );
 
     assert_eq!(
