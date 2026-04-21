@@ -117,6 +117,47 @@ pub struct PromptSpec {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisStepSpec {
+    pub step_key: String,
+    pub step_version: String,
+    pub task_type: String,
+    pub input_schema_version: String,
+    pub output_schema_version: String,
+    pub output_json_schema: Value,
+    pub result_semantics: PromptResultSemantics,
+    pub bar_state_support: Vec<AnalysisBarState>,
+    pub dependency_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PromptTemplateSpec {
+    pub step_key: String,
+    pub step_version: String,
+    pub system_prompt: String,
+    pub developer_instructions: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModelExecutionProfile {
+    pub profile_key: String,
+    pub provider: String,
+    pub model: String,
+    pub max_tokens: u32,
+    pub timeout_secs: u64,
+    pub max_retries: u32,
+    pub retry_initial_backoff_ms: u64,
+    pub supports_json_schema: bool,
+    pub supports_reasoning: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StepExecutionBinding {
+    pub step_key: String,
+    pub step_version: String,
+    pub execution_profile: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnalysisTask {
     pub id: Uuid,
     pub task_type: String,

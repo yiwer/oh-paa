@@ -1,27 +1,68 @@
 use pa_core::AppError;
 use pa_orchestrator::{
-    AnalysisBarState, ExecutionOutcome, Executor, FixtureLlmClient, PromptRegistry,
-    PromptResultSemantics, PromptSpec, RetryPolicyClass,
+    AnalysisBarState, AnalysisStepSpec, ExecutionOutcome, Executor, FixtureLlmClient,
+    ModelExecutionProfile, PromptResultSemantics, PromptTemplateSpec, StepExecutionBinding,
+    StepRegistry,
 };
 
-fn make_spec(output_json_schema: serde_json::Value) -> PromptSpec {
-    PromptSpec {
-        prompt_key: "shared_bar_analysis".to_string(),
-        prompt_version: "v1".to_string(),
+fn make_registry(output_json_schema: serde_json::Value) -> StepRegistry {
+    StepRegistry::default()
+        .with_step(AnalysisStepSpec {
+            step_key: "shared_bar_analysis".to_string(),
+            step_version: "v1".to_string(),
+            task_type: "shared_bar_analysis".to_string(),
+            input_schema_version: "v1".to_string(),
+            output_schema_version: "v1".to_string(),
+            output_json_schema,
+            result_semantics: PromptResultSemantics::SharedAsset,
+            bar_state_support: vec![AnalysisBarState::Closed],
+            dependency_policy: "market_runtime_only".to_string(),
+        })
+        .unwrap()
+        .with_prompt_template(PromptTemplateSpec {
+            step_key: "shared_bar_analysis".to_string(),
+            step_version: "v1".to_string(),
+            system_prompt: "Return JSON only".to_string(),
+            developer_instructions: vec!["Do not invent data".to_string()],
+        })
+        .unwrap()
+        .with_execution_profile(ModelExecutionProfile {
+            profile_key: "analysis_fixture_profile".to_string(),
+            provider: "fixture".to_string(),
+            model: "fixture-json".to_string(),
+            max_tokens: 4096,
+            timeout_secs: 60,
+            max_retries: 1,
+            retry_initial_backoff_ms: 200,
+            supports_json_schema: true,
+            supports_reasoning: false,
+        })
+        .unwrap()
+        .with_binding(StepExecutionBinding {
+            step_key: "shared_bar_analysis".to_string(),
+            step_version: "v1".to_string(),
+            execution_profile: "analysis_fixture_profile".to_string(),
+        })
+        .unwrap()
+}
+
+fn make_step(output_json_schema: serde_json::Value) -> AnalysisStepSpec {
+    AnalysisStepSpec {
+        step_key: "shared_bar_analysis".to_string(),
+        step_version: "v1".to_string(),
         task_type: "shared_bar_analysis".to_string(),
-        system_prompt: "Return JSON only".to_string(),
         input_schema_version: "v1".to_string(),
         output_schema_version: "v1".to_string(),
         output_json_schema,
-        retry_policy_class: RetryPolicyClass::LlmStructuredOutput,
         result_semantics: PromptResultSemantics::SharedAsset,
         bar_state_support: vec![AnalysisBarState::Closed],
+        dependency_policy: "market_runtime_only".to_string(),
     }
 }
 
 #[tokio::test]
 async fn executor_fails_when_prompt_spec_is_missing() {
-    let registry = PromptRegistry::default();
+    let registry = StepRegistry::default();
     let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
 
     let err = executor
@@ -43,16 +84,14 @@ async fn executor_fails_when_prompt_spec_is_missing() {
 
 #[tokio::test]
 async fn executor_fails_when_output_does_not_match_schema() {
-    let registry = PromptRegistry::default()
-        .with_spec(make_spec(serde_json::json!({
-            "type": "object",
-            "required": ["bullish_case", "bearish_case"],
-            "properties": {
-                "bullish_case": { "type": "object" },
-                "bearish_case": { "type": "object" }
-            }
-        })))
-        .unwrap();
+    let registry = make_registry(serde_json::json!({
+        "type": "object",
+        "required": ["bullish_case", "bearish_case"],
+        "properties": {
+            "bullish_case": { "type": "object" },
+            "bearish_case": { "type": "object" }
+        }
+    }));
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_json(serde_json::json!({"bullish_case": {}})),
@@ -100,16 +139,14 @@ async fn executor_fails_when_output_does_not_match_schema() {
 
 #[tokio::test]
 async fn executor_returns_valid_structured_output() {
-    let registry = PromptRegistry::default()
-        .with_spec(make_spec(serde_json::json!({
-            "type": "object",
-            "required": ["bullish_case", "bearish_case"],
-            "properties": {
-                "bullish_case": { "type": "object" },
-                "bearish_case": { "type": "object" }
-            }
-        })))
-        .unwrap();
+    let registry = make_registry(serde_json::json!({
+        "type": "object",
+        "required": ["bullish_case", "bearish_case"],
+        "properties": {
+            "bullish_case": { "type": "object" },
+            "bearish_case": { "type": "object" }
+        }
+    }));
     let expected = serde_json::json!({
         "bullish_case": {"entry": "breakout"},
         "bearish_case": {"entry": "pullback"}
@@ -147,11 +184,9 @@ async fn executor_returns_valid_structured_output() {
 
 #[tokio::test]
 async fn executor_returns_outbound_failure_with_attempt_context() {
-    let registry = PromptRegistry::default()
-        .with_spec(make_spec(serde_json::json!({
-            "type": "object"
-        })))
-        .unwrap();
+    let registry = make_registry(serde_json::json!({
+        "type": "object"
+    }));
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_provider_error("upstream timeout"),
@@ -199,26 +234,26 @@ async fn executor_returns_outbound_failure_with_attempt_context() {
 }
 
 #[test]
-fn prompt_registry_rejects_duplicate_prompt_versions() {
-    let registry = PromptRegistry::default()
-        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+fn step_registry_rejects_duplicate_step_versions() {
+    let registry = StepRegistry::default()
+        .with_step(make_step(serde_json::json!({"type": "object"})))
         .unwrap();
     let err = registry
-        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .with_step(make_step(serde_json::json!({"type": "object"})))
         .unwrap_err();
 
     match err {
         AppError::Analysis { message, .. } => {
-            assert!(message.contains("duplicate prompt spec"));
+            assert!(message.contains("duplicate step spec"));
         }
         other => panic!("expected analysis error, got: {other}"),
     }
 }
 
 #[test]
-fn prompt_registry_rejects_invalid_output_json_schema() {
-    let err = PromptRegistry::default()
-        .with_spec(make_spec(serde_json::json!({
+fn step_registry_rejects_invalid_output_json_schema() {
+    let err = StepRegistry::default()
+        .with_step(make_step(serde_json::json!({
             "type": 7
         })))
         .unwrap_err();

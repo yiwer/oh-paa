@@ -15,10 +15,12 @@ pub use llm::{
 };
 pub use models::{
     AnalysisAttempt, AnalysisBarState, AnalysisDeadLetter, AnalysisResult, AnalysisSnapshot,
-    AnalysisTask, AnalysisTaskStatus, PromptResultSemantics, PromptSpec, RetryPolicyClass,
+    AnalysisStepSpec, AnalysisTask, AnalysisTaskStatus, ModelExecutionProfile,
+    PromptResultSemantics, PromptSpec, PromptTemplateSpec, RetryPolicyClass, StepExecutionBinding,
     TaskEnvelope,
 };
-pub use prompt_registry::PromptRegistry;
+pub use prompt_registry::StepRegistry;
+pub use prompt_registry::StepRegistry as PromptRegistry;
 pub use repository::{InMemoryOrchestrationRepository, InsertTaskResult, OrchestrationRepository};
 pub use retry::{RetryDecision, classify_retry};
 pub use worker::{run_single_task, run_single_task_with_worker_id};
