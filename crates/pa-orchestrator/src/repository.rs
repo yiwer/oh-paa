@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use pa_core::AppError;
 use uuid::Uuid;
 
-use crate::{AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus};
+use crate::{AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InsertTaskResult {
@@ -38,7 +38,7 @@ struct InMemoryState {
     tasks: HashMap<Uuid, AnalysisTask>,
     snapshots: HashMap<Uuid, AnalysisSnapshot>,
     pending_order: VecDeque<Uuid>,
-    closed_dedupe: HashMap<String, Uuid>,
+    keyed_dedupe: HashMap<String, Uuid>,
 }
 
 impl InMemoryOrchestrationRepository {
@@ -72,17 +72,14 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
             });
         }
 
-        if matches!(task.bar_state, AnalysisBarState::Closed)
-            && let Some(dedupe_key) = task.dedupe_key.as_ref()
-            && let Some(existing_task_id) = state.closed_dedupe.get(dedupe_key)
+        if let Some(dedupe_key) = task.dedupe_key.as_ref()
+            && let Some(existing_task_id) = state.keyed_dedupe.get(dedupe_key)
         {
             return Ok(InsertTaskResult::DuplicateExistingTask(*existing_task_id));
         }
 
-        if matches!(task.bar_state, AnalysisBarState::Closed)
-            && let Some(dedupe_key) = task.dedupe_key.as_ref()
-        {
-            state.closed_dedupe.insert(dedupe_key.clone(), task.id);
+        if let Some(dedupe_key) = task.dedupe_key.as_ref() {
+            state.keyed_dedupe.insert(dedupe_key.clone(), task.id);
         }
 
         if matches!(task.status, AnalysisTaskStatus::Pending) {
@@ -96,9 +93,11 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     }
 
     async fn fetch_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError> {
-        let mut state = self.lock_state();
-        while let Some(task_id) = state.pending_order.pop_front() {
-            if let Some(task) = state.tasks.get(&task_id) {
+        let state = self.lock_state();
+        for task_id in &state.pending_order {
+            if let Some(task) = state.tasks.get(task_id)
+                && matches!(task.status, AnalysisTaskStatus::Pending)
+            {
                 return Ok(Some(task.clone()));
             }
         }

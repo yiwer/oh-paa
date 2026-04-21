@@ -57,8 +57,9 @@ async fn closed_bar_duplicate_task_is_suppressed_in_memory() {
     );
 
     let fetched = repository.fetch_next_pending_task().await.unwrap();
+    let fetched_again = repository.fetch_next_pending_task().await.unwrap();
     assert_eq!(fetched, Some(first.0.clone()));
-    assert_eq!(repository.fetch_next_pending_task().await.unwrap(), None);
+    assert_eq!(fetched_again, Some(first.0));
 }
 
 #[tokio::test]
@@ -80,16 +81,45 @@ async fn open_bar_task_allows_repeated_insertions_in_memory() {
 
     assert_eq!(first_insert, InsertTaskResult::Inserted);
     assert_eq!(second_insert, InsertTaskResult::Inserted);
+}
 
+#[tokio::test]
+async fn keyed_open_bar_duplicate_task_is_suppressed_in_memory() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let dedupe_key = Some("open:keyed:task".to_string());
+    let first = make_task_and_snapshot(dedupe_key.clone(), AnalysisBarState::Open);
+    let second = make_task_and_snapshot(dedupe_key, AnalysisBarState::Open);
+
+    let first_insert = repository
+        .insert_task_with_snapshot(first.0.clone(), first.1)
+        .await
+        .unwrap();
+    let second_insert = repository
+        .insert_task_with_snapshot(second.0, second.1)
+        .await
+        .unwrap();
+
+    assert_eq!(first_insert, InsertTaskResult::Inserted);
     assert_eq!(
-        repository.fetch_next_pending_task().await.unwrap(),
-        Some(first.0)
+        second_insert,
+        InsertTaskResult::DuplicateExistingTask(first.0.id)
     );
-    assert_eq!(
-        repository.fetch_next_pending_task().await.unwrap(),
-        Some(second.0)
-    );
-    assert_eq!(repository.fetch_next_pending_task().await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn fetch_next_pending_task_is_non_destructive_without_state_transition() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let task_and_snapshot = make_task_and_snapshot(None, AnalysisBarState::Open);
+
+    repository
+        .insert_task_with_snapshot(task_and_snapshot.0.clone(), task_and_snapshot.1)
+        .await
+        .unwrap();
+
+    let first_fetch = repository.fetch_next_pending_task().await.unwrap();
+    let second_fetch = repository.fetch_next_pending_task().await.unwrap();
+    assert_eq!(first_fetch, Some(task_and_snapshot.0.clone()));
+    assert_eq!(second_fetch, Some(task_and_snapshot.0));
 }
 
 fn make_task_and_snapshot(
@@ -99,6 +129,7 @@ fn make_task_and_snapshot(
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
     let scheduled_at = Utc.with_ymd_and_hms(2026, 4, 21, 10, 0, 0).unwrap();
+    let created_at = Utc.with_ymd_and_hms(2026, 4, 21, 10, 0, 1).unwrap();
 
     (
         AnalysisTask {
@@ -120,6 +151,10 @@ fn make_task_and_snapshot(
             attempt_count: 0,
             max_attempts: 3,
             scheduled_at,
+            started_at: None,
+            finished_at: None,
+            last_error_code: None,
+            last_error_message: None,
         },
         AnalysisSnapshot {
             id: snapshot_id,
@@ -130,6 +165,7 @@ fn make_task_and_snapshot(
             }),
             input_hash: "abc123".to_string(),
             schema_version: "v1".to_string(),
+            created_at,
         },
     )
 }

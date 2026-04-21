@@ -135,6 +135,10 @@ pub struct AnalysisTask {
     pub attempt_count: u32,
     pub max_attempts: u32,
     pub scheduled_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub last_error_code: Option<String>,
+    pub last_error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -144,6 +148,7 @@ pub struct AnalysisSnapshot {
     pub input_json: Value,
     pub input_hash: String,
     pub schema_version: String,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +163,10 @@ pub struct AnalysisAttempt {
     pub raw_response_json: Option<Value>,
     pub parsed_output_json: Option<Value>,
     pub status: String,
+    pub error_type: Option<String>,
+    pub error_message: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub finished_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -175,6 +184,7 @@ pub struct AnalysisResult {
     pub prompt_key: String,
     pub prompt_version: String,
     pub output_json: Value,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -183,7 +193,9 @@ pub struct AnalysisDeadLetter {
     pub task_id: Uuid,
     pub final_error_type: String,
     pub final_error_message: String,
+    pub last_attempt_id: Option<Uuid>,
     pub archived_snapshot_json: Value,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
