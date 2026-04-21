@@ -1401,6 +1401,7 @@ dependencies = [
  "chrono",
  "jsonschema",
  "pa-core",
+ "reqwest",
  "serde_json",
  "sha2",
  "tokio",
