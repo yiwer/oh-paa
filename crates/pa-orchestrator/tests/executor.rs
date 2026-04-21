@@ -60,6 +60,29 @@ fn make_step(output_json_schema: serde_json::Value) -> AnalysisStepSpec {
     }
 }
 
+fn make_prompt_template(step_key: &str, step_version: &str) -> PromptTemplateSpec {
+    PromptTemplateSpec {
+        step_key: step_key.to_string(),
+        step_version: step_version.to_string(),
+        system_prompt: "Return JSON only".to_string(),
+        developer_instructions: vec!["Do not invent data".to_string()],
+    }
+}
+
+fn make_execution_profile(profile_key: &str) -> ModelExecutionProfile {
+    ModelExecutionProfile {
+        profile_key: profile_key.to_string(),
+        provider: "fixture".to_string(),
+        model: "fixture-json".to_string(),
+        max_tokens: 4096,
+        timeout_secs: 60,
+        max_retries: 1,
+        retry_initial_backoff_ms: 200,
+        supports_json_schema: true,
+        supports_reasoning: false,
+    }
+}
+
 #[tokio::test]
 async fn executor_fails_when_prompt_spec_is_missing() {
     let registry = StepRegistry::default();
@@ -261,6 +284,60 @@ fn step_registry_rejects_invalid_output_json_schema() {
     match err {
         AppError::Analysis { message, .. } => {
             assert!(message.contains("invalid output schema"));
+        }
+        other => panic!("expected analysis error, got: {other}"),
+    }
+}
+
+#[test]
+fn step_registry_rejects_prompt_template_for_unknown_step() {
+    let err = StepRegistry::default()
+        .with_prompt_template(make_prompt_template("missing_step", "v1"))
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("unknown step"));
+        }
+        other => panic!("expected analysis error, got: {other}"),
+    }
+}
+
+#[test]
+fn step_registry_rejects_binding_for_unknown_step() {
+    let err = StepRegistry::default()
+        .with_execution_profile(make_execution_profile("analysis_fixture_profile"))
+        .unwrap()
+        .with_binding(StepExecutionBinding {
+            step_key: "missing_step".to_string(),
+            step_version: "v1".to_string(),
+            execution_profile: "analysis_fixture_profile".to_string(),
+        })
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("unknown step"));
+        }
+        other => panic!("expected analysis error, got: {other}"),
+    }
+}
+
+#[test]
+fn step_registry_rejects_binding_for_unknown_execution_profile() {
+    let err = StepRegistry::default()
+        .with_step(make_step(serde_json::json!({"type": "object"})))
+        .unwrap()
+        .with_binding(StepExecutionBinding {
+            step_key: "shared_bar_analysis".to_string(),
+            step_version: "v1".to_string(),
+            execution_profile: "missing_profile".to_string(),
+        })
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("unknown execution profile"));
         }
         other => panic!("expected analysis error, got: {other}"),
     }

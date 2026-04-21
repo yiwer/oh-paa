@@ -99,6 +99,15 @@ impl StepRegistry {
                 source: None,
             });
         }
+        if !self.steps.contains_key(&key) {
+            return Err(AppError::Analysis {
+                message: format!(
+                    "unknown step for prompt template registration: {}:{}",
+                    key.0, key.1
+                ),
+                source: None,
+            });
+        }
 
         self.prompts.insert(key, prompt);
         Ok(self)
@@ -125,6 +134,24 @@ impl StepRegistry {
         if self.bindings.contains_key(&key) {
             return Err(AppError::Analysis {
                 message: format!("duplicate step execution binding: {}:{}", key.0, key.1),
+                source: None,
+            });
+        }
+        if !self.steps.contains_key(&key) {
+            return Err(AppError::Analysis {
+                message: format!(
+                    "unknown step for step execution binding: {}:{}",
+                    key.0, key.1
+                ),
+                source: None,
+            });
+        }
+        if !self.profiles.contains_key(&binding.execution_profile) {
+            return Err(AppError::Analysis {
+                message: format!(
+                    "unknown execution profile for step execution binding: {}",
+                    binding.execution_profile
+                ),
                 source: None,
             });
         }
