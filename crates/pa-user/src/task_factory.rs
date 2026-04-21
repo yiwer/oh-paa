@@ -4,6 +4,7 @@ use pa_orchestrator::{
     sha256_json, AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, TaskEnvelope,
 };
 use serde::Serialize;
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
@@ -19,7 +20,12 @@ pub fn build_manual_user_analysis_task(input: ManualUserAnalysisInput) -> Result
     let scheduled_at = Utc::now();
     let input_json = serialize_snapshot_input(&input, "manual user analysis input")?;
     let input_hash = sha256_json(&input_json)?;
-    let position_snapshot_hash = sha256_json(&input.positions_json)?;
+    let context_hash = task_defining_context_hash(
+        &input.positions_json,
+        &input.subscriptions_json,
+        &input.shared_bar_analysis_json,
+        &input.shared_daily_context_json,
+    )?;
 
     let ManualUserAnalysisInput {
         user_id,
@@ -31,25 +37,19 @@ pub fn build_manual_user_analysis_task(input: ManualUserAnalysisInput) -> Result
         trading_date,
         ..
     } = input;
+    let bar_state = validate_supported_bar_state(bar_state)?;
 
     let dedupe_key = match bar_state {
-        AnalysisBarState::Closed => {
-            let closed_at = bar_close_time.ok_or_else(|| AppError::Analysis {
-                message: "bar_close_time is required for closed manual user analysis tasks"
-                    .to_string(),
-                source: None,
-            })?;
-
-            Some(format!(
-                "{task_type}:{user_id}:{instrument_id}:{timeframe}:{bar_close_time}:{prompt_version}:{position_snapshot_hash}:closed",
-                task_type = USER_POSITION_ADVICE_PROMPT_METADATA.task_type,
-                timeframe = timeframe.as_str(),
-                bar_close_time = closed_at.to_rfc3339(),
-                prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
-            ))
-        }
+        AnalysisBarState::Closed => Some(format!(
+            "{task_type}:{user_id}:{instrument_id}:{timeframe}:{identity}:{prompt_key}:{prompt_version}:{context_hash}",
+            task_type = USER_POSITION_ADVICE_PROMPT_METADATA.task_type,
+            timeframe = timeframe.as_str(),
+            identity = user_analysis_identity(bar_state, bar_open_time, bar_close_time, trading_date)?,
+            prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
+            prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
+        )),
         AnalysisBarState::Open => None,
-        AnalysisBarState::None => None,
+        AnalysisBarState::None => unreachable!("validated above"),
     };
 
     Ok(TaskEnvelope {
@@ -98,19 +98,31 @@ pub fn build_scheduled_user_analysis_task(
     let scheduled_at = Utc::now();
     let input_json = serialize_snapshot_input(&input, "scheduled user analysis input")?;
     let input_hash = sha256_json(&input_json)?;
-    let position_snapshot_hash = sha256_json(&input.positions_json)?;
+    let context_hash = task_defining_context_hash(
+        &input.positions_json,
+        &input.subscriptions_json,
+        &input.shared_bar_analysis_json,
+        &input.shared_daily_context_json,
+    )?;
     let ScheduledUserAnalysisInput {
         schedule_id,
         user_id,
         instrument_id,
         timeframe,
+        bar_state,
+        bar_open_time,
+        bar_close_time,
         trading_date,
         ..
     } = input;
+    let bar_state = validate_supported_bar_state(bar_state)?;
 
     let dedupe_key = Some(format!(
-        "user_scheduled_analysis:{schedule_id}:{user_id}:{instrument_id}:{timeframe}:{trading_date}:{position_snapshot_hash}",
+        "user_scheduled_analysis:{schedule_id}:{user_id}:{instrument_id}:{timeframe}:{identity}:{prompt_key}:{prompt_version}:{context_hash}",
         timeframe = timeframe.as_str(),
+        identity = user_analysis_identity(bar_state, bar_open_time, bar_close_time, trading_date)?,
+        prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
+        prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
     ));
 
     Ok(TaskEnvelope {
@@ -121,10 +133,10 @@ pub fn build_scheduled_user_analysis_task(
             instrument_id,
             user_id: Some(user_id),
             timeframe: Some(timeframe),
-            bar_state: AnalysisBarState::None,
-            bar_open_time: None,
-            bar_close_time: None,
-            trading_date: Some(trading_date),
+            bar_state,
+            bar_open_time,
+            bar_close_time,
+            trading_date,
             trigger_type: "schedule".to_string(),
             prompt_key: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key.to_string(),
             prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version.to_string(),
@@ -159,4 +171,79 @@ where
         message: format!("failed to serialize {label}: {err}"),
         source: None,
     })
+}
+
+fn validate_supported_bar_state(bar_state: AnalysisBarState) -> Result<AnalysisBarState, AppError> {
+    match bar_state {
+        AnalysisBarState::Open | AnalysisBarState::Closed => Ok(bar_state),
+        AnalysisBarState::None => Err(AppError::Analysis {
+            message: "user position advice tasks require bar_state=open or bar_state=closed"
+                .to_string(),
+            source: None,
+        }),
+    }
+}
+
+fn task_defining_context_hash(
+    positions_json: &Value,
+    subscriptions_json: &Value,
+    shared_bar_analysis_json: &Value,
+    shared_daily_context_json: &Value,
+) -> Result<String, AppError> {
+    sha256_json(&serde_json::json!({
+        "positions": positions_json,
+        "subscriptions": subscriptions_json,
+        "shared_bar_analysis": shared_bar_analysis_json,
+        "shared_daily_context": shared_daily_context_json,
+    }))
+}
+
+fn user_analysis_identity(
+    bar_state: AnalysisBarState,
+    bar_open_time: Option<chrono::DateTime<Utc>>,
+    bar_close_time: Option<chrono::DateTime<Utc>>,
+    trading_date: Option<chrono::NaiveDate>,
+) -> Result<String, AppError> {
+    match bar_state {
+        AnalysisBarState::Open => {
+            let bar_open_time = bar_open_time.ok_or_else(|| AppError::Analysis {
+                message: "open user analysis tasks require bar_open_time".to_string(),
+                source: None,
+            })?;
+
+            Ok(format!(
+                "open:bar_open_time={bar_open_time}:trading_date={trading_date}",
+                bar_open_time = bar_open_time.to_rfc3339(),
+                trading_date = trading_date
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "none".to_string()),
+            ))
+        }
+        AnalysisBarState::Closed => {
+            if let Some(bar_close_time) = bar_close_time {
+                return Ok(format!(
+                    "closed:bar_close_time={bar_close_time}:trading_date={trading_date}",
+                    bar_close_time = bar_close_time.to_rfc3339(),
+                    trading_date = trading_date
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "none".to_string()),
+                ));
+            }
+
+            if let Some(trading_date) = trading_date {
+                return Ok(format!("closed:trading_date={trading_date}"));
+            }
+
+            Err(AppError::Analysis {
+                message: "closed user analysis tasks require bar_close_time or trading_date"
+                    .to_string(),
+                source: None,
+            })
+        }
+        AnalysisBarState::None => Err(AppError::Analysis {
+            message: "user position advice tasks require bar_state=open or bar_state=closed"
+                .to_string(),
+            source: None,
+        }),
+    }
 }

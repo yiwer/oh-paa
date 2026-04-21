@@ -86,7 +86,11 @@ pub struct ScheduledUserAnalysisInput {
     pub instrument_id: Uuid,
     #[serde(with = "timeframe_serde")]
     pub timeframe: Timeframe,
-    pub trading_date: NaiveDate,
+    #[serde(with = "bar_state_serde")]
+    pub bar_state: AnalysisBarState,
+    pub bar_open_time: Option<DateTime<Utc>>,
+    pub bar_close_time: Option<DateTime<Utc>>,
+    pub trading_date: Option<NaiveDate>,
     pub positions_json: Value,
     pub subscriptions_json: Value,
     pub shared_bar_analysis_json: Value,
