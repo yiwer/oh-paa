@@ -177,6 +177,105 @@ execution_profile = "pa_state_extract_fast"
     fs::remove_file(&path).expect("temp file should be removed");
 }
 
+#[test]
+fn load_from_path_rejects_execution_profile_provider_that_is_missing() {
+    let temp_dir = create_temp_dir("missing-provider");
+    let config_path = temp_dir.join("config.toml");
+
+    let config = valid_llm_config_toml().replace(
+        r#"provider = "default""#,
+        r#"provider = "missing-provider""#,
+    );
+    fs::write(&config_path, config).expect("config should be written");
+
+    let error = AppConfig::load_from_path(&config_path)
+        .expect_err("execution profile provider must reference existing provider");
+
+    match error {
+        AppError::Validation { message, source } => {
+            assert!(message.contains("execution_profiles.default.provider"));
+            assert!(message.contains("missing-provider"));
+            assert!(source.is_none());
+        }
+        other => panic!("expected validation error, got {other}"),
+    }
+
+    cleanup_temp_dir(&temp_dir);
+}
+
+#[test]
+fn load_from_path_rejects_step_binding_execution_profile_that_is_missing() {
+    let temp_dir = create_temp_dir("missing-execution-profile");
+    let config_path = temp_dir.join("config.toml");
+
+    let config = valid_llm_config_toml().replace(
+        r#"execution_profile = "default""#,
+        r#"execution_profile = "missing-profile""#,
+    );
+    fs::write(&config_path, config).expect("config should be written");
+
+    let error = AppConfig::load_from_path(&config_path)
+        .expect_err("step binding should reference existing execution profile");
+
+    match error {
+        AppError::Validation { message, source } => {
+            assert!(message.contains("step_bindings.default.execution_profile"));
+            assert!(message.contains("missing-profile"));
+            assert!(source.is_none());
+        }
+        other => panic!("expected validation error, got {other}"),
+    }
+
+    cleanup_temp_dir(&temp_dir);
+}
+
+#[test]
+fn load_from_path_rejects_unknown_openai_api_style() {
+    let temp_dir = create_temp_dir("invalid-openai-api-style");
+    let config_path = temp_dir.join("config.toml");
+
+    let config = valid_llm_config_toml().replace(
+        r#"openai_api_style = "chat_completions""#,
+        r#"openai_api_style = "legacy_completions""#,
+    );
+    fs::write(&config_path, config).expect("config should be written");
+
+    let error =
+        AppConfig::load_from_path(&config_path).expect_err("invalid api style should be rejected");
+
+    match error {
+        AppError::Validation { source, .. } => {
+            let parse_source = source.expect("parse source should exist");
+            let details = parse_source.to_string();
+            assert!(details.contains("openai_api_style"));
+            assert!(details.contains("legacy_completions"));
+        }
+        other => panic!("expected validation error, got {other}"),
+    }
+
+    cleanup_temp_dir(&temp_dir);
+}
+
+#[test]
+fn load_from_path_parses_config_example_toml() {
+    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("config.example.toml");
+
+    let config = AppConfig::load_from_path(&config_path).expect("example config should parse");
+
+    assert!(config.llm.providers.contains_key("deepseek"));
+    assert!(config.llm.providers.contains_key("dashscope"));
+    assert!(config.llm.execution_profiles.contains_key("pa_state_extract_fast"));
+    assert!(
+        config
+            .llm
+            .step_bindings
+            .contains_key("shared_pa_state_bar_v1")
+    );
+}
+
 fn create_temp_dir(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -192,4 +291,33 @@ fn create_temp_dir(label: &str) -> PathBuf {
 
 fn cleanup_temp_dir(path: &Path) {
     fs::remove_dir_all(path).expect("temp dir should be removed");
+}
+
+fn valid_llm_config_toml() -> String {
+    r#"
+database_url = "sqlite::memory:"
+server_addr = "127.0.0.1:3000"
+eastmoney_base_url = "https://eastmoney.example"
+twelvedata_base_url = "https://twelvedata.example"
+twelvedata_api_key = "secret"
+
+[llm.providers.default]
+base_url = "https://api.example.com"
+api_key = "secret-key"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.default]
+provider = "default"
+model = "demo-model"
+max_tokens = 1000
+max_retries = 1
+per_call_timeout_secs = 30
+retry_initial_backoff_ms = 100
+supports_json_schema = false
+supports_reasoning = false
+
+[llm.step_bindings.default]
+execution_profile = "default"
+"#
+    .to_string()
 }

@@ -28,7 +28,13 @@ pub struct LlmConfig {
 pub struct LlmProviderConfig {
     pub base_url: String,
     pub api_key: String,
-    pub openai_api_style: String,
+    pub openai_api_style: OpenAiApiStyle,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenAiApiStyle {
+    ChatCompletions,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -69,10 +75,46 @@ impl AppConfig {
             source: Some(Box::new(source)),
         })?;
 
-        toml::from_str(&raw).map_err(|source| AppError::Validation {
+        let config: AppConfig = toml::from_str(&raw).map_err(|source| AppError::Validation {
             message: format!("failed to parse config file at {}", path.display()),
             source: Some(Box::new(source)),
-        })
+        })?;
+
+        config.validate_llm_bindings()?;
+
+        Ok(config)
+    }
+
+    fn validate_llm_bindings(&self) -> Result<(), AppError> {
+        for (profile_name, profile) in &self.llm.execution_profiles {
+            if !self.llm.providers.contains_key(&profile.provider) {
+                return Err(AppError::Validation {
+                    message: format!(
+                        "llm.execution_profiles.{profile_name}.provider references unknown provider `{}`",
+                        profile.provider
+                    ),
+                    source: None,
+                });
+            }
+        }
+
+        for (binding_name, binding) in &self.llm.step_bindings {
+            if !self
+                .llm
+                .execution_profiles
+                .contains_key(&binding.execution_profile)
+            {
+                return Err(AppError::Validation {
+                    message: format!(
+                        "llm.step_bindings.{binding_name}.execution_profile references unknown execution profile `{}`",
+                        binding.execution_profile
+                    ),
+                    source: None,
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 
