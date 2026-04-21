@@ -99,7 +99,7 @@ async fn executor_fails_when_prompt_spec_is_missing() {
 
     match err {
         AppError::Analysis { message, .. } => {
-            assert!(message.contains("missing prompt spec"));
+            assert!(message.contains("missing step registration"));
         }
         other => panic!("expected analysis error, got: {other}"),
     }
@@ -136,8 +136,14 @@ async fn executor_fails_when_output_does_not_match_schema() {
             assert_eq!(
                 attempt.request_payload_json,
                 serde_json::json!({
+                    "provider": "fixture",
+                    "model": "fixture-json",
                     "system_prompt": "Return JSON only",
-                    "input_json": {"foo": "bar"}
+                    "developer_instructions": ["Do not invent data"],
+                    "input_json": {"foo": "bar"},
+                    "max_tokens": 4096,
+                    "timeout_secs": 60,
+                    "structured_output_mode": "native_json_schema"
                 })
             );
             assert_eq!(
@@ -192,8 +198,14 @@ async fn executor_returns_valid_structured_output() {
             assert_eq!(
                 attempt.request_payload_json,
                 serde_json::json!({
+                    "provider": "fixture",
+                    "model": "fixture-json",
                     "system_prompt": "Return JSON only",
-                    "input_json": {"foo": "bar"}
+                    "developer_instructions": ["Do not invent data"],
+                    "input_json": {"foo": "bar"},
+                    "max_tokens": 4096,
+                    "timeout_secs": 60,
+                    "structured_output_mode": "native_json_schema"
                 })
             );
             assert_eq!(attempt.raw_response_json, Some(expected.clone()));
@@ -202,6 +214,67 @@ async fn executor_returns_valid_structured_output() {
             assert_eq!(attempt.outbound_error_message, None);
         }
         other => panic!("expected success output, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn executor_uses_bound_execution_profile_metadata() {
+    let registry = StepRegistry::default()
+        .with_step(AnalysisStepSpec {
+            step_key: "shared_pa_state_bar".into(),
+            step_version: "v1".into(),
+            task_type: "shared_pa_state_bar".into(),
+            input_schema_version: "v1".into(),
+            output_schema_version: "v1".into(),
+            output_json_schema: serde_json::json!({"type":"object"}),
+            result_semantics: PromptResultSemantics::SharedAsset,
+            bar_state_support: vec![AnalysisBarState::Closed],
+            dependency_policy: "market_runtime_only".into(),
+        })
+        .unwrap()
+        .with_prompt_template(PromptTemplateSpec {
+            step_key: "shared_pa_state_bar".into(),
+            step_version: "v1".into(),
+            system_prompt: "Return JSON".into(),
+            developer_instructions: vec![],
+        })
+        .unwrap()
+        .with_execution_profile(ModelExecutionProfile {
+            profile_key: "pa_state_extract_fast".into(),
+            provider: "dashscope".into(),
+            model: "qwen-plus".into(),
+            max_tokens: 12000,
+            timeout_secs: 180,
+            max_retries: 2,
+            retry_initial_backoff_ms: 1000,
+            supports_json_schema: false,
+            supports_reasoning: false,
+        })
+        .unwrap()
+        .with_binding(StepExecutionBinding {
+            step_key: "shared_pa_state_bar".into(),
+            step_version: "v1".into(),
+            execution_profile: "pa_state_extract_fast".into(),
+        })
+        .unwrap();
+    let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
+
+    let outcome = executor
+        .execute_json(
+            "shared_pa_state_bar",
+            "v1",
+            &serde_json::json!({"bar_identity":{}}),
+        )
+        .await
+        .unwrap();
+
+    match outcome {
+        ExecutionOutcome::Success(attempt) => {
+            assert_eq!(attempt.llm_provider, "dashscope");
+            assert_eq!(attempt.model, "qwen-plus");
+            assert_eq!(attempt.request_payload_json["max_tokens"], 12000);
+        }
+        other => panic!("expected success, got {other:?}"),
     }
 }
 
@@ -231,8 +304,14 @@ async fn executor_returns_outbound_failure_with_attempt_context() {
             assert_eq!(
                 attempt.request_payload_json,
                 serde_json::json!({
+                    "provider": "fixture",
+                    "model": "fixture-json",
                     "system_prompt": "Return JSON only",
-                    "input_json": {"foo": "bar"}
+                    "developer_instructions": ["Do not invent data"],
+                    "input_json": {"foo": "bar"},
+                    "max_tokens": 4096,
+                    "timeout_secs": 60,
+                    "structured_output_mode": "native_json_schema"
                 })
             );
             assert_eq!(attempt.raw_response_json, None);

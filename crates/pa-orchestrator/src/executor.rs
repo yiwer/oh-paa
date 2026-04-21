@@ -1,7 +1,8 @@
 use pa_core::AppError;
 use serde_json::Value;
 
-use crate::{LlmCallEnvelope, LlmClient, LlmRequest, PromptRegistry};
+use crate::llm::StructuredOutputMode;
+use crate::{LlmCallEnvelope, LlmClient, LlmRequest, ModelExecutionProfile, StepRegistry};
 
 #[derive(Debug, Clone)]
 pub struct ExecutionAttempt {
@@ -26,7 +27,7 @@ pub enum ExecutionOutcome {
 
 #[derive(Debug)]
 pub struct Executor<C> {
-    prompt_registry: PromptRegistry,
+    step_registry: StepRegistry,
     llm_client: C,
 }
 
@@ -34,9 +35,9 @@ impl<C> Executor<C>
 where
     C: LlmClient,
 {
-    pub fn new(prompt_registry: PromptRegistry, llm_client: C) -> Self {
+    pub fn new(step_registry: StepRegistry, llm_client: C) -> Self {
         Self {
-            prompt_registry,
+            step_registry,
             llm_client,
         }
     }
@@ -48,17 +49,37 @@ where
         input_json: &Value,
     ) -> Result<ExecutionOutcome, AppError> {
         let registered_spec = self
-            .prompt_registry
+            .step_registry
             .get(prompt_key, prompt_version)
             .ok_or_else(|| AppError::Analysis {
-                message: format!("missing prompt spec: {prompt_key}:{prompt_version}"),
+                message: format!("missing step registration: {prompt_key}:{prompt_version}"),
                 source: None,
             })?;
 
-        let llm_request = LlmRequest {
-            system_prompt: registered_spec.spec.system_prompt.clone(),
-            input_json: input_json.clone(),
-        };
+        let llm_request =
+            if let Some(resolved) = self.step_registry.resolve(prompt_key, prompt_version) {
+                LlmRequest {
+                    provider: resolved.profile.provider.clone(),
+                    model: resolved.profile.model.clone(),
+                    system_prompt: resolved.prompt.system_prompt.clone(),
+                    developer_instructions: resolved.prompt.developer_instructions.clone(),
+                    input_json: input_json.clone(),
+                    max_tokens: resolved.profile.max_tokens,
+                    timeout_secs: resolved.profile.timeout_secs,
+                    structured_output_mode: choose_structured_output_mode(resolved.profile),
+                }
+            } else {
+                LlmRequest {
+                    provider: "fixture".to_string(),
+                    model: "fixture-json".to_string(),
+                    system_prompt: registered_spec.spec.system_prompt.clone(),
+                    developer_instructions: registered_spec.spec.developer_instructions.clone(),
+                    input_json: input_json.clone(),
+                    max_tokens: 0,
+                    timeout_secs: 0,
+                    structured_output_mode: StructuredOutputMode::PromptEnforcedJson,
+                }
+            };
 
         let llm_outcome = self.llm_client.generate_json(&llm_request).await;
 
@@ -108,5 +129,13 @@ where
                 Ok(ExecutionOutcome::Success(attempt))
             }
         }
+    }
+}
+
+fn choose_structured_output_mode(profile: &ModelExecutionProfile) -> StructuredOutputMode {
+    if profile.supports_json_schema {
+        StructuredOutputMode::NativeJsonSchema
+    } else {
+        StructuredOutputMode::PromptEnforcedJson
     }
 }
