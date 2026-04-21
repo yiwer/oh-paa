@@ -24,8 +24,8 @@ pub fn user_position_advice_v1() -> PromptSpec {
             .prompt_version
             .to_string(),
         task_type: USER_POSITION_ADVICE_PROMPT_METADATA.task_type.to_string(),
-        system_prompt:
-            "Map shared PA structure to the user's position. Return JSON only.".to_string(),
+        system_prompt: "Map shared PA structure to the user's position. Return JSON only."
+            .to_string(),
         input_schema_version: USER_POSITION_ADVICE_PROMPT_METADATA
             .input_schema_version
             .to_string(),

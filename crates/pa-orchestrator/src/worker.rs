@@ -4,8 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     AnalysisAttempt, AnalysisDeadLetter, AnalysisResult, AnalysisTask, ExecutionAttempt,
-    ExecutionOutcome, Executor, LlmClient, OrchestrationRepository, RetryDecision,
-    classify_retry,
+    ExecutionOutcome, Executor, LlmClient, OrchestrationRepository, RetryDecision, classify_retry,
 };
 
 const DEFAULT_WORKER_ID: &str = "in-memory-worker";

@@ -1,10 +1,10 @@
 use chrono::{NaiveDate, TimeZone, Utc};
-use pa_core::Timeframe;
 use pa_core::AppError;
-use pa_orchestrator::{sha256_json, AnalysisBarState};
+use pa_core::Timeframe;
+use pa_orchestrator::{AnalysisBarState, sha256_json};
 use pa_user::{
-    build_manual_user_analysis_task, build_scheduled_user_analysis_task, user_position_advice_v1,
-    ManualUserAnalysisInput, ScheduledUserAnalysisInput,
+    ManualUserAnalysisInput, ScheduledUserAnalysisInput, build_manual_user_analysis_task,
+    build_scheduled_user_analysis_task, user_position_advice_v1,
 };
 use rust_decimal::Decimal;
 use serde_json::Value;
@@ -53,17 +53,24 @@ fn closed_manual_user_task_dedupe_reflects_task_defining_context_and_open_task_d
 
     assert_eq!(closed.task.trigger_type, "manual");
     assert_eq!(closed.task.bar_state, AnalysisBarState::Closed);
-    assert!(closed
-        .task
-        .dedupe_key
-        .as_deref()
-        .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version)));
-    assert!(closed
-        .task
-        .dedupe_key
-        .as_deref()
-        .is_some_and(|key| key.contains(&bar_close_time.to_rfc3339())));
-    assert_ne!(closed.task.dedupe_key, changed_subscriptions.task.dedupe_key);
+    assert!(
+        closed
+            .task
+            .dedupe_key
+            .as_deref()
+            .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version))
+    );
+    assert!(
+        closed
+            .task
+            .dedupe_key
+            .as_deref()
+            .is_some_and(|key| key.contains(&bar_close_time.to_rfc3339()))
+    );
+    assert_ne!(
+        closed.task.dedupe_key,
+        changed_subscriptions.task.dedupe_key
+    );
     assert_ne!(closed.task.dedupe_key, changed_shared_daily.task.dedupe_key);
     assert_eq!(open.task.dedupe_key, None);
 }
@@ -194,16 +201,20 @@ fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_con
     assert_eq!(envelope.task.bar_state, AnalysisBarState::Closed);
     assert_eq!(envelope.task.bar_close_time, bar_close_time);
     assert_eq!(envelope.task.trading_date, trading_date);
-    assert!(envelope
-        .task
-        .dedupe_key
-        .as_deref()
-        .is_some_and(|key| key.contains(&schedule_id.to_string())));
-    assert!(envelope
-        .task
-        .dedupe_key
-        .as_deref()
-        .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version)));
+    assert!(
+        envelope
+            .task
+            .dedupe_key
+            .as_deref()
+            .is_some_and(|key| key.contains(&schedule_id.to_string()))
+    );
+    assert!(
+        envelope
+            .task
+            .dedupe_key
+            .as_deref()
+            .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version))
+    );
     assert_ne!(envelope.task.dedupe_key, changed_shared_bar.task.dedupe_key);
 }
 

@@ -26,12 +26,14 @@ impl PromptRegistry {
         }
 
         let output_validator =
-            jsonschema::validator_for(&spec.output_json_schema).map_err(|err| AppError::Analysis {
-                message: format!(
-                    "invalid output schema for {}:{}: {err}",
-                    spec.prompt_key, spec.prompt_version
-                ),
-                source: None,
+            jsonschema::validator_for(&spec.output_json_schema).map_err(|err| {
+                AppError::Analysis {
+                    message: format!(
+                        "invalid output schema for {}:{}: {err}",
+                        spec.prompt_key, spec.prompt_version
+                    ),
+                    source: None,
+                }
             })?;
 
         self.specs.insert(
@@ -45,7 +47,11 @@ impl PromptRegistry {
         Ok(self)
     }
 
-    pub(crate) fn get(&self, prompt_key: &str, prompt_version: &str) -> Option<&RegisteredPromptSpec> {
+    pub(crate) fn get(
+        &self,
+        prompt_key: &str,
+        prompt_version: &str,
+    ) -> Option<&RegisteredPromptSpec> {
         self.specs
             .get(&(prompt_key.to_owned(), prompt_version.to_owned()))
     }

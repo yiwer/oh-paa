@@ -25,7 +25,11 @@ async fn executor_fails_when_prompt_spec_is_missing() {
     let executor = Executor::new(registry, FixtureLlmClient::with_json(serde_json::json!({})));
 
     let err = executor
-        .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
+        .execute_json(
+            "shared_bar_analysis",
+            "v1",
+            &serde_json::json!({"foo": "bar"}),
+        )
         .await
         .unwrap_err();
 
@@ -55,7 +59,11 @@ async fn executor_fails_when_output_does_not_match_schema() {
     );
 
     let outcome = executor
-        .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
+        .execute_json(
+            "shared_bar_analysis",
+            "v1",
+            &serde_json::json!({"foo": "bar"}),
+        )
         .await
         .unwrap();
 
@@ -109,7 +117,11 @@ async fn executor_returns_valid_structured_output() {
     let executor = Executor::new(registry, FixtureLlmClient::with_json(expected.clone()));
 
     let output = executor
-        .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
+        .execute_json(
+            "shared_bar_analysis",
+            "v1",
+            &serde_json::json!({"foo": "bar"}),
+        )
         .await
         .unwrap();
 
@@ -146,7 +158,11 @@ async fn executor_returns_outbound_failure_with_attempt_context() {
     );
 
     let outcome = executor
-        .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
+        .execute_json(
+            "shared_bar_analysis",
+            "v1",
+            &serde_json::json!({"foo": "bar"}),
+        )
         .await
         .unwrap();
 

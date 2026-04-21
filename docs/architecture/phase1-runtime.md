@@ -18,3 +18,16 @@ the shared API state, binds the configured TCP listener, and serves the Axum rou
   Phase 1.
 - The grouped routes confirm router wiring and ownership boundaries while downstream
   services, storage, and provider integrations are still being layered in.
+
+## Phase 2 Worker Notes
+
+- Shared bar analysis, shared daily context, and manual user analysis now enqueue durable
+  orchestration tasks before any LLM execution happens.
+- The API and background worker currently share an in-memory orchestration repository, which
+  keeps the Phase 2 pipeline runnable without introducing production database wiring yet.
+- Workers execute strictly from persisted snapshot JSON and write attempts, results, or
+  dead letters back to orchestration storage.
+- Closed-bar tasks deduplicate by task identity while open-bar tasks remain repeatable by
+  design.
+- Prompt registration is code-defined at startup, and the current runtime uses a fixture LLM
+  transport so the orchestration loop can be exercised before a production model client lands.

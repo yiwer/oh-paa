@@ -1,20 +1,22 @@
 use chrono::Utc;
 use pa_core::{AppError, Timeframe};
 use pa_orchestrator::{
-    sha256_json, AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, TaskEnvelope,
+    AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, TaskEnvelope, sha256_json,
 };
 use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
-    prompt_specs::USER_POSITION_ADVICE_PROMPT_METADATA, ManualUserAnalysisInput,
-    ScheduledUserAnalysisInput,
+    ManualUserAnalysisInput, ScheduledUserAnalysisInput,
+    prompt_specs::USER_POSITION_ADVICE_PROMPT_METADATA,
 };
 
 const DEFAULT_MAX_ATTEMPTS: u32 = 3;
 
-pub fn build_manual_user_analysis_task(input: ManualUserAnalysisInput) -> Result<TaskEnvelope, AppError> {
+pub fn build_manual_user_analysis_task(
+    input: ManualUserAnalysisInput,
+) -> Result<TaskEnvelope, AppError> {
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
     let scheduled_at = Utc::now();
@@ -72,7 +74,9 @@ pub fn build_manual_user_analysis_task(input: ManualUserAnalysisInput) -> Result
             trading_date,
             trigger_type: "manual".to_string(),
             prompt_key: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version.to_string(),
+            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA
+                .prompt_version
+                .to_string(),
             snapshot_id,
             dedupe_key,
             attempt_count: 0,
@@ -151,7 +155,9 @@ pub fn build_scheduled_user_analysis_task(
             trading_date,
             trigger_type: "schedule".to_string(),
             prompt_key: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version.to_string(),
+            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA
+                .prompt_version
+                .to_string(),
             snapshot_id,
             dedupe_key,
             attempt_count: 0,

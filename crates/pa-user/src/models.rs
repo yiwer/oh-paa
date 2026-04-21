@@ -129,7 +129,9 @@ mod timeframe_serde {
             "15m" => Ok(Timeframe::M15),
             "1h" => Ok(Timeframe::H1),
             "1d" => Ok(Timeframe::D1),
-            other => Err(serde::de::Error::custom(format!("invalid timeframe: {other}"))),
+            other => Err(serde::de::Error::custom(format!(
+                "invalid timeframe: {other}"
+            ))),
         }
     }
 }

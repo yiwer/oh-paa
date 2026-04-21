@@ -71,7 +71,10 @@ fn make_task_and_snapshot(max_attempts: u32) -> (AnalysisTask, AnalysisSnapshot)
 async fn claim_next_pending_task_transitions_to_running_atomically() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
 
     let first_claim = repository.claim_next_pending_task().await.unwrap();
     let second_claim = repository.claim_next_pending_task().await.unwrap();
@@ -127,7 +130,10 @@ async fn worker_success_path_persists_result_and_completes_task() {
 async fn worker_retryable_failure_returns_task_to_retry_waiting() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
 
     let registry = PromptRegistry::default()
         .with_spec(make_spec(serde_json::json!({"type": "object"})))
@@ -154,7 +160,10 @@ async fn worker_retryable_failure_returns_task_to_retry_waiting() {
 async fn worker_can_reclaim_retry_waiting_tasks() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(2);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
 
     let registry = PromptRegistry::default()
         .with_spec(make_spec(serde_json::json!({"type": "object"})))
@@ -180,7 +189,10 @@ async fn worker_can_reclaim_retry_waiting_tasks() {
 async fn worker_retry_exhaustion_moves_task_to_dead_letter() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(1);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
 
     let registry = PromptRegistry::default()
         .with_spec(make_spec(serde_json::json!({"type": "object"})))
@@ -210,7 +222,10 @@ async fn worker_retry_exhaustion_moves_task_to_dead_letter() {
 async fn worker_non_retryable_validation_failure_marks_terminal_failed() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
 
     let registry = PromptRegistry::default()
         .with_spec(make_spec(serde_json::json!({
@@ -245,7 +260,10 @@ async fn worker_releases_claim_when_snapshot_load_fails() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
     let snapshot_id = snapshot.id;
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
     repository.remove_snapshot(snapshot_id);
 
     let registry = PromptRegistry::default()
@@ -266,7 +284,10 @@ async fn worker_releases_claim_when_snapshot_load_fails() {
 async fn worker_outcome_persist_failure_does_not_leave_partial_side_effects() {
     let repository = InMemoryOrchestrationRepository::default();
     let (task, snapshot) = make_task_and_snapshot(3);
-    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository
+        .insert_task_with_snapshot(task, snapshot)
+        .await
+        .unwrap();
     repository.fail_next_outcome_persist();
 
     let output = serde_json::json!({

@@ -2,6 +2,7 @@
 
 pub mod admin;
 pub mod analysis;
+mod error;
 pub mod market;
 pub mod router;
 pub mod user;

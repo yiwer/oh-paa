@@ -1,10 +1,10 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 use pa_analysis::{
-    build_shared_bar_analysis_task, build_shared_daily_context_task, shared_bar_analysis_v1,
-    shared_daily_context_v1, SharedBarAnalysisInput, SharedDailyContextInput,
+    SharedBarAnalysisInput, SharedDailyContextInput, build_shared_bar_analysis_task,
+    build_shared_daily_context_task, shared_bar_analysis_v1, shared_daily_context_v1,
 };
 use pa_core::Timeframe;
-use pa_orchestrator::{build_shared_bar_dedupe_key, sha256_json, AnalysisBarState};
+use pa_orchestrator::{AnalysisBarState, build_shared_bar_dedupe_key, sha256_json};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -46,7 +46,10 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
     );
     assert_eq!(closed.snapshot.input_json, expected_input_json);
     assert_eq!(closed.task.prompt_key, shared_bar_analysis_v1().prompt_key);
-    assert_eq!(closed.task.prompt_version, shared_bar_analysis_v1().prompt_version);
+    assert_eq!(
+        closed.task.prompt_version,
+        shared_bar_analysis_v1().prompt_version
+    );
     assert_eq!(closed.task.dedupe_key, expected_closed_key);
     assert_eq!(open.task.dedupe_key, None);
 }
@@ -77,7 +80,10 @@ fn shared_daily_context_task_snapshot_captures_required_pa_inputs() {
         envelope.snapshot.schema_version,
         shared_daily_context_v1().input_schema_version
     );
-    assert_eq!(envelope.task.prompt_key, shared_daily_context_v1().prompt_key);
+    assert_eq!(
+        envelope.task.prompt_key,
+        shared_daily_context_v1().prompt_key
+    );
     assert_eq!(
         envelope.task.prompt_version,
         shared_daily_context_v1().prompt_version
@@ -133,9 +139,8 @@ fn shared_prompt_specs_include_required_pa_contract_fields() {
         assert!(daily_required.contains(&field.to_string()));
     }
 
-    let decision_required = required_fields(
-        &daily_spec.output_json_schema["properties"]["decision_tree_nodes"],
-    );
+    let decision_required =
+        required_fields(&daily_spec.output_json_schema["properties"]["decision_tree_nodes"]);
     for field in [
         "trend_context",
         "location_context",

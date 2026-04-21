@@ -130,6 +130,35 @@ impl InMemoryOrchestrationRepository {
         self.lock_state().dead_letters.clone()
     }
 
+    pub fn task(&self, task_id: Uuid) -> Option<AnalysisTask> {
+        self.lock_state().tasks.get(&task_id).cloned()
+    }
+
+    pub fn result_for_task(&self, task_id: Uuid) -> Option<AnalysisResult> {
+        self.lock_state()
+            .results
+            .iter()
+            .find(|result| result.task_id == task_id)
+            .cloned()
+    }
+
+    pub fn attempts_for_task(&self, task_id: Uuid) -> Vec<AnalysisAttempt> {
+        self.lock_state()
+            .attempts
+            .iter()
+            .filter(|attempt| attempt.task_id == task_id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn dead_letter_for_task(&self, task_id: Uuid) -> Option<AnalysisDeadLetter> {
+        self.lock_state()
+            .dead_letters
+            .iter()
+            .find(|dead_letter| dead_letter.task_id == task_id)
+            .cloned()
+    }
+
     pub fn remove_snapshot(&self, snapshot_id: Uuid) {
         self.lock_state().snapshots.remove(&snapshot_id);
     }
@@ -228,10 +257,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
     async fn release_claimed_task(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
         let mut state = self.lock_state();
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if matches!(task.status, AnalysisTaskStatus::Running) {
             task.status = AnalysisTaskStatus::Pending;
@@ -261,10 +293,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     ) -> Result<(), AppError> {
         let mut state = self.lock_state();
         Self::maybe_fail_outcome_persist(&mut state)?;
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if attempt.task_id != task_id || result.task_id != task_id {
             return Err(AppError::Storage {
@@ -291,10 +326,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     ) -> Result<(), AppError> {
         let mut state = self.lock_state();
         Self::maybe_fail_outcome_persist(&mut state)?;
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if attempt.task_id != task_id {
             return Err(AppError::Storage {
@@ -320,10 +358,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     ) -> Result<(), AppError> {
         let mut state = self.lock_state();
         Self::maybe_fail_outcome_persist(&mut state)?;
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if attempt.task_id != task_id {
             return Err(AppError::Storage {
@@ -348,10 +389,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     ) -> Result<(), AppError> {
         let mut state = self.lock_state();
         Self::maybe_fail_outcome_persist(&mut state)?;
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if attempt.task_id != task_id {
             return Err(AppError::Storage {
@@ -377,10 +421,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
     ) -> Result<(), AppError> {
         let mut state = self.lock_state();
         Self::maybe_fail_outcome_persist(&mut state)?;
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if attempt.task_id != task_id || dead_letter.task_id != task_id {
             return Err(AppError::Storage {
@@ -401,10 +448,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
     async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError> {
         let mut state = self.lock_state();
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         if !matches!(task.status, AnalysisTaskStatus::Pending) {
             return Err(AppError::Storage {
@@ -436,10 +486,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
     async fn mark_task_retry_waiting(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
         let mut state = self.lock_state();
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         task.status = AnalysisTaskStatus::RetryWaiting;
         task.attempt_count = task.attempt_count.saturating_add(1);
@@ -451,10 +504,13 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
     async fn mark_task_failed(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
         let mut state = self.lock_state();
-        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
-            message: format!("task not found: {task_id}"),
-            source: None,
-        })?;
+        let task = state
+            .tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found: {task_id}"),
+                source: None,
+            })?;
 
         task.status = AnalysisTaskStatus::Failed;
         task.attempt_count = task.attempt_count.saturating_add(1);

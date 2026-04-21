@@ -6,8 +6,12 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+pa-analysis = { path = "../pa-analysis" }
 pa-api = { path = "../pa-api" }
 pa-core = { path = "../pa-core" }
+pa-orchestrator = { path = "../pa-orchestrator" }
+pa-user = { path = "../pa-user" }
+serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

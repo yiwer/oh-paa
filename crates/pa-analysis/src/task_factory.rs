@@ -1,20 +1,22 @@
 use chrono::Utc;
 use pa_core::AppError;
 use pa_orchestrator::{
-    build_shared_bar_dedupe_key, sha256_json, AnalysisBarState, AnalysisSnapshot, AnalysisTask,
-    AnalysisTaskStatus, TaskEnvelope,
+    AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, TaskEnvelope,
+    build_shared_bar_dedupe_key, sha256_json,
 };
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
-    prompt_specs::{SHARED_BAR_ANALYSIS_PROMPT_METADATA, SHARED_DAILY_CONTEXT_PROMPT_METADATA},
     SharedBarAnalysisInput, SharedDailyContextInput,
+    prompt_specs::{SHARED_BAR_ANALYSIS_PROMPT_METADATA, SHARED_DAILY_CONTEXT_PROMPT_METADATA},
 };
 
 const DEFAULT_MAX_ATTEMPTS: u32 = 3;
 
-pub fn build_shared_bar_analysis_task(input: SharedBarAnalysisInput) -> Result<TaskEnvelope, AppError> {
+pub fn build_shared_bar_analysis_task(
+    input: SharedBarAnalysisInput,
+) -> Result<TaskEnvelope, AppError> {
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
     let scheduled_at = Utc::now();
@@ -51,7 +53,9 @@ pub fn build_shared_bar_analysis_task(input: SharedBarAnalysisInput) -> Result<T
             trading_date: None,
             trigger_type: "event".to_string(),
             prompt_key: SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_version.to_string(),
+            prompt_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA
+                .prompt_version
+                .to_string(),
             snapshot_id,
             dedupe_key,
             attempt_count: 0,
@@ -75,7 +79,9 @@ pub fn build_shared_bar_analysis_task(input: SharedBarAnalysisInput) -> Result<T
     })
 }
 
-pub fn build_shared_daily_context_task(input: SharedDailyContextInput) -> Result<TaskEnvelope, AppError> {
+pub fn build_shared_daily_context_task(
+    input: SharedDailyContextInput,
+) -> Result<TaskEnvelope, AppError> {
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
     let scheduled_at = Utc::now();
@@ -109,7 +115,9 @@ pub fn build_shared_daily_context_task(input: SharedDailyContextInput) -> Result
             trading_date: Some(trading_date),
             trigger_type: "schedule".to_string(),
             prompt_key: SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_version.to_string(),
+            prompt_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA
+                .prompt_version
+                .to_string(),
             snapshot_id,
             dedupe_key,
             attempt_count: 0,
