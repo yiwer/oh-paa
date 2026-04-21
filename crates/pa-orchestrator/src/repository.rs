@@ -4,10 +4,14 @@ use std::{
 };
 
 use async_trait::async_trait;
+use chrono::Utc;
 use pa_core::AppError;
 use uuid::Uuid;
 
-use crate::{AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus};
+use crate::{
+    AnalysisAttempt, AnalysisDeadLetter, AnalysisResult, AnalysisSnapshot, AnalysisTask,
+    AnalysisTaskStatus,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InsertTaskResult {
@@ -26,6 +30,18 @@ pub trait OrchestrationRepository: Send + Sync {
     async fn fetch_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError>;
 
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError>;
+
+    async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError>;
+
+    async fn append_attempt(&self, attempt: AnalysisAttempt) -> Result<(), AppError>;
+
+    async fn mark_task_retry_waiting(&self, task_id: Uuid, message: &str) -> Result<(), AppError>;
+
+    async fn mark_task_failed(&self, task_id: Uuid, message: &str) -> Result<(), AppError>;
+
+    async fn insert_result_and_complete(&self, result: AnalysisResult) -> Result<(), AppError>;
+
+    async fn insert_dead_letter(&self, dead_letter: AnalysisDeadLetter) -> Result<(), AppError>;
 }
 
 #[derive(Debug, Default)]
@@ -37,6 +53,9 @@ pub struct InMemoryOrchestrationRepository {
 struct InMemoryState {
     tasks: HashMap<Uuid, AnalysisTask>,
     snapshots: HashMap<Uuid, AnalysisSnapshot>,
+    attempts: Vec<AnalysisAttempt>,
+    results: Vec<AnalysisResult>,
+    dead_letters: Vec<AnalysisDeadLetter>,
     pending_order: VecDeque<Uuid>,
     keyed_dedupe: HashMap<String, Uuid>,
 }
@@ -46,6 +65,29 @@ impl InMemoryOrchestrationRepository {
         self.state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    pub fn only_task(&self) -> AnalysisTask {
+        let state = self.lock_state();
+        assert_eq!(state.tasks.len(), 1, "expected exactly one task");
+        state
+            .tasks
+            .values()
+            .next()
+            .cloned()
+            .expect("one task should exist")
+    }
+
+    pub fn attempts(&self) -> Vec<AnalysisAttempt> {
+        self.lock_state().attempts.clone()
+    }
+
+    pub fn results(&self) -> Vec<AnalysisResult> {
+        self.lock_state().results.clone()
+    }
+
+    pub fn dead_letters(&self) -> Vec<AnalysisDeadLetter> {
+        self.lock_state().dead_letters.clone()
     }
 }
 
@@ -114,5 +156,111 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
                 message: format!("snapshot not found: {snapshot_id}"),
                 source: None,
             })
+    }
+
+    async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if !matches!(task.status, AnalysisTaskStatus::Pending) {
+            return Err(AppError::Storage {
+                message: format!("task {task_id} is not pending"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::Running;
+        if task.started_at.is_none() {
+            task.started_at = Some(Utc::now());
+        }
+
+        Ok(())
+    }
+
+    async fn append_attempt(&self, attempt: AnalysisAttempt) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        if !state.tasks.contains_key(&attempt.task_id) {
+            return Err(AppError::Storage {
+                message: format!("task not found for attempt: {}", attempt.task_id),
+                source: None,
+            });
+        }
+
+        state.attempts.push(attempt);
+        Ok(())
+    }
+
+    async fn mark_task_retry_waiting(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        task.status = AnalysisTaskStatus::RetryWaiting;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_message = Some(message.to_string());
+        task.last_error_code = Some("retryable_error".to_string());
+
+        Ok(())
+    }
+
+    async fn mark_task_failed(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        task.status = AnalysisTaskStatus::Failed;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_message = Some(message.to_string());
+        task.last_error_code = Some("terminal_error".to_string());
+        task.finished_at = Some(Utc::now());
+
+        Ok(())
+    }
+
+    async fn insert_result_and_complete(&self, result: AnalysisResult) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state
+            .tasks
+            .get_mut(&result.task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found for result: {}", result.task_id),
+                source: None,
+            })?;
+
+        task.status = AnalysisTaskStatus::Succeeded;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_code = None;
+        task.last_error_message = None;
+        task.finished_at = Some(Utc::now());
+        state.results.push(result);
+
+        Ok(())
+    }
+
+    async fn insert_dead_letter(&self, dead_letter: AnalysisDeadLetter) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        let task = state
+            .tasks
+            .get_mut(&dead_letter.task_id)
+            .ok_or_else(|| AppError::Storage {
+                message: format!("task not found for dead letter: {}", dead_letter.task_id),
+                source: None,
+            })?;
+
+        task.status = AnalysisTaskStatus::DeadLetter;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_code = Some(dead_letter.final_error_type.clone());
+        task.last_error_message = Some(dead_letter.final_error_message.clone());
+        task.finished_at = Some(Utc::now());
+        state.dead_letters.push(dead_letter);
+
+        Ok(())
     }
 }

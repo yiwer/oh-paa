@@ -1,4 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
+use pa_core::AppError;
 use pa_core::Timeframe;
 use serde_json::Value;
 use uuid::Uuid;
@@ -202,4 +203,53 @@ pub struct AnalysisDeadLetter {
 pub struct TaskEnvelope {
     pub task: AnalysisTask,
     pub snapshot: AnalysisSnapshot,
+}
+
+impl AnalysisResult {
+    pub fn from_task(task: &AnalysisTask, output_json: Value) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            task_id: task.id,
+            task_type: task.task_type.clone(),
+            instrument_id: task.instrument_id,
+            user_id: task.user_id,
+            timeframe: task.timeframe,
+            bar_state: task.bar_state,
+            bar_open_time: task.bar_open_time,
+            bar_close_time: task.bar_close_time,
+            trading_date: task.trading_date,
+            prompt_key: task.prompt_key.clone(),
+            prompt_version: task.prompt_version.clone(),
+            output_json,
+            created_at: Utc::now(),
+        }
+    }
+}
+
+impl AnalysisDeadLetter {
+    pub fn from_task_and_error(
+        task: &AnalysisTask,
+        snapshot: &AnalysisSnapshot,
+        err: &AppError,
+        last_attempt_id: Option<Uuid>,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            task_id: task.id,
+            final_error_type: app_error_type(err).to_string(),
+            final_error_message: err.to_string(),
+            last_attempt_id,
+            archived_snapshot_json: snapshot.input_json.clone(),
+            created_at: Utc::now(),
+        }
+    }
+}
+
+fn app_error_type(err: &AppError) -> &'static str {
+    match err {
+        AppError::Validation { .. } => "validation",
+        AppError::Provider { .. } => "provider",
+        AppError::Storage { .. } => "storage",
+        AppError::Analysis { .. } => "analysis",
+    }
 }
