@@ -1,7 +1,7 @@
 use pa_core::AppError;
 use pa_orchestrator::{
-    AnalysisBarState, Executor, FixtureLlmClient, PromptRegistry, PromptResultSemantics,
-    PromptSpec, RetryPolicyClass,
+    AnalysisBarState, ExecutionOutcome, Executor, FixtureLlmClient, PromptRegistry,
+    PromptResultSemantics, PromptSpec, RetryPolicyClass,
 };
 
 fn make_spec(output_json_schema: serde_json::Value) -> PromptSpec {
@@ -39,42 +39,62 @@ async fn executor_fails_when_prompt_spec_is_missing() {
 
 #[tokio::test]
 async fn executor_fails_when_output_does_not_match_schema() {
-    let registry = PromptRegistry::default().with_spec(make_spec(serde_json::json!({
-        "type": "object",
-        "required": ["bullish_case", "bearish_case"],
-        "properties": {
-            "bullish_case": { "type": "object" },
-            "bearish_case": { "type": "object" }
-        }
-    })));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
     let executor = Executor::new(
         registry,
         FixtureLlmClient::with_json(serde_json::json!({"bullish_case": {}})),
     );
 
-    let err = executor
+    let outcome = executor
         .execute_json("shared_bar_analysis", "v1", &serde_json::json!({"foo": "bar"}))
         .await
-        .unwrap_err();
+        .unwrap();
 
-    match err {
-        AppError::Analysis { message, .. } => {
-            assert!(message.contains("schema validation failed"));
+    match outcome {
+        ExecutionOutcome::SchemaValidationFailed(attempt) => {
+            assert_eq!(attempt.llm_provider, "fixture");
+            assert_eq!(attempt.model, "fixture-json");
+            assert_eq!(
+                attempt.request_payload_json,
+                serde_json::json!({
+                    "system_prompt": "Return JSON only",
+                    "input_json": {"foo": "bar"}
+                })
+            );
+            assert_eq!(attempt.raw_response_json, serde_json::json!({"bullish_case": {}}));
+            assert_eq!(attempt.parsed_output_json, serde_json::json!({"bullish_case": {}}));
+            assert!(
+                attempt
+                    .schema_validation_error
+                    .as_deref()
+                    .is_some_and(|message| message.contains("bearish_case"))
+            );
         }
-        other => panic!("expected analysis error, got: {other}"),
+        other => panic!("expected schema validation failure, got: {other:?}"),
     }
 }
 
 #[tokio::test]
 async fn executor_returns_valid_structured_output() {
-    let registry = PromptRegistry::default().with_spec(make_spec(serde_json::json!({
-        "type": "object",
-        "required": ["bullish_case", "bearish_case"],
-        "properties": {
-            "bullish_case": { "type": "object" },
-            "bearish_case": { "type": "object" }
-        }
-    })));
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
     let expected = serde_json::json!({
         "bullish_case": {"entry": "breakout"},
         "bearish_case": {"entry": "pullback"}
@@ -86,5 +106,54 @@ async fn executor_returns_valid_structured_output() {
         .await
         .unwrap();
 
-    assert_eq!(output, expected);
+    match output {
+        ExecutionOutcome::Success(attempt) => {
+            assert_eq!(attempt.llm_provider, "fixture");
+            assert_eq!(attempt.model, "fixture-json");
+            assert_eq!(
+                attempt.request_payload_json,
+                serde_json::json!({
+                    "system_prompt": "Return JSON only",
+                    "input_json": {"foo": "bar"}
+                })
+            );
+            assert_eq!(attempt.raw_response_json, expected);
+            assert_eq!(attempt.parsed_output_json, expected);
+            assert_eq!(attempt.schema_validation_error, None);
+        }
+        other => panic!("expected success output, got: {other:?}"),
+    }
+}
+
+#[test]
+fn prompt_registry_rejects_duplicate_prompt_versions() {
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap();
+    let err = registry
+        .with_spec(make_spec(serde_json::json!({"type": "object"})))
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("duplicate prompt spec"));
+        }
+        other => panic!("expected analysis error, got: {other}"),
+    }
+}
+
+#[test]
+fn prompt_registry_rejects_invalid_output_json_schema() {
+    let err = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": 7
+        })))
+        .unwrap_err();
+
+    match err {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("invalid output schema"));
+        }
+        other => panic!("expected analysis error, got: {other}"),
+    }
 }

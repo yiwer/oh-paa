@@ -6,8 +6,8 @@ mod prompt_registry;
 mod repository;
 
 pub use dedupe::{build_shared_bar_dedupe_key, sha256_json};
-pub use executor::Executor;
-pub use llm::{FixtureLlmClient, LlmClient};
+pub use executor::{ExecutionAttempt, ExecutionOutcome, Executor};
+pub use llm::{FixtureLlmClient, LlmClient, LlmResponse};
 pub use models::{
     AnalysisAttempt, AnalysisBarState, AnalysisDeadLetter, AnalysisResult, AnalysisSnapshot,
     AnalysisTask, AnalysisTaskStatus, PromptResultSemantics, PromptSpec, RetryPolicyClass,
