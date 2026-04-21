@@ -261,3 +261,40 @@ async fn worker_releases_claim_when_snapshot_load_fails() {
     assert_eq!(task.attempt_count, 0);
     assert_eq!(repository.attempts().len(), 0);
 }
+
+#[tokio::test]
+async fn worker_outcome_persist_failure_does_not_leave_partial_side_effects() {
+    let repository = InMemoryOrchestrationRepository::default();
+    let (task, snapshot) = make_task_and_snapshot(3);
+    repository.insert_task_with_snapshot(task, snapshot).await.unwrap();
+    repository.fail_next_outcome_persist();
+
+    let output = serde_json::json!({
+        "bullish_case": {"entry": "breakout"},
+        "bearish_case": {"entry": "pullback"}
+    });
+    let registry = PromptRegistry::default()
+        .with_spec(make_spec(serde_json::json!({
+            "type": "object",
+            "required": ["bullish_case", "bearish_case"],
+            "properties": {
+                "bullish_case": { "type": "object" },
+                "bearish_case": { "type": "object" }
+            }
+        })))
+        .unwrap();
+    let executor = Executor::new(registry, FixtureLlmClient::with_json(output));
+
+    let err = run_single_task(&repository, &executor).await.unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("in-memory injected outcome persist failure")
+    );
+
+    let task = repository.only_task();
+    assert_eq!(task.status, AnalysisTaskStatus::Pending);
+    assert_eq!(task.attempt_count, 0);
+    assert_eq!(repository.attempts().len(), 0);
+    assert_eq!(repository.results().len(), 0);
+    assert_eq!(repository.dead_letters().len(), 0);
+}

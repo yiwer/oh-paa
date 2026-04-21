@@ -87,12 +87,11 @@ where
                 .clone()
                 .unwrap_or(serde_json::Value::Null);
             let attempt_row = build_attempt_row(&task, attempt, worker_id, "succeeded");
-            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
             let result = AnalysisResult::from_task(&task, output_json);
             with_claim_recovery(
                 repository,
                 task.id,
-                repository.insert_result_and_complete(result),
+                repository.persist_success_outcome(task.id, attempt_row, result),
             )
             .await?;
         }
@@ -102,11 +101,14 @@ where
             let error_message = attempt_row.error_message.clone().unwrap_or_else(|| {
                 "schema validation failed without additional detail".to_string()
             });
-            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
             with_claim_recovery(
                 repository,
                 task.id,
-                repository.mark_task_failed(task.id, &error_message),
+                repository.persist_schema_validation_failure_outcome(
+                    task.id,
+                    attempt_row,
+                    &error_message,
+                ),
             )
             .await?;
         }
@@ -117,7 +119,6 @@ where
                 .error_message
                 .clone()
                 .unwrap_or_else(|| error.to_string());
-            with_claim_recovery(repository, task.id, repository.append_attempt(attempt_row)).await?;
 
             match classify_retry(
                 &error,
@@ -128,7 +129,11 @@ where
                     with_claim_recovery(
                         repository,
                         task.id,
-                        repository.mark_task_retry_waiting(task.id, &error_message),
+                        repository.persist_outbound_retry_outcome(
+                            task.id,
+                            attempt_row,
+                            &error_message,
+                        ),
                     )
                     .await?;
                 }
@@ -136,7 +141,11 @@ where
                     with_claim_recovery(
                         repository,
                         task.id,
-                        repository.mark_task_failed(task.id, &error_message),
+                        repository.persist_outbound_terminal_failure_outcome(
+                            task.id,
+                            attempt_row,
+                            &error_message,
+                        ),
                     )
                     .await?;
                 }
@@ -150,7 +159,11 @@ where
                     with_claim_recovery(
                         repository,
                         task.id,
-                        repository.insert_dead_letter(dead_letter),
+                        repository.persist_outbound_dead_letter_outcome(
+                            task.id,
+                            attempt_row,
+                            dead_letter,
+                        ),
                     )
                     .await?;
                 }

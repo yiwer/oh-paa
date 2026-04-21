@@ -35,6 +35,41 @@ pub trait OrchestrationRepository: Send + Sync {
 
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError>;
 
+    async fn persist_success_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        result: AnalysisResult,
+    ) -> Result<(), AppError>;
+
+    async fn persist_schema_validation_failure_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError>;
+
+    async fn persist_outbound_retry_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError>;
+
+    async fn persist_outbound_terminal_failure_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError>;
+
+    async fn persist_outbound_dead_letter_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        dead_letter: AnalysisDeadLetter,
+    ) -> Result<(), AppError>;
+
     async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError>;
 
     async fn append_attempt(&self, attempt: AnalysisAttempt) -> Result<(), AppError>;
@@ -60,6 +95,7 @@ struct InMemoryState {
     attempts: Vec<AnalysisAttempt>,
     results: Vec<AnalysisResult>,
     dead_letters: Vec<AnalysisDeadLetter>,
+    fail_next_outcome_persist: bool,
     pending_order: VecDeque<Uuid>,
     keyed_dedupe: HashMap<String, Uuid>,
 }
@@ -96,6 +132,21 @@ impl InMemoryOrchestrationRepository {
 
     pub fn remove_snapshot(&self, snapshot_id: Uuid) {
         self.lock_state().snapshots.remove(&snapshot_id);
+    }
+
+    pub fn fail_next_outcome_persist(&self) {
+        self.lock_state().fail_next_outcome_persist = true;
+    }
+
+    fn maybe_fail_outcome_persist(state: &mut InMemoryState) -> Result<(), AppError> {
+        if state.fail_next_outcome_persist {
+            state.fail_next_outcome_persist = false;
+            return Err(AppError::Storage {
+                message: "in-memory injected outcome persist failure".to_string(),
+                source: None,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -200,6 +251,152 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
                 message: format!("snapshot not found: {snapshot_id}"),
                 source: None,
             })
+    }
+
+    async fn persist_success_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        result: AnalysisResult,
+    ) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        Self::maybe_fail_outcome_persist(&mut state)?;
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if attempt.task_id != task_id || result.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("outcome/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::Succeeded;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_code = None;
+        task.last_error_message = None;
+        task.finished_at = Some(Utc::now());
+        state.attempts.push(attempt);
+        state.results.push(result);
+        Ok(())
+    }
+
+    async fn persist_schema_validation_failure_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        Self::maybe_fail_outcome_persist(&mut state)?;
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::Failed;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_message = Some(message.to_string());
+        task.last_error_code = Some("terminal_error".to_string());
+        task.finished_at = Some(Utc::now());
+        state.attempts.push(attempt);
+        Ok(())
+    }
+
+    async fn persist_outbound_retry_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        Self::maybe_fail_outcome_persist(&mut state)?;
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::RetryWaiting;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_message = Some(message.to_string());
+        task.last_error_code = Some("retryable_error".to_string());
+        state.attempts.push(attempt);
+        Ok(())
+    }
+
+    async fn persist_outbound_terminal_failure_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
+    ) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        Self::maybe_fail_outcome_persist(&mut state)?;
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::Failed;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_message = Some(message.to_string());
+        task.last_error_code = Some("terminal_error".to_string());
+        task.finished_at = Some(Utc::now());
+        state.attempts.push(attempt);
+        Ok(())
+    }
+
+    async fn persist_outbound_dead_letter_outcome(
+        &self,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        dead_letter: AnalysisDeadLetter,
+    ) -> Result<(), AppError> {
+        let mut state = self.lock_state();
+        Self::maybe_fail_outcome_persist(&mut state)?;
+        let task = state.tasks.get_mut(&task_id).ok_or_else(|| AppError::Storage {
+            message: format!("task not found: {task_id}"),
+            source: None,
+        })?;
+
+        if attempt.task_id != task_id || dead_letter.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("outcome/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        task.status = AnalysisTaskStatus::DeadLetter;
+        task.attempt_count = task.attempt_count.saturating_add(1);
+        task.last_error_code = Some(dead_letter.final_error_type.clone());
+        task.last_error_message = Some(dead_letter.final_error_message.clone());
+        task.finished_at = Some(Utc::now());
+        state.attempts.push(attempt);
+        state.dead_letters.push(dead_letter);
+        Ok(())
     }
 
     async fn mark_task_running(&self, task_id: Uuid) -> Result<(), AppError> {
