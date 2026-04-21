@@ -942,6 +942,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pa-user"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "pa-analysis",
+ "pa-core",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
