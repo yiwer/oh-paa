@@ -12,6 +12,42 @@ pub struct AppConfig {
     pub eastmoney_base_url: String,
     pub twelvedata_base_url: String,
     pub twelvedata_api_key: String,
+    pub llm: LlmConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmConfig {
+    pub providers: std::collections::BTreeMap<String, LlmProviderConfig>,
+    pub execution_profiles: std::collections::BTreeMap<String, LlmExecutionProfileConfig>,
+    pub step_bindings: std::collections::BTreeMap<String, LlmStepBindingConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmProviderConfig {
+    pub base_url: String,
+    pub api_key: String,
+    pub openai_api_style: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmExecutionProfileConfig {
+    pub provider: String,
+    pub model: String,
+    pub max_tokens: u32,
+    pub max_retries: u32,
+    pub per_call_timeout_secs: u64,
+    pub retry_initial_backoff_ms: u64,
+    pub supports_json_schema: bool,
+    pub supports_reasoning: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmStepBindingConfig {
+    pub execution_profile: String,
 }
 
 impl AppConfig {

@@ -20,6 +20,24 @@ server_addr = "127.0.0.1:3000"
 eastmoney_base_url = "https://eastmoney.example"
 twelvedata_base_url = "https://twelvedata.example"
 twelvedata_api_key = "secret"
+
+[llm.providers.default]
+base_url = "https://api.example.com"
+api_key = "secret-key"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.default]
+provider = "default"
+model = "demo-model"
+max_tokens = 1000
+max_retries = 1
+per_call_timeout_secs = 30
+retry_initial_backoff_ms = 100
+supports_json_schema = false
+supports_reasoning = false
+
+[llm.step_bindings.default]
+execution_profile = "default"
 "#,
     )
     .expect("config should be written");
@@ -48,6 +66,24 @@ server_addr = "127.0.0.1:3000"
 eastmoney_base_url = "https://eastmoney.example"
 twelvedata_base_url = "https://twelvedata.example"
 twelvedata_api_key = "secret"
+
+[llm.providers.default]
+base_url = "https://api.example.com"
+api_key = "secret-key"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.default]
+provider = "default"
+model = "demo-model"
+max_tokens = 1000
+max_retries = 1
+per_call_timeout_secs = 30
+retry_initial_backoff_ms = 100
+supports_json_schema = false
+supports_reasoning = false
+
+[llm.step_bindings.default]
+execution_profile = "default"
 unexpected = "boom"
 "#,
     )
@@ -66,6 +102,79 @@ unexpected = "boom"
     );
 
     cleanup_temp_dir(&temp_dir);
+}
+
+#[test]
+fn load_from_path_reads_llm_provider_profiles_and_bindings() {
+    let path = std::env::temp_dir().join(format!(
+        "llm-config-{}.toml",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos()
+    ));
+    fs::write(
+        &path,
+        r#"
+database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
+server_addr = "127.0.0.1:3000"
+eastmoney_base_url = "https://push2his.eastmoney.com/"
+twelvedata_base_url = "https://api.twelvedata.com/"
+twelvedata_api_key = "demo"
+
+[llm.providers.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "deepseek-key"
+openai_api_style = "chat_completions"
+
+[llm.providers.dashscope]
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key = "dashscope-key"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.shared_bar_reasoner]
+provider = "deepseek"
+model = "deepseek-reasoner"
+max_tokens = 32768
+max_retries = 2
+per_call_timeout_secs = 600
+retry_initial_backoff_ms = 1000
+supports_json_schema = false
+supports_reasoning = true
+
+[llm.execution_profiles.pa_state_extract_fast]
+provider = "dashscope"
+model = "qwen-plus"
+max_tokens = 12000
+max_retries = 2
+per_call_timeout_secs = 180
+retry_initial_backoff_ms = 1000
+supports_json_schema = false
+supports_reasoning = false
+
+[llm.step_bindings.shared_pa_state_bar_v1]
+execution_profile = "pa_state_extract_fast"
+"#,
+    )
+    .expect("config should be written");
+
+    let config = AppConfig::load_from_path(&path).expect("config should parse");
+
+    assert_eq!(config.llm.providers.len(), 2);
+    assert_eq!(
+        config.llm.providers["deepseek"].base_url,
+        "https://api.deepseek.com"
+    );
+    assert_eq!(
+        config.llm.execution_profiles["shared_bar_reasoner"].model,
+        "deepseek-reasoner"
+    );
+    assert_eq!(
+        config.llm.step_bindings["shared_pa_state_bar_v1"].execution_profile,
+        "pa_state_extract_fast"
+    );
+
+    fs::remove_file(&path).expect("temp file should be removed");
 }
 
 fn create_temp_dir(label: &str) -> PathBuf {
