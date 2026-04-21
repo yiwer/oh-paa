@@ -32,6 +32,12 @@ pub struct RoutedKlines {
     pub klines: Vec<ProviderKline>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RoutedTick {
+    pub provider_name: String,
+    pub tick: ProviderTick,
+}
+
 #[derive(Default)]
 pub struct ProviderRouter {
     providers: ProviderMap,
@@ -57,12 +63,20 @@ impl ProviderRouter {
         &self,
         primary: &str,
         fallback: &str,
-        provider_symbol: &str,
+        primary_provider_symbol: &str,
+        fallback_provider_symbol: &str,
         timeframe: Timeframe,
         limit: usize,
     ) -> Result<Vec<ProviderKline>, AppError> {
         let routed = self
-            .fetch_klines_with_fallback_source(primary, fallback, provider_symbol, timeframe, limit)
+            .fetch_klines_with_fallback_source(
+                primary,
+                fallback,
+                primary_provider_symbol,
+                fallback_provider_symbol,
+                timeframe,
+                limit,
+            )
             .await?;
 
         Ok(routed.klines)
@@ -72,12 +86,13 @@ impl ProviderRouter {
         &self,
         primary: &str,
         fallback: &str,
-        provider_symbol: &str,
+        primary_provider_symbol: &str,
+        fallback_provider_symbol: &str,
         timeframe: Timeframe,
         limit: usize,
     ) -> Result<RoutedKlines, AppError> {
         let primary_result = self
-            .fetch_klines_from(primary, provider_symbol, timeframe, limit)
+            .fetch_klines_from(primary, primary_provider_symbol, timeframe, limit)
             .await;
 
         match primary_result {
@@ -86,7 +101,7 @@ impl ProviderRouter {
                 klines,
             }),
             Ok(_) => self
-                .fetch_klines_from(fallback, provider_symbol, timeframe, limit)
+                .fetch_klines_from(fallback, fallback_provider_symbol, timeframe, limit)
                 .await
                 .map(|klines| RoutedKlines {
                     provider_name: fallback.to_string(),
@@ -96,11 +111,59 @@ impl ProviderRouter {
                 Err(primary_result.expect_err("primary result is validation error"))
             }
             Err(_) => self
-                .fetch_klines_from(fallback, provider_symbol, timeframe, limit)
+                .fetch_klines_from(fallback, fallback_provider_symbol, timeframe, limit)
                 .await
                 .map(|klines| RoutedKlines {
                     provider_name: fallback.to_string(),
                     klines,
+                }),
+        }
+    }
+
+    pub async fn fetch_latest_tick_with_fallback(
+        &self,
+        primary: &str,
+        fallback: &str,
+        primary_provider_symbol: &str,
+        fallback_provider_symbol: &str,
+    ) -> Result<ProviderTick, AppError> {
+        let routed = self
+            .fetch_latest_tick_with_fallback_source(
+                primary,
+                fallback,
+                primary_provider_symbol,
+                fallback_provider_symbol,
+            )
+            .await?;
+
+        Ok(routed.tick)
+    }
+
+    pub async fn fetch_latest_tick_with_fallback_source(
+        &self,
+        primary: &str,
+        fallback: &str,
+        primary_provider_symbol: &str,
+        fallback_provider_symbol: &str,
+    ) -> Result<RoutedTick, AppError> {
+        let primary_result = self
+            .fetch_latest_tick_from(primary, primary_provider_symbol)
+            .await;
+
+        match primary_result {
+            Ok(tick) => Ok(RoutedTick {
+                provider_name: primary.to_string(),
+                tick,
+            }),
+            Err(AppError::Validation { .. }) => {
+                Err(primary_result.expect_err("primary result is validation error"))
+            }
+            Err(_) => self
+                .fetch_latest_tick_from(fallback, fallback_provider_symbol)
+                .await
+                .map(|tick| RoutedTick {
+                    provider_name: fallback.to_string(),
+                    tick,
                 }),
         }
     }
@@ -122,5 +185,20 @@ impl ProviderRouter {
         provider
             .fetch_klines(provider_symbol, timeframe, limit)
             .await
+    }
+
+    async fn fetch_latest_tick_from(
+        &self,
+        provider_name: &str,
+        provider_symbol: &str,
+    ) -> Result<ProviderTick, AppError> {
+        let provider = self
+            .provider(provider_name)
+            .ok_or_else(|| AppError::Validation {
+                message: format!("provider `{provider_name}` is not registered"),
+                source: None,
+            })?;
+
+        provider.fetch_latest_tick(provider_symbol).await
     }
 }

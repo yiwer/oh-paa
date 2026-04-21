@@ -1,9 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::Result;
-use pa_api::{AppState, app_router};
+use pa_api::{AppState, MarketRuntime, app_router};
+use pa_instrument::InstrumentRepository;
+use pa_market::{
+    PgCanonicalKlineRepository, ProviderRouter,
+    provider::providers::{EastMoneyProvider, TwelveDataProvider},
+};
 use pa_orchestrator::{Executor, FixtureLlmClient, PromptRegistry, run_single_task};
 use serde_json::json;
+use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
 
 fn init_tracing() {
@@ -22,7 +28,29 @@ async fn main() -> Result<()> {
 
     let config = pa_core::config::load()?;
     let bind_addr = config.server_addr.clone();
-    let state = AppState::new(config.server_addr);
+    let migration_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../migrations");
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&config.database_url)
+        .await?;
+    sqlx::migrate::Migrator::new(migration_dir.as_path())
+        .await?
+        .run(&pool)
+        .await?;
+    let instrument_repository = InstrumentRepository::new(pool.clone());
+    let canonical_kline_repository = Arc::new(PgCanonicalKlineRepository::new(pool));
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(EastMoneyProvider::new(&config.eastmoney_base_url)));
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        &config.twelvedata_base_url,
+        &config.twelvedata_api_key,
+    )));
+    let market_runtime = Arc::new(MarketRuntime::new(
+        instrument_repository,
+        canonical_kline_repository,
+        Arc::new(provider_router),
+    ));
+    let state = AppState::with_market_runtime(config.server_addr, market_runtime);
     let worker_repository = Arc::clone(&state.orchestration_repository);
     let prompt_registry = PromptRegistry::default()
         .with_spec(pa_analysis::shared_bar_analysis_v1())?
@@ -36,6 +64,7 @@ async fn main() -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
     tracing::info!(address = %bind_addr, "pa-app listening");
+    tracing::info!("market runtime configured with PostgreSQL + provider router");
     tracing::info!("phase2 analysis worker started with fixture llm transport");
 
     tokio::spawn(async move {

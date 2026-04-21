@@ -5,15 +5,21 @@ edition.workspace = true
 
 [dependencies]
 axum.workspace = true
+chrono.workspace = true
 pa-analysis = { path = "../pa-analysis" }
 pa-core = { path = "../pa-core" }
+pa-instrument = { path = "../pa-instrument" }
+pa-market = { path = "../pa-market" }
 pa-orchestrator = { path = "../pa-orchestrator" }
 pa-user = { path = "../pa-user" }
+serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+async-trait.workspace = true
 http-body-util = "0.1"
+sqlx.workspace = true
 tokio.workspace = true
 tower = "0.5"

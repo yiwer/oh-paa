@@ -5,8 +5,7 @@ use axum::{
     routing::{get, post},
 };
 use pa_analysis::{
-    SharedBarAnalysisInput, SharedDailyContextInput, build_shared_bar_analysis_task,
-    build_shared_daily_context_task,
+    build_shared_bar_analysis_task, build_shared_daily_context_task,
 };
 use pa_core::AppError;
 use pa_orchestrator::{
@@ -17,6 +16,10 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
+    analysis_runtime::{
+        SharedBarTaskRequest, SharedDailyTaskRequest, resolve_shared_bar_input,
+        resolve_shared_daily_input,
+    },
     error::{ApiError, ApiResult},
     router::AppState,
 };
@@ -43,17 +46,19 @@ pub(crate) fn create_task_response_json(task: &AnalysisTask, dedupe_hit: bool) -
 
 async fn create_shared_bar_task(
     State(state): State<AppState>,
-    Json(request): Json<SharedBarAnalysisInput>,
+    Json(request): Json<SharedBarTaskRequest>,
 ) -> ApiResult<(StatusCode, Json<Value>)> {
-    let envelope = build_shared_bar_analysis_task(request)?;
+    let input = resolve_shared_bar_input(&state, request).await?;
+    let envelope = build_shared_bar_analysis_task(input)?;
     enqueue_task(&state, envelope.task, envelope.snapshot).await
 }
 
 async fn create_shared_daily_task(
     State(state): State<AppState>,
-    Json(request): Json<SharedDailyContextInput>,
+    Json(request): Json<SharedDailyTaskRequest>,
 ) -> ApiResult<(StatusCode, Json<Value>)> {
-    let envelope = build_shared_daily_context_task(request)?;
+    let input = resolve_shared_daily_input(&state, request).await?;
+    let envelope = build_shared_daily_context_task(input)?;
     enqueue_task(&state, envelope.task, envelope.snapshot).await
 }
 

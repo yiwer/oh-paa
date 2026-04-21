@@ -60,6 +60,7 @@ CREATE TABLE canonical_klines (
     provider TEXT NOT NULL,
     timeframe TEXT NOT NULL,
     open_time TIMESTAMPTZ NOT NULL,
+    close_time TIMESTAMPTZ NOT NULL,
     open NUMERIC(20, 8) NOT NULL,
     high NUMERIC(20, 8) NOT NULL,
     low NUMERIC(20, 8) NOT NULL,

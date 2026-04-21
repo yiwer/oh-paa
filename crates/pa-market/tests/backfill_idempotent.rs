@@ -62,11 +62,14 @@ async fn repeated_backfill_upserts_canonical_rows_by_instrument_timeframe_and_op
 
     let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        provider_symbol: "000001.SZ",
+        primary_provider_symbol: "000001.SZ",
+        fallback_provider_symbol: "0.000001",
         timeframe: Timeframe::M15,
         limit: 100,
         primary_provider: "primary",
         fallback_provider: "fallback",
+        market_code: None,
+        market_timezone: None,
     };
 
     backfill_canonical_klines(&router, &repository, request.clone())
@@ -103,11 +106,14 @@ async fn backfill_skips_bars_whose_close_time_is_still_in_the_future() {
 
     let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        provider_symbol: "000001.SZ",
+        primary_provider_symbol: "000001.SZ",
+        fallback_provider_symbol: "0.000001",
         timeframe: Timeframe::M15,
         limit: 100,
         primary_provider: "primary",
         fallback_provider: "fallback",
+        market_code: None,
+        market_timezone: None,
     };
 
     backfill_canonical_klines(&router, &repository, request)
@@ -134,11 +140,14 @@ async fn backfill_persists_fallback_provider_name_when_primary_returns_empty() {
 
     let request = BackfillCanonicalKlinesRequest {
         instrument_id,
-        provider_symbol: "000001.SZ",
+        primary_provider_symbol: "000001.SZ",
+        fallback_provider_symbol: "0.000001",
         timeframe: Timeframe::M15,
         limit: 100,
         primary_provider: "primary",
         fallback_provider: "fallback",
+        market_code: None,
+        market_timezone: None,
     };
 
     backfill_canonical_klines(&router, &repository, request)

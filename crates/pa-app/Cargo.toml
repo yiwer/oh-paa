@@ -9,9 +9,12 @@ axum.workspace = true
 pa-analysis = { path = "../pa-analysis" }
 pa-api = { path = "../pa-api" }
 pa-core = { path = "../pa-core" }
+pa-instrument = { path = "../pa-instrument" }
+pa-market = { path = "../pa-market" }
 pa-orchestrator = { path = "../pa-orchestrator" }
 pa-user = { path = "../pa-user" }
 serde_json.workspace = true
+sqlx.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

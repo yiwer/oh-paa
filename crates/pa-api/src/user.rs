@@ -1,9 +1,10 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use pa_orchestrator::{InsertTaskResult, OrchestrationRepository};
-use pa_user::{ManualUserAnalysisInput, build_manual_user_analysis_task};
+use pa_user::build_manual_user_analysis_task;
 use serde_json::Value;
 
 use crate::{
+    analysis_runtime::{ManualUserTaskRequest, resolve_manual_user_input},
     analysis::create_task_response_json,
     error::{ApiError, ApiResult},
     router::AppState,
@@ -15,9 +16,10 @@ pub fn routes() -> Router<AppState> {
 
 async fn create_manual_user_analysis_task(
     State(state): State<AppState>,
-    Json(request): Json<ManualUserAnalysisInput>,
+    Json(request): Json<ManualUserTaskRequest>,
 ) -> ApiResult<(StatusCode, Json<Value>)> {
-    let envelope = build_manual_user_analysis_task(request)?;
+    let input = resolve_manual_user_input(&state, request).await?;
+    let envelope = build_manual_user_analysis_task(input)?;
     let response = match state
         .orchestration_repository
         .insert_task_with_snapshot(envelope.task.clone(), envelope.snapshot)
