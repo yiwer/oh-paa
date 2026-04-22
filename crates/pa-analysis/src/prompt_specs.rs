@@ -266,7 +266,7 @@ pub fn shared_daily_context_v2() -> AnalysisStepSpec {
         }),
         result_semantics: PromptResultSemantics::SharedAsset,
         bar_state_support: vec![AnalysisBarState::None],
-        dependency_policy: "requires_shared_bar_and_pa_state".into(),
+        dependency_policy: "requires_shared_pa_state_optional_shared_bar".into(),
     }
 }
 

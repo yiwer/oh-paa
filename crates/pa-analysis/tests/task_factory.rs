@@ -218,6 +218,10 @@ fn shared_prompt_specs_include_required_pa_contract_fields() {
 
     let daily_spec = shared_daily_context_v2();
     let daily_required = required_fields(&daily_spec.output_json_schema);
+    assert_eq!(
+        daily_spec.dependency_policy,
+        "requires_shared_pa_state_optional_shared_bar"
+    );
 
     for field in [
         "context_identity",

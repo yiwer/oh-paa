@@ -498,6 +498,58 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     cleanup_runtime_fixture(&pool, &fixture).await;
 }
 
+#[tokio::test]
+async fn shared_daily_requires_upstream_shared_pa_state() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping shared_daily_requires_upstream_shared_pa_state: PA_DATABASE_URL not set"
+        );
+        return;
+    };
+    let fixture = seed_runtime_fixture(&pool).await;
+    let orchestration_repository = Arc::new(InMemoryOrchestrationRepository::default());
+    let app =
+        market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
+
+    let backfill = request_json(
+        &app,
+        Method::POST,
+        "/admin/market/backfill",
+        &format!(
+            r#"{{
+                "instrument_id":"{}",
+                "timeframe":"15m",
+                "limit":4
+            }}"#,
+            fixture.instrument_id
+        ),
+    )
+    .await;
+    assert_eq!(backfill.status(), StatusCode::ACCEPTED);
+
+    let shared_daily = request_json(
+        &app,
+        Method::POST,
+        "/analysis/shared/daily",
+        &format!(
+            r#"{{
+                "instrument_id":"{}"
+            }}"#,
+            fixture.instrument_id
+        ),
+    )
+    .await;
+    assert_eq!(shared_daily.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let shared_daily_json = response_json(shared_daily).await;
+    assert!(
+        shared_daily_json["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("missing shared pa state"))
+    );
+
+    cleanup_runtime_fixture(&pool, &fixture).await;
+}
+
 fn market_runtime_app(pool: PgPool) -> axum::Router {
     market_runtime_app_with_repository(pool, Arc::new(InMemoryOrchestrationRepository::default()))
 }

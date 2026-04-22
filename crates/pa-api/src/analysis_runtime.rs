@@ -185,9 +185,14 @@ pub(crate) async fn resolve_shared_daily_input(
         None => derive_latest_trading_date(runtime, &context).await?,
     };
 
-    let recent_pa_states_json = request
-        .recent_pa_states_json
-        .unwrap_or_else(|| collect_recent_shared_pa_states(state, request.instrument_id, None, 8));
+    let recent_pa_states_json = match request.recent_pa_states_json {
+        Some(value) => value,
+        None => require_recent_shared_pa_states(
+            request.instrument_id,
+            trading_date,
+            collect_recent_shared_pa_states(state, request.instrument_id, None, 8),
+        )?,
+    };
     let recent_shared_bar_analyses_json = request
         .recent_shared_bar_analyses_json
         .unwrap_or_else(|| collect_recent_shared_bar_results(state, request.instrument_id, 8));
@@ -206,6 +211,26 @@ pub(crate) async fn resolve_shared_daily_input(
         multi_timeframe_structure_json,
         market_background_json,
     })
+}
+
+fn require_recent_shared_pa_states(
+    instrument_id: Uuid,
+    trading_date: NaiveDate,
+    recent_pa_states_json: Value,
+) -> Result<Value, ApiError> {
+    if recent_pa_states_json
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty())
+    {
+        return Ok(recent_pa_states_json);
+    }
+
+    Err(ApiError::from(pa_core::AppError::Analysis {
+        message: format!(
+            "missing shared pa state for instrument_id={instrument_id}, trading_date={trading_date}"
+        ),
+        source: None,
+    }))
 }
 
 pub(crate) async fn resolve_manual_user_input(
