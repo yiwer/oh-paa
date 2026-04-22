@@ -67,6 +67,7 @@ pub fn shared_pa_state_bar_v1() -> AnalysisStepSpec {
             .to_string(),
         output_json_schema: serde_json::json!({
             "type":"object",
+            "additionalProperties": false,
             "required":[
                 "bar_identity",
                 "market_session_context",
@@ -90,6 +91,7 @@ pub fn shared_pa_state_bar_v1() -> AnalysisStepSpec {
                 "signal_assessment": { "type":"object" },
                 "decision_tree_state": {
                     "type":"object",
+                    "additionalProperties": false,
                     "required":[
                         "trend_context",
                         "location_context",
@@ -97,7 +99,15 @@ pub fn shared_pa_state_bar_v1() -> AnalysisStepSpec {
                         "confirmation_state",
                         "invalidation_conditions",
                         "bias_balance"
-                    ]
+                    ],
+                    "properties": {
+                        "trend_context": { "type":"object" },
+                        "location_context": { "type":"object" },
+                        "signal_quality": { "type":"object" },
+                        "confirmation_state": { "type":"object" },
+                        "invalidation_conditions": { "type":"object" },
+                        "bias_balance": { "type":"object" }
+                    }
                 },
                 "evidence_log": { "type":"object" }
             }

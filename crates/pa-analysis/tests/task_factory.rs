@@ -283,6 +283,35 @@ fn shared_pa_state_prompt_v1_emphasizes_no_alias_no_trailing_text_and_object_onl
 }
 
 #[test]
+fn shared_pa_state_schema_v1_rejects_unexpected_top_level_fields() {
+    let pa_state_spec = shared_pa_state_bar_v1();
+    assert_eq!(
+        pa_state_spec.output_json_schema["additionalProperties"],
+        serde_json::json!(false)
+    );
+}
+
+#[test]
+fn shared_pa_state_schema_v1_rejects_non_object_decision_tree_children() {
+    let pa_state_spec = shared_pa_state_bar_v1();
+    let decision_tree_state = &pa_state_spec.output_json_schema["properties"]["decision_tree_state"];
+
+    for field in [
+        "trend_context",
+        "location_context",
+        "signal_quality",
+        "confirmation_state",
+        "invalidation_conditions",
+        "bias_balance",
+    ] {
+        assert_eq!(
+            decision_tree_state["properties"][field]["type"],
+            serde_json::json!("object")
+        );
+    }
+}
+
+#[test]
 fn shared_bar_analysis_prompt_v2_requires_named_schema_sections() {
     let prompt = shared_bar_analysis_prompt_v2();
     let instructions = prompt.developer_instructions.join("\n");
