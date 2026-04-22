@@ -494,6 +494,10 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
         manual_user_snapshot.input_json["shared_daily_context_json"]["market_background"]["summary"],
         "runtime daily"
     );
+    assert_eq!(
+        manual_user_snapshot.input_json["shared_pa_state_json"]["bar_identity"]["tag"],
+        "runtime-open-pa-state"
+    );
 
     cleanup_runtime_fixture(&pool, &fixture).await;
 }

@@ -419,9 +419,7 @@ fn build_manual_user_input_from_request(
     let Some(shared_daily_context_json) = request.shared_daily_context_json.clone() else {
         return Ok(None);
     };
-    let Some(shared_pa_state_json) = request.shared_pa_state_json.clone() else {
-        return Ok(None);
-    };
+    let shared_pa_state_json = request.shared_pa_state_json.clone().unwrap_or(Value::Null);
 
     Ok(Some(ManualUserAnalysisInput {
         user_id: request.user_id,
