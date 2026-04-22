@@ -1237,9 +1237,11 @@ Expected: PASS with a JSON report that includes `schema_hit_rate`, `pipeline_var
 - [x] **Step 3: Run a real replay smoke using the configured historical dataset**
 ```
 
-- [ ] **Step 5: Commit the verified implementation result**
+- [x] **Step 5: Commit the verified implementation result**
 
 ```bash
 git add -A
 git commit -m "feat: add layered analysis pipeline optimization flow"
 ```
+
+Status: completed on `2026-04-22` (`6a44431`) and merged into `master` (`2a61bca` fast-forward head).

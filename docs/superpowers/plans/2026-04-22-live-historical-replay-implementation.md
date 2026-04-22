@@ -1662,7 +1662,7 @@ Expected: PASS with schema validity unchanged from the first live report and `de
   - `cross_step_consistency_rate`
 ```
 
-- [ ] **Step 6: Mark completed checkboxes in this plan only after the live replay and prompt rerun succeed**
+- [x] **Step 6: Mark completed checkboxes in this plan only after the live replay and prompt rerun succeed**
 
 ```markdown
 - [x] **Step 1: Run the targeted replay tests and the full workspace suite**
@@ -1672,12 +1672,14 @@ Expected: PASS with schema validity unchanged from the first live report and `de
 - [x] **Step 5: Document the operator flow and the first prompt-iteration comparison**
 ```
 
-- [ ] **Step 7: Commit the live replay implementation and first prompt iteration**
+- [x] **Step 7: Commit the live replay implementation and first prompt iteration**
 
 ```bash
 git add crates/pa-analysis/src/prompt_specs.rs docs/architecture/phase1-runtime.md docs/superpowers/plans/2026-04-22-live-historical-replay-implementation.md
 git commit -m "feat: add live historical replay and first prompt iteration"
 ```
+
+Status: completed on `2026-04-22` (`2a61bca`) and merged into `master`.
 
 ## Task 7 Execution Log (2026-04-22)
 
