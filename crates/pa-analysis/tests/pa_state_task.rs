@@ -47,7 +47,7 @@ async fn inserts_one_pa_state_bar_per_identity_when_called_twice() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn inserts_one_pa_state_bar_per_identity_under_concurrent_requests() {
+async fn inserts_open_pa_state_bar_repeatedly_under_concurrent_requests() {
     let repository = Arc::new(InMemoryAnalysisRepository::default());
     let pa_state_bar = PaStateBar {
         instrument_id: Uuid::nil(),
@@ -84,9 +84,17 @@ async fn inserts_one_pa_state_bar_per_identity_under_concurrent_requests() {
     let first = first.await.unwrap();
     let second = second.await.unwrap();
 
-    assert_ne!(first, second);
-    assert_eq!(repository.pa_state_bars().len(), 1);
+    assert!(first);
+    assert!(second);
+    assert_eq!(repository.pa_state_bars().len(), 2);
 
-    let stored = &repository.pa_state_bars()[0];
-    assert_eq!(stored.state_json, pa_state_bar.state_json);
+    for stored in repository.pa_state_bars() {
+        assert_eq!(stored.instrument_id, pa_state_bar.instrument_id);
+        assert_eq!(stored.timeframe, pa_state_bar.timeframe);
+        assert_eq!(stored.bar_state, pa_state_bar.bar_state);
+        assert_eq!(stored.bar_open_time, pa_state_bar.bar_open_time);
+        assert_eq!(stored.bar_close_time, pa_state_bar.bar_close_time);
+        assert_eq!(stored.analysis_version, pa_state_bar.analysis_version);
+        assert_eq!(stored.state_json, pa_state_bar.state_json);
+    }
 }

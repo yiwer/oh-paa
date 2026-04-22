@@ -1,12 +1,16 @@
 use std::{
     collections::HashMap,
     collections::hash_map::Entry,
-    sync::{Mutex, MutexGuard},
+    sync::{
+        Mutex, MutexGuard,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use pa_core::{AppError, Timeframe};
+use pa_orchestrator::AnalysisBarState;
 use uuid::Uuid;
 
 use crate::models::{BarAnalysis, DailyMarketContext, PaStateBar};
@@ -20,6 +24,7 @@ type PaStateBarKey = (
     DateTime<Utc>,
     DateTime<Utc>,
     String,
+    u64,
 );
 
 #[async_trait]
@@ -41,6 +46,7 @@ pub trait AnalysisRepository: Send + Sync {
 pub struct InMemoryAnalysisRepository {
     bar_analyses: Mutex<HashMap<BarAnalysisKey, BarAnalysis>>,
     pa_state_bars: Mutex<HashMap<PaStateBarKey, PaStateBar>>,
+    open_pa_state_bar_insert_seq: AtomicU64,
     daily_contexts: Mutex<HashMap<DailyContextKey, DailyMarketContext>>,
 }
 
@@ -139,7 +145,7 @@ impl AnalysisRepository for InMemoryAnalysisRepository {
         &self,
         pa_state_bar: PaStateBar,
     ) -> Result<bool, AppError> {
-        let key = (
+        let identity = (
             pa_state_bar.instrument_id,
             pa_state_bar.timeframe,
             pa_state_bar.bar_state.as_str().to_string(),
@@ -148,6 +154,25 @@ impl AnalysisRepository for InMemoryAnalysisRepository {
             pa_state_bar.analysis_version.clone(),
         );
 
+        if pa_state_bar.bar_state == AnalysisBarState::Open {
+            let key = (
+                identity.0,
+                identity.1,
+                identity.2,
+                identity.3,
+                identity.4,
+                identity.5,
+                self.open_pa_state_bar_insert_seq
+                    .fetch_add(1, Ordering::Relaxed)
+                    + 1,
+            );
+            self.lock_pa_state_bars().insert(key, pa_state_bar);
+            return Ok(true);
+        }
+
+        let key = (
+            identity.0, identity.1, identity.2, identity.3, identity.4, identity.5, 0,
+        );
         match self.lock_pa_state_bars().entry(key) {
             Entry::Vacant(entry) => {
                 entry.insert(pa_state_bar);
