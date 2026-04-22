@@ -1,0 +1,19 @@
+{
+  "instrument_id": "22222222-2222-2222-2222-222222222202",
+  "timeframe": "15m",
+  "bar_state": "closed",
+  "bar_open_time": "2026-04-18T08:00:00Z",
+  "bar_close_time": "2026-04-18T08:15:00Z",
+  "bar_json": {
+    "open": 84250.0,
+    "high": 84680.0,
+    "low": 84180.0,
+    "close": 84620.0,
+    "volume": 1280.4
+  },
+  "market_context_json": {
+    "session": "always_open",
+    "open_bar": false,
+    "higher_timeframe_bias": "uptrend"
+  }
+}
