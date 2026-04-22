@@ -271,6 +271,18 @@ fn shared_pa_state_prompt_v1_requires_complete_decision_tree_and_strict_json() {
 }
 
 #[test]
+fn shared_pa_state_prompt_v1_emphasizes_no_alias_no_trailing_text_and_object_only_shape() {
+    let prompt = shared_pa_state_bar_prompt_v1();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("Do not use alias keys or near-match keys"));
+    assert!(instructions.contains("The first character must be { and the final character must be }"));
+    assert!(instructions.contains("Do not include explanatory text before or after the JSON object"));
+    assert!(instructions.contains("Every required section must remain a JSON object even when uncertain"));
+    assert!(instructions.contains("Keep all reasoning inside structured JSON fields"));
+}
+
+#[test]
 fn shared_bar_analysis_prompt_v2_requires_named_schema_sections() {
     let prompt = shared_bar_analysis_prompt_v2();
     let instructions = prompt.developer_instructions.join("\n");

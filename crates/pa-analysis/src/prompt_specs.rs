@@ -134,6 +134,12 @@ pub fn shared_pa_state_bar_prompt_v1() -> PromptTemplateSpec {
                 .to_string(),
             "Use this minimum output skeleton and expand each object with evidence-driven content: {\"bar_identity\":{},\"market_session_context\":{},\"bar_observation\":{},\"bar_shape\":{},\"location_context\":{},\"multi_timeframe_alignment\":{},\"support_resistance_map\":{},\"signal_assessment\":{},\"decision_tree_state\":{\"trend_context\":{},\"location_context\":{},\"signal_quality\":{},\"confirmation_state\":{},\"invalidation_conditions\":{},\"bias_balance\":{}},\"evidence_log\":{}}"
                 .to_string(),
+            "Do not use alias keys or near-match keys. Use only the exact required key names and do not wrap the JSON in commentary fields such as response, output, payload, analysis, notes, or explanation."
+                .to_string(),
+            "The first character must be { and the final character must be }. Do not include explanatory text before or after the JSON object."
+                .to_string(),
+            "Every required section must remain a JSON object even when uncertain. Keep all reasoning inside structured JSON fields, not free-text paragraphs."
+                .to_string(),
             "Return JSON only. Do not include markdown, commentary outside the schema, or replacements for required fields."
                 .to_string(),
         ],
