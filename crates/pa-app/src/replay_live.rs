@@ -21,11 +21,13 @@ use sqlx::types::{
     Uuid,
     chrono::{DateTime, Utc},
 };
+use tracing::info;
 
 use crate::{
     build_step_registry_from_config, build_worker_executor_from_config,
     replay::{
         ReplayExecutionMode, ReplayExperimentReport, ReplayStepRun, build_experiment_id,
+        build_replay_summary,
         score_step_runs,
     },
     replay_config::{ResolvedReplayConfig, load_replay_config},
@@ -147,6 +149,13 @@ where
     let mut step_runs = Vec::new();
 
     for sample in &dataset.samples {
+        info!(
+            sample_id = %sample.sample_id,
+            provider = %sample.provider,
+            symbol = %sample.provider_symbol,
+            target_close_time = %sample.target_bar_close_time.to_rfc3339(),
+            "live replay sample start"
+        );
         let fetched_rows = fetch_sample_rows(sample, provider_router).await?;
         let sample_runs =
             run_sample_target_chain(sample, dataset, &fetched_rows, &step_registry, executor)
@@ -155,6 +164,7 @@ where
     }
 
     let programmatic_scores = score_step_runs(&step_runs);
+    let summary = build_replay_summary(&step_runs);
     let execution_mode = ReplayExecutionMode::LiveHistorical;
     let config_source_path = Some(resolved_config.source_path.display().to_string());
     let experiment_id = build_experiment_id(
@@ -169,10 +179,12 @@ where
         experiment_id,
         dataset_id: dataset.dataset_id.clone(),
         pipeline_variant: dataset.pipeline_variant.clone(),
+        candidate_id: Some(dataset.pipeline_variant.clone()),
         execution_mode,
         config_source_path,
         step_runs,
         programmatic_scores,
+        summary,
     })
 }
 
@@ -350,6 +362,12 @@ async fn execute_warmup_step<E>(
 where
     E: LiveReplayExecutor,
 {
+    info!(
+        sample_id = %sample_id,
+        step_key = step.step_key,
+        step_version = step.step_version,
+        "live replay warmup step start"
+    );
     let started_at = Instant::now();
     let outcome = executor
         .execute_json(step.step_key, step.step_version, input_json)
@@ -435,6 +453,14 @@ where
     } else {
         None
     };
+    info!(
+        sample_id = %sample.sample_id,
+        step_key = step.step_key,
+        step_version = step.step_version,
+        schema_valid = step_run.schema_valid,
+        failure_category = ?step_run.failure_category,
+        "live replay target step finish"
+    );
 
     Ok((step_run, continue_output))
 }

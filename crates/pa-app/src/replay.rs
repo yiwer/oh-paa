@@ -26,11 +26,15 @@ pub struct ReplayExperimentReport {
     pub dataset_id: String,
     pub pipeline_variant: String,
     #[serde(default)]
+    pub candidate_id: Option<String>,
+    #[serde(default)]
     pub execution_mode: ReplayExecutionMode,
     #[serde(default)]
     pub config_source_path: Option<String>,
     pub step_runs: Vec<ReplayStepRun>,
     pub programmatic_scores: Map<String, Value>,
+    #[serde(default)]
+    pub summary: Map<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -110,6 +114,7 @@ pub async fn run_fixture_replay_variant_from_path(
     let dataset = load_replay_dataset(path)?;
     let step_runs = execute_variant(&dataset, pipeline_variant)?;
     let programmatic_scores = score_step_runs(&step_runs);
+    let summary = build_replay_summary(&step_runs);
     let execution_mode = ReplayExecutionMode::Fixture;
     let config_source_path = None;
     let experiment_id = build_experiment_id(
@@ -124,10 +129,12 @@ pub async fn run_fixture_replay_variant_from_path(
         experiment_id,
         dataset_id: dataset.dataset_id,
         pipeline_variant: pipeline_variant.to_string(),
+        candidate_id: Some(pipeline_variant.to_string()),
         execution_mode,
         config_source_path,
         step_runs,
         programmatic_scores,
+        summary,
     })
 }
 
@@ -378,6 +385,58 @@ fn validate_variant_steps(
 
 pub(crate) fn score_step_runs(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
     replay_score::score_step_runs(step_runs)
+}
+
+pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
+    let mut summary = Map::new();
+    summary.insert(
+        "total_step_runs".to_string(),
+        Value::from(step_runs.len() as u64),
+    );
+
+    let first_failing_step = step_runs.iter().find(|run| {
+        !run.schema_valid
+            || run.failure_category.is_some()
+            || run.schema_validation_error.is_some()
+            || run.outbound_error_message.is_some()
+    });
+    let first_failing_step = match first_failing_step {
+        Some(run) => serde_json::json!({
+            "sample_id": run.sample_id,
+            "step_key": run.step_key,
+            "step_version": run.step_version,
+            "failure_category": run.failure_category,
+            "schema_validation_error": run.schema_validation_error,
+            "outbound_error_message": run.outbound_error_message,
+        }),
+        None => Value::Null,
+    };
+    summary.insert("first_failing_step".to_string(), first_failing_step);
+
+    let mut failure_counts_by_category: BTreeMap<String, u64> = BTreeMap::new();
+    for run in step_runs {
+        let category = run
+            .failure_category
+            .clone()
+            .or_else(|| {
+                if run.schema_validation_error.is_some() || !run.schema_valid {
+                    Some("schema_validation_failure".to_string())
+                } else if run.outbound_error_message.is_some() {
+                    Some("outbound_failure".to_string())
+                } else {
+                    None
+                }
+            });
+        if let Some(category) = category {
+            *failure_counts_by_category.entry(category).or_insert(0) += 1;
+        }
+    }
+    summary.insert(
+        "failure_counts_by_category".to_string(),
+        serde_json::to_value(failure_counts_by_category).unwrap_or(Value::Null),
+    );
+
+    summary
 }
 
 #[cfg(test)]

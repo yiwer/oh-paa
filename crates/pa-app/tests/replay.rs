@@ -82,6 +82,24 @@ async fn replay_runner_records_variant_step_outputs_and_scores() {
 }
 
 #[tokio::test]
+async fn fixture_replay_report_includes_candidate_metadata_and_empty_failure_summary() {
+    let report = run_fixture_replay_variant_from_path(
+        "testdata/analysis_replay/sample_set.json",
+        "baseline_a",
+    )
+    .await
+    .expect("fixture replay should succeed");
+
+    assert_eq!(report.candidate_id.as_deref(), Some("baseline_a"));
+    assert_eq!(report.summary["total_step_runs"].as_u64(), Some(12));
+    assert!(report.summary["first_failing_step"].is_null());
+    assert_eq!(
+        report.summary["failure_counts_by_category"].as_object(),
+        Some(&serde_json::Map::new())
+    );
+}
+
+#[tokio::test]
 async fn replay_runner_rejects_missing_required_steps() {
     let mut dataset = sample_dataset();
     dataset.samples[0]
@@ -169,6 +187,8 @@ fn replay_report_deserializes_legacy_fixture_report_without_execution_mode() {
 
     assert_eq!(report.execution_mode, ReplayExecutionMode::Fixture);
     assert_eq!(report.config_source_path, None);
+    assert_eq!(report.candidate_id, None);
+    assert!(report.summary.is_empty());
 }
 
 #[test]

@@ -410,7 +410,30 @@ async fn live_replay_runner_converts_outbound_failures_into_report_fields() {
             .expect("live replay should record target failure");
 
     assert_eq!(report.execution_mode, ReplayExecutionMode::LiveHistorical);
+    assert_eq!(report.candidate_id.as_deref(), Some("baseline_a"));
     assert_eq!(report.step_runs.len(), 4);
+    assert_eq!(report.summary["total_step_runs"].as_u64(), Some(4));
+    assert_eq!(
+        report.summary["failure_counts_by_category"]["outbound_failure"].as_u64(),
+        Some(1)
+    );
+    assert_eq!(
+        report.summary["first_failing_step"]["sample_id"].as_str(),
+        Some(sample.sample_id.as_str())
+    );
+    assert_eq!(
+        report.summary["first_failing_step"]["step_key"].as_str(),
+        Some("user_position_advice")
+    );
+    assert_eq!(
+        report.summary["first_failing_step"]["failure_category"].as_str(),
+        Some("outbound_failure")
+    );
+    assert!(
+        report.summary["first_failing_step"]["outbound_error_message"]
+            .as_str()
+            .is_some_and(|message| message.contains("simulated upstream timeout"))
+    );
 
     let failed = report
         .step_runs
