@@ -27,6 +27,7 @@ pub fn build_manual_user_analysis_task(
         &input.subscriptions_json,
         &input.shared_bar_analysis_json,
         &input.shared_daily_context_json,
+        &input.shared_pa_state_json,
     )?;
 
     let ManualUserAnalysisInput {
@@ -113,6 +114,7 @@ pub fn build_scheduled_user_analysis_task(
         &input.subscriptions_json,
         &input.shared_bar_analysis_json,
         &input.shared_daily_context_json,
+        &input.shared_pa_state_json,
     )?;
     let ScheduledUserAnalysisInput {
         schedule_id,
@@ -207,12 +209,14 @@ fn task_defining_context_hash(
     subscriptions_json: &Value,
     shared_bar_analysis_json: &Value,
     shared_daily_context_json: &Value,
+    shared_pa_state_json: &Value,
 ) -> Result<String, AppError> {
     sha256_json(&serde_json::json!({
         "positions": positions_json,
         "subscriptions": subscriptions_json,
         "shared_bar_analysis": shared_bar_analysis_json,
         "shared_daily_context": shared_daily_context_json,
+        "shared_pa_state": shared_pa_state_json,
     }))
 }
 

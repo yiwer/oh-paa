@@ -32,6 +32,7 @@ fn closed_manual_user_task_dedupe_reflects_task_defining_context_and_open_task_d
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "initial"}}),
     };
 
     let closed = build_manual_user_analysis_task(input.clone()).unwrap();
@@ -42,6 +43,11 @@ fn closed_manual_user_task_dedupe_reflects_task_defining_context_and_open_task_d
     .unwrap();
     let changed_shared_daily = build_manual_user_analysis_task(ManualUserAnalysisInput {
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}, "risk_notes": {"note": "changed"}}),
+        ..input.clone()
+    })
+    .unwrap();
+    let changed_shared_pa_state = build_manual_user_analysis_task(ManualUserAnalysisInput {
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "changed"}}),
         ..input.clone()
     })
     .unwrap();
@@ -72,6 +78,10 @@ fn closed_manual_user_task_dedupe_reflects_task_defining_context_and_open_task_d
         changed_subscriptions.task.dedupe_key
     );
     assert_ne!(closed.task.dedupe_key, changed_shared_daily.task.dedupe_key);
+    assert_ne!(
+        closed.task.dedupe_key,
+        changed_shared_pa_state.task.dedupe_key
+    );
     assert_eq!(open.task.dedupe_key, None);
 }
 
@@ -100,6 +110,13 @@ fn manual_user_task_snapshot_serializes_positions_and_shared_outputs() {
             "decision_tree_nodes": {"trend_context": {}},
             "risk_notes": {}
         }),
+        shared_pa_state_json: serde_json::json!({
+            "bar_identity": {
+                "timeframe": "15m",
+                "bar_state": "open"
+            },
+            "micro_structure": {}
+        }),
     };
 
     let envelope = build_manual_user_analysis_task(input.clone()).unwrap();
@@ -113,6 +130,10 @@ fn manual_user_task_snapshot_serializes_positions_and_shared_outputs() {
     assert_eq!(
         envelope.snapshot.input_hash,
         sha256_json(&envelope.snapshot.input_json).unwrap()
+    );
+    assert_eq!(
+        envelope.snapshot.input_json["shared_pa_state_json"],
+        input.shared_pa_state_json
     );
 }
 
@@ -130,6 +151,7 @@ fn manual_user_task_rejects_none_bar_state() {
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "none"}}),
     };
 
     let error = build_manual_user_analysis_task(input).unwrap_err();
@@ -157,6 +179,7 @@ fn closed_intraday_manual_user_task_requires_bar_close_time() {
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "missing-close"}}),
     };
 
     let error = build_manual_user_analysis_task(input).unwrap_err();
@@ -189,11 +212,17 @@ fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_con
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "scheduled-initial"}}),
     };
 
     let envelope = build_scheduled_user_analysis_task(input.clone()).unwrap();
     let changed_shared_bar = build_scheduled_user_analysis_task(ScheduledUserAnalysisInput {
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}, "version": 2}),
+        ..input.clone()
+    })
+    .unwrap();
+    let changed_shared_pa_state = build_scheduled_user_analysis_task(ScheduledUserAnalysisInput {
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "scheduled-changed"}}),
         ..input
     })
     .unwrap();
@@ -216,6 +245,10 @@ fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_con
             .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version))
     );
     assert_ne!(envelope.task.dedupe_key, changed_shared_bar.task.dedupe_key);
+    assert_ne!(
+        envelope.task.dedupe_key,
+        changed_shared_pa_state.task.dedupe_key
+    );
 }
 
 #[test]
@@ -233,6 +266,7 @@ fn closed_intraday_scheduled_user_task_requires_bar_close_time() {
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "scheduled-missing-close"}}),
     };
 
     let error = build_scheduled_user_analysis_task(input).unwrap_err();
@@ -260,6 +294,7 @@ fn scheduled_user_task_rejects_none_bar_state() {
         subscriptions_json: serde_json::json!([]),
         shared_bar_analysis_json: serde_json::json!({"bullish_case": {}, "bearish_case": {}}),
         shared_daily_context_json: serde_json::json!({"decision_tree_nodes": {}}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "scheduled-none"}}),
     };
 
     let error = build_scheduled_user_analysis_task(input).unwrap_err();
@@ -295,6 +330,9 @@ fn user_prompt_spec_includes_required_pa_contract_fields() {
         spec.bar_state_support,
         vec![AnalysisBarState::Open, AnalysisBarState::Closed]
     );
+    assert!(spec.system_prompt.contains("shared_daily_context_json"));
+    assert!(spec.system_prompt.contains("shared_bar_analysis_json"));
+    assert!(spec.system_prompt.contains("shared_pa_state_json"));
 }
 
 fn required_fields(schema: &Value) -> Vec<String> {

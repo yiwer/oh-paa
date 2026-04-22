@@ -77,6 +77,7 @@ pub struct ManualUserAnalysisInput {
     pub subscriptions_json: Value,
     pub shared_bar_analysis_json: Value,
     pub shared_daily_context_json: Value,
+    pub shared_pa_state_json: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -95,6 +96,7 @@ pub struct ScheduledUserAnalysisInput {
     pub subscriptions_json: Value,
     pub shared_bar_analysis_json: Value,
     pub shared_daily_context_json: Value,
+    pub shared_pa_state_json: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

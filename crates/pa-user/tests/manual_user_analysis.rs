@@ -3,12 +3,14 @@ use pa_analysis::{BarAnalysis, DailyMarketContext};
 use pa_core::{AppError, Timeframe};
 use pa_user::{
     models::{
-        ManualUserAnalysisRequest, PositionSide, PositionSnapshot, UserAnalysisReport,
-        UserSubscription,
+        ManualUserAnalysisInput, ManualUserAnalysisRequest, PositionSide, PositionSnapshot,
+        UserAnalysisReport, UserSubscription,
     },
     repository::{InMemorySharedAnalysisLookup, InMemoryUserRepository},
     service::UserAnalysisService,
+    user_position_advice_v1,
 };
+use pa_orchestrator::AnalysisBarState;
 use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
@@ -232,4 +234,32 @@ async fn manual_user_analysis_returns_identifying_error_when_daily_context_is_mi
         }
         other => panic!("expected analysis error, got {other:?}"),
     }
+}
+
+#[test]
+fn manual_user_input_contract_includes_shared_pa_state_json() {
+    let input = ManualUserAnalysisInput {
+        user_id: Uuid::new_v4(),
+        instrument_id: Uuid::new_v4(),
+        timeframe: Timeframe::M15,
+        bar_state: AnalysisBarState::Open,
+        bar_open_time: Some(Utc.with_ymd_and_hms(2026, 4, 21, 1, 45, 0).unwrap()),
+        bar_close_time: Some(Utc.with_ymd_and_hms(2026, 4, 21, 2, 0, 0).unwrap()),
+        trading_date: Some(NaiveDate::from_ymd_opt(2026, 4, 21).unwrap()),
+        positions_json: json!([]),
+        subscriptions_json: json!([]),
+        shared_bar_analysis_json: json!({}),
+        shared_daily_context_json: json!({}),
+        shared_pa_state_json: json!({"bar_identity": {"tag": "evidence"}}),
+    };
+    let input_json = serde_json::to_value(input).unwrap();
+    let prompt_spec = user_position_advice_v1();
+
+    assert_eq!(
+        input_json["shared_pa_state_json"]["bar_identity"]["tag"],
+        "evidence"
+    );
+    assert!(prompt_spec.system_prompt.contains("shared_daily_context_json"));
+    assert!(prompt_spec.system_prompt.contains("shared_bar_analysis_json"));
+    assert!(prompt_spec.system_prompt.contains("shared_pa_state_json"));
 }

@@ -66,6 +66,7 @@ pub(crate) struct ManualUserTaskRequest {
     pub subscriptions_json: Value,
     pub shared_bar_analysis_json: Option<Value>,
     pub shared_daily_context_json: Option<Value>,
+    pub shared_pa_state_json: Option<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -282,6 +283,17 @@ pub(crate) async fn resolve_manual_user_input(
         Some(value) => value,
         None => find_matching_shared_daily_context(state, request.instrument_id, trading_date)?,
     };
+    let shared_pa_state_json = match request.shared_pa_state_json {
+        Some(value) => value,
+        None => find_matching_shared_pa_state(
+            state,
+            request.instrument_id,
+            timeframe,
+            bar_state,
+            resolved.bar_open_time,
+            resolved.bar_close_time,
+        )?,
+    };
 
     Ok(ManualUserAnalysisInput {
         user_id: request.user_id,
@@ -295,6 +307,7 @@ pub(crate) async fn resolve_manual_user_input(
         subscriptions_json: request.subscriptions_json,
         shared_bar_analysis_json,
         shared_daily_context_json,
+        shared_pa_state_json,
     })
 }
 
@@ -406,6 +419,9 @@ fn build_manual_user_input_from_request(
     let Some(shared_daily_context_json) = request.shared_daily_context_json.clone() else {
         return Ok(None);
     };
+    let Some(shared_pa_state_json) = request.shared_pa_state_json.clone() else {
+        return Ok(None);
+    };
 
     Ok(Some(ManualUserAnalysisInput {
         user_id: request.user_id,
@@ -419,6 +435,7 @@ fn build_manual_user_input_from_request(
         subscriptions_json: request.subscriptions_json.clone(),
         shared_bar_analysis_json,
         shared_daily_context_json,
+        shared_pa_state_json,
     }))
 }
 
