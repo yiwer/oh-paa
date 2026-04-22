@@ -64,6 +64,19 @@ and serves the Axum router.
   - lookback depth must satisfy `lookback_15m_bar_count >= warmup_bar_count + 1`.
   - warmup bars and target bars are strict closed bars for this first slice.
 
+## Quality Optimization Funnel
+
+- Stage 1 single-step probe:
+  - `cargo run -p pa-app --bin replay_probe -- --config <config.toml> --step shared_pa_state_bar:v1 --input testdata/analysis_replay/probe_shared_pa_state_input.json`
+- Stage 2 single-sample chain:
+  - `cargo run -p pa-app --bin replay_analysis -- --mode live --dataset <single-sample.json> --config <config.toml> --variant baseline_a`
+- Stage 3 five-sample gate:
+  - `cargo run -p pa-app --bin replay_analysis -- --mode live --dataset testdata/analysis_replay/live_crypto_15m.json --config <config.toml> --variant baseline_a`
+- Archive conventions:
+  - `docs/superpowers/archives/<date>-<candidate>-report.json`
+  - `docs/superpowers/archives/<date>-<candidate>-findings.md`
+  - `docs/superpowers/archives/<date>-<candidate>-run.log`
+
 ## Prompt Iteration Findings (2026-04-22)
 
 - Shared pipeline prompt hardening:
