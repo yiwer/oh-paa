@@ -5,7 +5,7 @@ use pa_analysis::{
     build_shared_pa_state_bar_task, shared_bar_analysis_v1, shared_daily_context_v1,
     shared_pa_state_bar_v1,
 };
-use pa_core::Timeframe;
+use pa_core::{AppError, Timeframe};
 use pa_orchestrator::{AnalysisBarState, build_shared_bar_dedupe_key, sha256_json};
 use serde_json::Value;
 use uuid::Uuid;
@@ -96,6 +96,31 @@ fn closed_pa_state_task_has_dedupe_key_and_open_task_does_not() {
         closed.snapshot.schema_version,
         shared_pa_state_bar_v1().input_schema_version
     );
+}
+
+#[test]
+fn pa_state_task_rejects_none_bar_state_without_panicking() {
+    let error = build_shared_pa_state_bar_task(SharedPaStateBarInput {
+        instrument_id: Uuid::nil(),
+        timeframe: Timeframe::M15,
+        bar_state: AnalysisBarState::None,
+        bar_open_time: Utc
+            .with_ymd_and_hms(2026, 4, 21, 1, 45, 0)
+            .unwrap(),
+        bar_close_time: Utc
+            .with_ymd_and_hms(2026, 4, 21, 2, 0, 0)
+            .unwrap(),
+        bar_json: serde_json::json!({"kind":"invalid_bar_state"}),
+        market_context_json: serde_json::json!({"market":{"market_code":"crypto"}}),
+    })
+    .unwrap_err();
+
+    match error {
+        AppError::Analysis { message, .. } => {
+            assert!(message.contains("requires open or closed"));
+        }
+        other => panic!("expected analysis error, got {other:?}"),
+    }
 }
 
 #[test]

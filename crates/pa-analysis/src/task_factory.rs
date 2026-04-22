@@ -171,7 +171,12 @@ pub fn build_shared_pa_state_bar_task(
             SHARED_PA_STATE_BAR_PROMPT_METADATA.prompt_version
         )),
         AnalysisBarState::Open => None,
-        AnalysisBarState::None => unreachable!("pa state bar task requires open or closed"),
+        AnalysisBarState::None => {
+            return Err(AppError::Analysis {
+                message: "shared pa state task requires open or closed bar_state".to_string(),
+                source: None,
+            });
+        }
     };
 
     Ok(TaskEnvelope {
