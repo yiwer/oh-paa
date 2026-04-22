@@ -14,8 +14,9 @@ pub use models::{
     SharedPaStateBarOutput,
 };
 pub use prompt_specs::{
-    shared_bar_analysis_v1, shared_daily_context_v1, shared_pa_state_bar_prompt_v1,
-    shared_pa_state_bar_v1,
+    shared_bar_analysis_prompt_v2, shared_bar_analysis_v1, shared_bar_analysis_v2,
+    shared_daily_context_prompt_v2, shared_daily_context_v1, shared_daily_context_v2,
+    shared_pa_state_bar_prompt_v1, shared_pa_state_bar_v1,
 };
 pub use repository::{AnalysisRepository, InMemoryAnalysisRepository};
 pub use service::{AnalysisService, GenerationResult};

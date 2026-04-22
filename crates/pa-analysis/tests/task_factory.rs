@@ -2,7 +2,7 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use pa_analysis::{
     SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput,
     build_shared_bar_analysis_task, build_shared_daily_context_task,
-    build_shared_pa_state_bar_task, shared_bar_analysis_v1, shared_daily_context_v1,
+    build_shared_pa_state_bar_task, shared_bar_analysis_v2, shared_daily_context_v2,
     shared_pa_state_bar_v1,
 };
 use pa_core::{AppError, Timeframe};
@@ -21,8 +21,8 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
         bar_open_time,
         bar_close_time,
         bar_state: AnalysisBarState::Closed,
-        canonical_bar_json: serde_json::json!({"close": 101.0}),
-        structure_context_json: serde_json::json!({"recent_bars": []}),
+        shared_pa_state_json: serde_json::json!({"bar_identity": {"tag": "shared-pa-state"}}),
+        recent_pa_states_json: serde_json::json!([]),
     };
 
     let closed = build_shared_bar_analysis_task(input.clone()).unwrap();
@@ -37,20 +37,20 @@ fn closed_shared_bar_task_has_dedupe_key_and_open_shared_bar_task_does_not() {
         instrument_id,
         Timeframe::M15,
         bar_close_time,
-        &shared_bar_analysis_v1().prompt_key,
-        &shared_bar_analysis_v1().prompt_version,
+        &shared_bar_analysis_v2().step_key,
+        &shared_bar_analysis_v2().step_version,
         AnalysisBarState::Closed,
     );
 
     assert_eq!(
         closed.snapshot.schema_version,
-        shared_bar_analysis_v1().input_schema_version
+        shared_bar_analysis_v2().input_schema_version
     );
     assert_eq!(closed.snapshot.input_json, expected_input_json);
-    assert_eq!(closed.task.prompt_key, shared_bar_analysis_v1().prompt_key);
+    assert_eq!(closed.task.prompt_key, shared_bar_analysis_v2().step_key);
     assert_eq!(
         closed.task.prompt_version,
-        shared_bar_analysis_v1().prompt_version
+        shared_bar_analysis_v2().step_version
     );
     assert_eq!(closed.task.dedupe_key, expected_closed_key);
     assert_eq!(open.task.dedupe_key, None);
@@ -104,12 +104,8 @@ fn pa_state_task_rejects_none_bar_state_without_panicking() {
         instrument_id: Uuid::nil(),
         timeframe: Timeframe::M15,
         bar_state: AnalysisBarState::None,
-        bar_open_time: Utc
-            .with_ymd_and_hms(2026, 4, 21, 1, 45, 0)
-            .unwrap(),
-        bar_close_time: Utc
-            .with_ymd_and_hms(2026, 4, 21, 2, 0, 0)
-            .unwrap(),
+        bar_open_time: Utc.with_ymd_and_hms(2026, 4, 21, 1, 45, 0).unwrap(),
+        bar_close_time: Utc.with_ymd_and_hms(2026, 4, 21, 2, 0, 0).unwrap(),
         bar_json: serde_json::json!({"kind":"invalid_bar_state"}),
         market_context_json: serde_json::json!({"market":{"market_code":"crypto"}}),
     })
@@ -128,34 +124,32 @@ fn shared_daily_context_task_snapshot_captures_required_pa_inputs() {
     let input = SharedDailyContextInput {
         instrument_id: Uuid::new_v4(),
         trading_date: NaiveDate::from_ymd_opt(2026, 4, 21).unwrap(),
-        m15_structure_json: serde_json::json!({"swing_points": []}),
-        h1_structure_json: serde_json::json!({"swing_points": []}),
-        d1_structure_json: serde_json::json!({"swing_points": []}),
+        recent_pa_states_json: serde_json::json!([]),
         recent_shared_bar_analyses_json: serde_json::json!([]),
-        key_levels_json: serde_json::json!({"support": [], "resistance": []}),
-        signal_bar_candidates_json: serde_json::json!([]),
+        multi_timeframe_structure_json: serde_json::json!({
+            "15m": {"rows": []},
+            "1h": {"rows": []},
+            "1d": {"rows": []}
+        }),
         market_background_json: serde_json::json!({"session": "asia"}),
     };
 
     let envelope = build_shared_daily_context_task(input.clone()).unwrap();
     assert_eq!(envelope.task.task_type, "shared_daily_context");
     assert_eq!(envelope.task.prompt_key, "shared_daily_context");
-    assert_eq!(envelope.task.prompt_version, "v1");
+    assert_eq!(envelope.task.prompt_version, "v2");
     assert_eq!(envelope.task.bar_state, AnalysisBarState::None);
     assert_eq!(envelope.task.timeframe, None);
     assert_eq!(envelope.task.trading_date, Some(input.trading_date));
     assert!(envelope.task.dedupe_key.is_some());
     assert_eq!(
         envelope.snapshot.schema_version,
-        shared_daily_context_v1().input_schema_version
+        shared_daily_context_v2().input_schema_version
     );
-    assert_eq!(
-        envelope.task.prompt_key,
-        shared_daily_context_v1().prompt_key
-    );
+    assert_eq!(envelope.task.prompt_key, shared_daily_context_v2().step_key);
     assert_eq!(
         envelope.task.prompt_version,
-        shared_daily_context_v1().prompt_version
+        shared_daily_context_v2().step_version
     );
 
     assert_eq!(
@@ -202,39 +196,43 @@ fn shared_prompt_specs_include_required_pa_contract_fields() {
         assert!(pa_state_decision_required.contains(&field.to_string()));
     }
 
-    let bar_spec = shared_bar_analysis_v1();
+    let bar_spec = shared_bar_analysis_v2();
     let bar_required = required_fields(&bar_spec.output_json_schema);
 
     for field in [
-        "bar_state",
-        "bar_classification",
+        "bar_identity",
+        "bar_summary",
+        "market_story",
         "bullish_case",
         "bearish_case",
-        "two_sided_summary",
-        "nearby_levels",
-        "signal_strength",
-        "continuation_scenarios",
-        "reversal_scenarios",
-        "invalidation_levels",
-        "execution_bias_notes",
+        "two_sided_balance",
+        "key_levels",
+        "signal_bar_verdict",
+        "continuation_path",
+        "reversal_path",
+        "invalidation_map",
+        "follow_through_checkpoints",
     ] {
         assert!(bar_required.contains(&field.to_string()));
     }
 
-    let daily_spec = shared_daily_context_v1();
+    let daily_spec = shared_daily_context_v2();
     let daily_required = required_fields(&daily_spec.output_json_schema);
 
     for field in [
+        "context_identity",
         "market_background",
-        "market_structure",
+        "dominant_structure",
+        "intraday_vs_higher_timeframe_state",
         "key_support_levels",
         "key_resistance_levels",
         "signal_bars",
-        "candle_patterns",
+        "candle_pattern_map",
         "decision_tree_nodes",
         "liquidity_context",
-        "risk_notes",
         "scenario_map",
+        "risk_notes",
+        "session_playbook",
     ] {
         assert!(daily_required.contains(&field.to_string()));
     }
@@ -247,6 +245,7 @@ fn shared_prompt_specs_include_required_pa_contract_fields() {
         "signal_quality",
         "confirmation_state",
         "invalidation_conditions",
+        "path_of_least_resistance",
     ] {
         assert!(decision_required.contains(&field.to_string()));
     }

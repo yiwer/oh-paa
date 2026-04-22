@@ -42,23 +42,24 @@ pub struct SharedBarAnalysisInput {
     pub bar_close_time: DateTime<Utc>,
     #[serde(with = "bar_state_serde")]
     pub bar_state: AnalysisBarState,
-    pub canonical_bar_json: Value,
-    pub structure_context_json: Value,
+    pub shared_pa_state_json: Value,
+    pub recent_pa_states_json: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SharedBarAnalysisOutput {
-    pub bar_state: String,
-    pub bar_classification: Value,
+    pub bar_identity: Value,
+    pub bar_summary: Value,
+    pub market_story: Value,
     pub bullish_case: Value,
     pub bearish_case: Value,
-    pub two_sided_summary: Value,
-    pub nearby_levels: Value,
-    pub signal_strength: Value,
-    pub continuation_scenarios: Value,
-    pub reversal_scenarios: Value,
-    pub invalidation_levels: Value,
-    pub execution_bias_notes: Value,
+    pub two_sided_balance: Value,
+    pub key_levels: Value,
+    pub signal_bar_verdict: Value,
+    pub continuation_path: Value,
+    pub reversal_path: Value,
+    pub invalidation_map: Value,
+    pub follow_through_checkpoints: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -92,27 +93,27 @@ pub struct SharedPaStateBarOutput {
 pub struct SharedDailyContextInput {
     pub instrument_id: Uuid,
     pub trading_date: NaiveDate,
-    pub m15_structure_json: Value,
-    pub h1_structure_json: Value,
-    pub d1_structure_json: Value,
+    pub recent_pa_states_json: Value,
     pub recent_shared_bar_analyses_json: Value,
-    pub key_levels_json: Value,
-    pub signal_bar_candidates_json: Value,
+    pub multi_timeframe_structure_json: Value,
     pub market_background_json: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SharedDailyContextOutput {
+    pub context_identity: Value,
     pub market_background: Value,
-    pub market_structure: Value,
+    pub dominant_structure: Value,
+    pub intraday_vs_higher_timeframe_state: Value,
     pub key_support_levels: Value,
     pub key_resistance_levels: Value,
     pub signal_bars: Value,
-    pub candle_patterns: Value,
+    pub candle_pattern_map: Value,
     pub decision_tree_nodes: Value,
     pub liquidity_context: Value,
-    pub risk_notes: Value,
     pub scenario_map: Value,
+    pub risk_notes: Value,
+    pub session_playbook: Value,
 }
 
 mod timeframe_serde {

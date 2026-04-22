@@ -13,9 +13,7 @@ use pa_market::{
     CanonicalKlineRepository, MarketDataProvider, PgCanonicalKlineRepository, ProviderKline,
     ProviderRouter, ProviderTick,
 };
-use pa_orchestrator::{
-    AnalysisResult, InMemoryOrchestrationRepository, OrchestrationRepository,
-};
+use pa_orchestrator::{AnalysisResult, InMemoryOrchestrationRepository, OrchestrationRepository};
 use serde_json::Value;
 use sqlx::PgPool;
 use tower::ServiceExt;
@@ -39,8 +37,8 @@ async fn healthz_and_phase2_analysis_routes_are_wired() {
             "bar_state":"closed",
             "bar_open_time":"2026-04-21T01:45:00Z",
             "bar_close_time":"2026-04-21T02:00:00Z",
-            "canonical_bar_json":{"open":1,"close":2},
-            "structure_context_json":{"trend":"up"}
+            "shared_pa_state_json":{"bar_identity":{"tag":"fixture-pa-state"}},
+            "recent_pa_states_json":[]
         }"#,
     )
     .await;
@@ -87,7 +85,9 @@ async fn healthz_and_phase2_analysis_routes_are_wired() {
 #[tokio::test]
 async fn admin_backfill_and_market_reads_flow_through_runtime() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping admin_backfill_and_market_reads_flow_through_runtime: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping admin_backfill_and_market_reads_flow_through_runtime: PA_DATABASE_URL not set"
+        );
         return;
     };
     let fixture = seed_runtime_fixture(&pool).await;
@@ -150,7 +150,10 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
 
     let session_profile = request(
         &app,
-        &format!("/market/session-profile?instrument_id={}", fixture.instrument_id),
+        &format!(
+            "/market/session-profile?instrument_id={}",
+            fixture.instrument_id
+        ),
     )
     .await;
     assert_eq!(session_profile.status(), StatusCode::OK);
@@ -180,8 +183,14 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
     assert_eq!(open_bar.status(), StatusCode::OK);
     let open_bar_json = response_json(open_bar).await;
     assert_eq!(open_bar_json["market_open"], true);
-    assert_eq!(open_bar_json["row"]["open_time"], "2024-01-02T10:00:00+00:00");
-    assert_eq!(open_bar_json["row"]["close_time"], "2024-01-02T11:00:00+00:00");
+    assert_eq!(
+        open_bar_json["row"]["open_time"],
+        "2024-01-02T10:00:00+00:00"
+    );
+    assert_eq!(
+        open_bar_json["row"]["close_time"],
+        "2024-01-02T11:00:00+00:00"
+    );
     assert_eq!(open_bar_json["row"]["open"], "10.8");
     assert_eq!(open_bar_json["row"]["close"], "11.0");
     assert_eq!(open_bar_json["row"]["child_bar_count"], 0);
@@ -192,12 +201,15 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
 #[tokio::test]
 async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results: PA_DATABASE_URL not set"
+        );
         return;
     };
     let fixture = seed_runtime_fixture(&pool).await;
     let orchestration_repository = Arc::new(InMemoryOrchestrationRepository::default());
-    let app = market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
+    let app =
+        market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
 
     let backfill = request_json(
         &app,
@@ -214,6 +226,79 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     )
     .await;
     assert_eq!(backfill.status(), StatusCode::ACCEPTED);
+
+    let shared_pa_state = request_json(
+        &app,
+        Method::POST,
+        "/analysis/shared/pa-state",
+        &format!(
+            r#"{{
+                "instrument_id":"{}",
+                "timeframe":"1h",
+                "bar_state":"open"
+            }}"#,
+            fixture.instrument_id
+        ),
+    )
+    .await;
+    assert_eq!(shared_pa_state.status(), StatusCode::ACCEPTED);
+    let shared_pa_state_json = response_json(shared_pa_state).await;
+    let shared_pa_state_task_id = shared_pa_state_json["task_id"]
+        .as_str()
+        .expect("shared pa state task id should exist")
+        .parse::<Uuid>()
+        .expect("shared pa state task id should parse");
+    let shared_pa_state_task = orchestration_repository
+        .task(shared_pa_state_task_id)
+        .expect("shared pa state task should exist");
+    let shared_pa_state_snapshot = orchestration_repository
+        .load_snapshot(shared_pa_state_task.snapshot_id)
+        .await
+        .expect("shared pa state snapshot should load");
+    assert_eq!(shared_pa_state_snapshot.input_json["timeframe"], "1h");
+    assert_eq!(shared_pa_state_snapshot.input_json["bar_state"], "open");
+    assert_eq!(
+        shared_pa_state_snapshot.input_json["bar_open_time"],
+        "2024-01-02T10:00:00+00:00"
+    );
+    assert_eq!(
+        shared_pa_state_snapshot.input_json["bar_close_time"],
+        "2024-01-02T11:00:00+00:00"
+    );
+    assert_eq!(
+        shared_pa_state_snapshot.input_json["bar_json"]["close"],
+        "11.0"
+    );
+    assert_eq!(
+        shared_pa_state_snapshot.input_json["market_context_json"]["market"]["market_code"],
+        "crypto"
+    );
+
+    orchestration_repository
+        .insert_result_and_complete(AnalysisResult::from_task(
+            &shared_pa_state_task,
+            serde_json::json!({
+                "bar_identity": {"tag": "runtime-open-pa-state"},
+                "market_session_context": {},
+                "bar_observation": {},
+                "bar_shape": {},
+                "location_context": {},
+                "multi_timeframe_alignment": {},
+                "support_resistance_map": {},
+                "signal_assessment": {},
+                "decision_tree_state": {
+                    "trend_context": {},
+                    "location_context": {},
+                    "signal_quality": {},
+                    "confirmation_state": {},
+                    "invalidation_conditions": {},
+                    "bias_balance": {}
+                },
+                "evidence_log": {}
+            }),
+        ))
+        .await
+        .expect("shared pa state result should persist");
 
     let shared_bar = request_json(
         &app,
@@ -254,29 +339,30 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
         "2024-01-02T11:00:00+00:00"
     );
     assert_eq!(
-        shared_bar_snapshot.input_json["canonical_bar_json"]["close"],
-        "11.0"
+        shared_bar_snapshot.input_json["shared_pa_state_json"]["bar_identity"]["tag"],
+        "runtime-open-pa-state"
     );
     assert_eq!(
-        shared_bar_snapshot.input_json["structure_context_json"]["market"]["market_code"],
-        "crypto"
+        shared_bar_snapshot.input_json["recent_pa_states_json"][0]["bar_identity"]["tag"],
+        "runtime-open-pa-state"
     );
 
     orchestration_repository
         .insert_result_and_complete(AnalysisResult::from_task(
             &shared_bar_task,
             serde_json::json!({
-                "bar_state": "open",
-                "bar_classification": {"tag": "runtime-open-bar"},
+                "bar_identity": {"tag": "runtime-open-bar"},
+                "bar_summary": {"tag": "runtime-open-bar"},
+                "market_story": {},
                 "bullish_case": {"summary": "test"},
                 "bearish_case": {"summary": "test"},
-                "two_sided_summary": {},
-                "nearby_levels": {},
-                "signal_strength": {},
-                "continuation_scenarios": {},
-                "reversal_scenarios": {},
-                "invalidation_levels": {},
-                "execution_bias_notes": {}
+                "two_sided_balance": {},
+                "key_levels": {},
+                "signal_bar_verdict": {},
+                "continuation_path": {},
+                "reversal_path": {},
+                "invalidation_map": {},
+                "follow_through_checkpoints": {}
             }),
         ))
         .await
@@ -309,23 +395,27 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
         .await
         .expect("shared daily snapshot should load");
     assert_eq!(
-        shared_daily_snapshot.input_json["recent_shared_bar_analyses_json"][0]["bar_classification"]["tag"],
+        shared_daily_snapshot.input_json["recent_shared_bar_analyses_json"][0]["bar_summary"]["tag"],
         "runtime-open-bar"
+    );
+    assert_eq!(
+        shared_daily_snapshot.input_json["recent_pa_states_json"][0]["bar_identity"]["tag"],
+        "runtime-open-pa-state"
     );
     assert_eq!(
         shared_daily_snapshot.input_json["market_background_json"]["market"]["market_code"],
         "crypto"
     );
     assert_eq!(
-        shared_daily_snapshot.input_json["m15_structure_json"]["timeframe"],
+        shared_daily_snapshot.input_json["multi_timeframe_structure_json"]["15m"]["timeframe"],
         "15m"
     );
     assert_eq!(
-        shared_daily_snapshot.input_json["h1_structure_json"]["timeframe"],
+        shared_daily_snapshot.input_json["multi_timeframe_structure_json"]["1h"]["timeframe"],
         "1h"
     );
     assert_eq!(
-        shared_daily_snapshot.input_json["d1_structure_json"]["timeframe"],
+        shared_daily_snapshot.input_json["multi_timeframe_structure_json"]["1d"]["timeframe"],
         "1d"
     );
 
@@ -333,22 +423,26 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
         .insert_result_and_complete(AnalysisResult::from_task(
             &shared_daily_task,
             serde_json::json!({
+                "context_identity": {},
                 "market_background": {"summary": "runtime daily"},
-                "market_structure": {},
+                "dominant_structure": {},
+                "intraday_vs_higher_timeframe_state": {},
                 "key_support_levels": {},
                 "key_resistance_levels": {},
                 "signal_bars": {},
-                "candle_patterns": {},
+                "candle_pattern_map": {},
                 "decision_tree_nodes": {
                     "trend_context": {},
                     "location_context": {},
                     "signal_quality": {},
                     "confirmation_state": {},
-                    "invalidation_conditions": {}
+                    "invalidation_conditions": {},
+                    "path_of_least_resistance": {}
                 },
                 "liquidity_context": {},
+                "scenario_map": {},
                 "risk_notes": {},
-                "scenario_map": {}
+                "session_playbook": {}
             }),
         ))
         .await
@@ -393,7 +487,7 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
         "2024-01-02T10:00:00+00:00"
     );
     assert_eq!(
-        manual_user_snapshot.input_json["shared_bar_analysis_json"]["bar_classification"]["tag"],
+        manual_user_snapshot.input_json["shared_bar_analysis_json"]["bar_summary"]["tag"],
         "runtime-open-bar"
     );
     assert_eq!(
@@ -405,10 +499,7 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
 }
 
 fn market_runtime_app(pool: PgPool) -> axum::Router {
-    market_runtime_app_with_repository(
-        pool,
-        Arc::new(InMemoryOrchestrationRepository::default()),
-    )
+    market_runtime_app_with_repository(pool, Arc::new(InMemoryOrchestrationRepository::default()))
 }
 
 fn market_runtime_app_with_repository(
@@ -676,13 +767,7 @@ impl MarketDataProvider for FallbackProvider {
     }
 }
 
-fn bar(
-    open_time: &str,
-    open: &str,
-    high: &str,
-    low: &str,
-    close: &str,
-) -> ProviderKline {
+fn bar(open_time: &str, open: &str, high: &str, low: &str, close: &str) -> ProviderKline {
     let open_time = utc(open_time);
 
     ProviderKline {

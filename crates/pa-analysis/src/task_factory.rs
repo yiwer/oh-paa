@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput,
     prompt_specs::{
-        SHARED_BAR_ANALYSIS_PROMPT_METADATA, SHARED_DAILY_CONTEXT_PROMPT_METADATA,
+        SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA, SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA,
         SHARED_PA_STATE_BAR_PROMPT_METADATA,
     },
 };
@@ -37,15 +37,15 @@ pub fn build_shared_bar_analysis_task(
         instrument_id,
         timeframe,
         bar_close_time,
-        SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_key,
-        SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_version,
+        SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA.prompt_key,
+        SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA.prompt_version,
         bar_state,
     );
 
     Ok(TaskEnvelope {
         task: AnalysisTask {
             id: task_id,
-            task_type: SHARED_BAR_ANALYSIS_PROMPT_METADATA.task_type.to_string(),
+            task_type: SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA.task_type.to_string(),
             status: AnalysisTaskStatus::Pending,
             instrument_id,
             user_id: None,
@@ -55,8 +55,10 @@ pub fn build_shared_bar_analysis_task(
             bar_close_time: Some(bar_close_time),
             trading_date: None,
             trigger_type: "event".to_string(),
-            prompt_key: SHARED_BAR_ANALYSIS_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA
+            prompt_key: SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA
+                .prompt_key
+                .to_string(),
+            prompt_version: SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA
                 .prompt_version
                 .to_string(),
             snapshot_id,
@@ -74,7 +76,7 @@ pub fn build_shared_bar_analysis_task(
             task_id,
             input_json,
             input_hash,
-            schema_version: SHARED_BAR_ANALYSIS_PROMPT_METADATA
+            schema_version: SHARED_BAR_ANALYSIS_V2_PROMPT_METADATA
                 .input_schema_version
                 .to_string(),
             created_at: scheduled_at,
@@ -97,17 +99,19 @@ pub fn build_shared_daily_context_task(
     } = input;
     let dedupe_key = Some(format!(
         "{task_type}:{instrument_id}:{trading_date}:{prompt_key}:{prompt_version}",
-        task_type = SHARED_DAILY_CONTEXT_PROMPT_METADATA.task_type,
+        task_type = SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA.task_type,
         instrument_id = instrument_id,
         trading_date = trading_date,
-        prompt_key = SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_key,
-        prompt_version = SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_version,
+        prompt_key = SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA.prompt_key,
+        prompt_version = SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA.prompt_version,
     ));
 
     Ok(TaskEnvelope {
         task: AnalysisTask {
             id: task_id,
-            task_type: SHARED_DAILY_CONTEXT_PROMPT_METADATA.task_type.to_string(),
+            task_type: SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA
+                .task_type
+                .to_string(),
             status: AnalysisTaskStatus::Pending,
             instrument_id,
             user_id: None,
@@ -117,8 +121,10 @@ pub fn build_shared_daily_context_task(
             bar_close_time: None,
             trading_date: Some(trading_date),
             trigger_type: "schedule".to_string(),
-            prompt_key: SHARED_DAILY_CONTEXT_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA
+            prompt_key: SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA
+                .prompt_key
+                .to_string(),
+            prompt_version: SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA
                 .prompt_version
                 .to_string(),
             snapshot_id,
@@ -136,7 +142,7 @@ pub fn build_shared_daily_context_task(
             task_id,
             input_json,
             input_hash,
-            schema_version: SHARED_DAILY_CONTEXT_PROMPT_METADATA
+            schema_version: SHARED_DAILY_CONTEXT_V2_PROMPT_METADATA
                 .input_schema_version
                 .to_string(),
             created_at: scheduled_at,

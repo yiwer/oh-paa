@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
 };
 use pa_analysis::{
-    build_shared_bar_analysis_task, build_shared_daily_context_task,
+    build_shared_bar_analysis_task, build_shared_daily_context_task, build_shared_pa_state_bar_task,
 };
 use pa_core::AppError;
 use pa_orchestrator::{
@@ -17,8 +17,8 @@ use uuid::Uuid;
 
 use crate::{
     analysis_runtime::{
-        SharedBarTaskRequest, SharedDailyTaskRequest, resolve_shared_bar_input,
-        resolve_shared_daily_input,
+        SharedBarTaskRequest, SharedDailyTaskRequest, SharedPaStateTaskRequest,
+        resolve_shared_bar_input, resolve_shared_daily_input, resolve_shared_pa_state_input,
     },
     error::{ApiError, ApiResult},
     router::AppState,
@@ -26,6 +26,7 @@ use crate::{
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/shared/pa-state", post(create_shared_pa_state_task))
         .route("/shared/bar", post(create_shared_bar_task))
         .route("/shared/daily", post(create_shared_daily_task))
         .route("/tasks/{task_id}", get(get_task))
@@ -50,6 +51,15 @@ async fn create_shared_bar_task(
 ) -> ApiResult<(StatusCode, Json<Value>)> {
     let input = resolve_shared_bar_input(&state, request).await?;
     let envelope = build_shared_bar_analysis_task(input)?;
+    enqueue_task(&state, envelope.task, envelope.snapshot).await
+}
+
+async fn create_shared_pa_state_task(
+    State(state): State<AppState>,
+    Json(request): Json<SharedPaStateTaskRequest>,
+) -> ApiResult<(StatusCode, Json<Value>)> {
+    let input = resolve_shared_pa_state_input(&state, request).await?;
+    let envelope = build_shared_pa_state_bar_task(input)?;
     enqueue_task(&state, envelope.task, envelope.snapshot).await
 }
 

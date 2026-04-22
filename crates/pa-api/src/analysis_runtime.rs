@@ -1,7 +1,7 @@
 use chrono::{DateTime, FixedOffset, NaiveDate, Utc};
 use pa_analysis::{
-    SharedBarAnalysisInput, SharedDailyContextInput, shared_bar_analysis_v1,
-    shared_daily_context_v1,
+    SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput, shared_bar_analysis_v2,
+    shared_daily_context_v2, shared_pa_state_bar_v1,
 };
 use pa_core::Timeframe;
 use pa_instrument::InstrumentMarketDataContext;
@@ -28,20 +28,28 @@ pub(crate) struct SharedBarTaskRequest {
     pub bar_state: String,
     pub bar_open_time: Option<String>,
     pub bar_close_time: Option<String>,
-    pub canonical_bar_json: Option<Value>,
-    pub structure_context_json: Option<Value>,
+    pub shared_pa_state_json: Option<Value>,
+    pub recent_pa_states_json: Option<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct SharedPaStateTaskRequest {
+    pub instrument_id: Uuid,
+    pub timeframe: String,
+    pub bar_state: String,
+    pub bar_open_time: Option<String>,
+    pub bar_close_time: Option<String>,
+    pub bar_json: Option<Value>,
+    pub market_context_json: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct SharedDailyTaskRequest {
     pub instrument_id: Uuid,
     pub trading_date: Option<String>,
-    pub m15_structure_json: Option<Value>,
-    pub h1_structure_json: Option<Value>,
-    pub d1_structure_json: Option<Value>,
+    pub recent_pa_states_json: Option<Value>,
     pub recent_shared_bar_analyses_json: Option<Value>,
-    pub key_levels_json: Option<Value>,
-    pub signal_bar_candidates_json: Option<Value>,
+    pub multi_timeframe_structure_json: Option<Value>,
     pub market_background_json: Option<Value>,
 }
 
@@ -94,17 +102,67 @@ pub(crate) async fn resolve_shared_bar_input(
     )
     .await?;
 
+    let shared_pa_state_json = match request.shared_pa_state_json {
+        Some(value) => value,
+        None => find_matching_shared_pa_state(
+            state,
+            request.instrument_id,
+            timeframe,
+            bar_state,
+            resolved.bar_open_time,
+            resolved.bar_close_time,
+        )?,
+    };
+    let recent_pa_states_json = request.recent_pa_states_json.unwrap_or_else(|| {
+        collect_recent_shared_pa_states(state, request.instrument_id, Some(timeframe), 8)
+    });
+
     Ok(SharedBarAnalysisInput {
         instrument_id: request.instrument_id,
         timeframe,
         bar_open_time: resolved.bar_open_time,
         bar_close_time: resolved.bar_close_time,
         bar_state,
-        canonical_bar_json: request
-            .canonical_bar_json
-            .unwrap_or(resolved.canonical_bar_json),
-        structure_context_json: request
-            .structure_context_json
+        shared_pa_state_json,
+        recent_pa_states_json,
+    })
+}
+
+pub(crate) async fn resolve_shared_pa_state_input(
+    state: &AppState,
+    request: SharedPaStateTaskRequest,
+) -> Result<SharedPaStateBarInput, ApiError> {
+    let timeframe = parse_timeframe(&request.timeframe)?;
+    let bar_state = parse_bar_state(&request.bar_state)?;
+
+    if let Some(input) = build_shared_pa_state_input_from_request(&request, timeframe, bar_state)? {
+        return Ok(input);
+    }
+
+    let runtime = market_runtime(state)?;
+    let context = runtime
+        .instrument_repository
+        .resolve_market_data_context(request.instrument_id)
+        .await?;
+    let resolved = resolve_bar_input_from_market(
+        runtime,
+        &context,
+        timeframe,
+        bar_state,
+        parse_optional_timestamp(request.bar_open_time.as_deref())?,
+        parse_optional_timestamp(request.bar_close_time.as_deref())?,
+    )
+    .await?;
+
+    Ok(SharedPaStateBarInput {
+        instrument_id: request.instrument_id,
+        timeframe,
+        bar_state,
+        bar_open_time: resolved.bar_open_time,
+        bar_close_time: resolved.bar_close_time,
+        bar_json: request.bar_json.unwrap_or(resolved.canonical_bar_json),
+        market_context_json: request
+            .market_context_json
             .unwrap_or(resolved.structure_context_json),
     })
 }
@@ -127,28 +185,15 @@ pub(crate) async fn resolve_shared_daily_input(
         None => derive_latest_trading_date(runtime, &context).await?,
     };
 
-    let m15_structure_json = request
-        .m15_structure_json
-        .unwrap_or(build_timeframe_structure_json(runtime, &context, Timeframe::M15, 16).await?);
-    let h1_structure_json = request
-        .h1_structure_json
-        .unwrap_or(build_timeframe_structure_json(runtime, &context, Timeframe::H1, 16).await?);
-    let d1_structure_json = request
-        .d1_structure_json
-        .unwrap_or(build_timeframe_structure_json(runtime, &context, Timeframe::D1, 16).await?);
+    let recent_pa_states_json = request
+        .recent_pa_states_json
+        .unwrap_or_else(|| collect_recent_shared_pa_states(state, request.instrument_id, None, 8));
     let recent_shared_bar_analyses_json = request
         .recent_shared_bar_analyses_json
         .unwrap_or_else(|| collect_recent_shared_bar_results(state, request.instrument_id, 8));
-    let key_levels_json = request
-        .key_levels_json
-        .unwrap_or(build_key_levels_json(&h1_structure_json, &d1_structure_json));
-    let signal_bar_candidates_json = request
-        .signal_bar_candidates_json
-        .unwrap_or(build_signal_bar_candidates_json(
-            &m15_structure_json,
-            &h1_structure_json,
-            &recent_shared_bar_analyses_json,
-        ));
+    let multi_timeframe_structure_json = request
+        .multi_timeframe_structure_json
+        .unwrap_or(build_multi_timeframe_context_json(runtime, &context).await?);
     let market_background_json = request
         .market_background_json
         .unwrap_or(build_market_background_json(runtime, &context).await?);
@@ -156,12 +201,9 @@ pub(crate) async fn resolve_shared_daily_input(
     Ok(SharedDailyContextInput {
         instrument_id: request.instrument_id,
         trading_date,
-        m15_structure_json,
-        h1_structure_json,
-        d1_structure_json,
+        recent_pa_states_json,
         recent_shared_bar_analyses_json,
-        key_levels_json,
-        signal_bar_candidates_json,
+        multi_timeframe_structure_json,
         market_background_json,
     })
 }
@@ -231,16 +273,22 @@ fn build_shared_bar_input_from_request(
     timeframe: Timeframe,
     bar_state: AnalysisBarState,
 ) -> Result<Option<SharedBarAnalysisInput>, ApiError> {
-    let Some(canonical_bar_json) = request.canonical_bar_json.clone() else {
+    let Some(shared_pa_state_json) = request.shared_pa_state_json.clone() else {
         return Ok(None);
     };
-    let Some(structure_context_json) = request.structure_context_json.clone() else {
+    let Some(recent_pa_states_json) = request.recent_pa_states_json.clone() else {
         return Ok(None);
     };
-    let bar_open_time = parse_optional_timestamp(request.bar_open_time.as_deref())?
-        .ok_or_else(|| ApiError::bad_request("bar_open_time is required when canonical_bar_json is provided"))?;
-    let bar_close_time = parse_optional_timestamp(request.bar_close_time.as_deref())?
-        .ok_or_else(|| ApiError::bad_request("bar_close_time is required when canonical_bar_json is provided"))?;
+    let bar_open_time =
+        parse_optional_timestamp(request.bar_open_time.as_deref())?.ok_or_else(|| {
+            ApiError::bad_request("bar_open_time is required when shared_pa_state_json is provided")
+        })?;
+    let bar_close_time =
+        parse_optional_timestamp(request.bar_close_time.as_deref())?.ok_or_else(|| {
+            ApiError::bad_request(
+                "bar_close_time is required when shared_pa_state_json is provided",
+            )
+        })?;
 
     Ok(Some(SharedBarAnalysisInput {
         instrument_id: request.instrument_id,
@@ -248,47 +296,71 @@ fn build_shared_bar_input_from_request(
         bar_open_time,
         bar_close_time,
         bar_state,
-        canonical_bar_json,
-        structure_context_json,
+        shared_pa_state_json,
+        recent_pa_states_json,
+    }))
+}
+
+fn build_shared_pa_state_input_from_request(
+    request: &SharedPaStateTaskRequest,
+    timeframe: Timeframe,
+    bar_state: AnalysisBarState,
+) -> Result<Option<SharedPaStateBarInput>, ApiError> {
+    let Some(bar_json) = request.bar_json.clone() else {
+        return Ok(None);
+    };
+    let Some(market_context_json) = request.market_context_json.clone() else {
+        return Ok(None);
+    };
+    let bar_open_time =
+        parse_optional_timestamp(request.bar_open_time.as_deref())?.ok_or_else(|| {
+            ApiError::bad_request("bar_open_time is required when bar_json is provided")
+        })?;
+    let bar_close_time =
+        parse_optional_timestamp(request.bar_close_time.as_deref())?.ok_or_else(|| {
+            ApiError::bad_request("bar_close_time is required when bar_json is provided")
+        })?;
+
+    Ok(Some(SharedPaStateBarInput {
+        instrument_id: request.instrument_id,
+        timeframe,
+        bar_state,
+        bar_open_time,
+        bar_close_time,
+        bar_json,
+        market_context_json,
     }))
 }
 
 fn build_shared_daily_input_from_request(
     request: &SharedDailyTaskRequest,
 ) -> Result<Option<SharedDailyContextInput>, ApiError> {
-    let Some(m15_structure_json) = request.m15_structure_json.clone() else {
+    let Some(recent_pa_states_json) = request.recent_pa_states_json.clone() else {
         return Ok(None);
     };
-    let Some(h1_structure_json) = request.h1_structure_json.clone() else {
+    let Some(recent_shared_bar_analyses_json) = request.recent_shared_bar_analyses_json.clone()
+    else {
         return Ok(None);
     };
-    let Some(d1_structure_json) = request.d1_structure_json.clone() else {
-        return Ok(None);
-    };
-    let Some(recent_shared_bar_analyses_json) = request.recent_shared_bar_analyses_json.clone() else {
-        return Ok(None);
-    };
-    let Some(key_levels_json) = request.key_levels_json.clone() else {
-        return Ok(None);
-    };
-    let Some(signal_bar_candidates_json) = request.signal_bar_candidates_json.clone() else {
+    let Some(multi_timeframe_structure_json) = request.multi_timeframe_structure_json.clone()
+    else {
         return Ok(None);
     };
     let Some(market_background_json) = request.market_background_json.clone() else {
         return Ok(None);
     };
-    let trading_date = parse_optional_date(request.trading_date.as_deref())?
-        .ok_or_else(|| ApiError::bad_request("trading_date is required when shared daily input overrides are provided"))?;
+    let trading_date = parse_optional_date(request.trading_date.as_deref())?.ok_or_else(|| {
+        ApiError::bad_request(
+            "trading_date is required when shared daily input overrides are provided",
+        )
+    })?;
 
     Ok(Some(SharedDailyContextInput {
         instrument_id: request.instrument_id,
         trading_date,
-        m15_structure_json,
-        h1_structure_json,
-        d1_structure_json,
+        recent_pa_states_json,
         recent_shared_bar_analyses_json,
-        key_levels_json,
-        signal_bar_candidates_json,
+        multi_timeframe_structure_json,
         market_background_json,
     }))
 }
@@ -329,22 +401,26 @@ async fn resolve_bar_input_from_market(
     requested_bar_close_time: Option<DateTime<Utc>>,
 ) -> Result<ResolvedBarInput, ApiError> {
     let (bar_open_time, bar_close_time, canonical_bar_json) = match bar_state {
-        AnalysisBarState::Closed => resolve_closed_bar_json(
-            runtime,
-            context,
-            timeframe,
-            requested_bar_open_time,
-            requested_bar_close_time,
-        )
-        .await?,
-        AnalysisBarState::Open => resolve_open_bar_json(
-            runtime,
-            context,
-            timeframe,
-            requested_bar_open_time,
-            requested_bar_close_time,
-        )
-        .await?,
+        AnalysisBarState::Closed => {
+            resolve_closed_bar_json(
+                runtime,
+                context,
+                timeframe,
+                requested_bar_open_time,
+                requested_bar_close_time,
+            )
+            .await?
+        }
+        AnalysisBarState::Open => {
+            resolve_open_bar_json(
+                runtime,
+                context,
+                timeframe,
+                requested_bar_open_time,
+                requested_bar_close_time,
+            )
+            .await?
+        }
         AnalysisBarState::None => {
             return Err(ApiError::bad_request(
                 "bar_state must be `open` or `closed` for shared/user analysis requests",
@@ -388,9 +464,12 @@ async fn resolve_closed_bar_json(
                 .into_iter()
                 .find(|row| {
                     requested_bar_open_time.is_none_or(|open_time| row.open_time == open_time)
-                        && requested_bar_close_time.is_none_or(|close_time| row.close_time == close_time)
+                        && requested_bar_close_time
+                            .is_none_or(|close_time| row.close_time == close_time)
                 })
-                .ok_or_else(|| ApiError::bad_request("unable to resolve closed bar from canonical data"))?;
+                .ok_or_else(|| {
+                    ApiError::bad_request("unable to resolve closed bar from canonical data")
+                })?;
 
             Ok((row.open_time, row.close_time, canonical_row_json(&row)))
         }
@@ -414,7 +493,8 @@ async fn resolve_closed_bar_json(
                 .filter(|row| row.complete)
                 .find(|row| {
                     requested_bar_open_time.is_none_or(|open_time| row.open_time == open_time)
-                        && requested_bar_close_time.is_none_or(|close_time| row.close_time == close_time)
+                        && requested_bar_close_time
+                            .is_none_or(|close_time| row.close_time == close_time)
                 })
                 .ok_or_else(|| ApiError::bad_request("unable to resolve closed aggregated bar"))?;
 
@@ -458,9 +538,7 @@ async fn resolve_open_bar_json(
     if requested_bar_open_time.is_some_and(|open_time| open_time != row.open_time) {
         return Err(ApiError::bad_request(format!(
             "requested open bar open_time {} does not match current open bar {}",
-            requested_bar_open_time
-                .expect("checked above")
-                .to_rfc3339(),
+            requested_bar_open_time.expect("checked above").to_rfc3339(),
             row.open_time.to_rfc3339()
         )));
     }
@@ -558,7 +636,9 @@ async fn build_timeframe_structure_json(
         .collect::<Vec<_>>(),
     };
 
-    let current_open_bar = build_current_open_bar_json(runtime, context, timeframe).await.ok();
+    let current_open_bar = build_current_open_bar_json(runtime, context, timeframe)
+        .await
+        .ok();
 
     Ok(json!({
         "timeframe": timeframe.as_str(),
@@ -634,7 +714,9 @@ async fn derive_latest_trading_date(
     runtime: &std::sync::Arc<MarketRuntime>,
     context: &InstrumentMarketDataContext,
 ) -> Result<NaiveDate, ApiError> {
-    if let Some(row) = list_latest_canonical_row(runtime, context.instrument.id, Timeframe::M15).await? {
+    if let Some(row) =
+        list_latest_canonical_row(runtime, context.instrument.id, Timeframe::M15).await?
+    {
         return trading_date_for_datetime(&context.market.timezone, row.open_time);
     }
 
@@ -690,9 +772,10 @@ async fn list_latest_canonical_row(
     Ok(rows.pop())
 }
 
-fn collect_recent_shared_bar_results(
+fn collect_recent_shared_pa_states(
     state: &AppState,
     instrument_id: Uuid,
+    timeframe: Option<Timeframe>,
     limit: usize,
 ) -> Value {
     let mut rows = state
@@ -700,8 +783,28 @@ fn collect_recent_shared_bar_results(
         .results()
         .into_iter()
         .filter(|result| {
-            result.task_type == shared_bar_analysis_v1().task_type
+            result.task_type == shared_pa_state_bar_v1().task_type
                 && result.instrument_id == instrument_id
+                && result.prompt_version == shared_pa_state_bar_v1().step_version
+                && timeframe.is_none_or(|value| result.timeframe == Some(value))
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|result| result.created_at);
+    rows.reverse();
+    rows.truncate(limit);
+
+    Value::Array(rows.into_iter().map(pa_state_result_json).collect())
+}
+
+fn collect_recent_shared_bar_results(state: &AppState, instrument_id: Uuid, limit: usize) -> Value {
+    let mut rows = state
+        .orchestration_repository
+        .results()
+        .into_iter()
+        .filter(|result| {
+            result.task_type == shared_bar_analysis_v2().task_type
+                && result.instrument_id == instrument_id
+                && result.prompt_version == shared_bar_analysis_v2().step_version
         })
         .collect::<Vec<_>>();
     rows.sort_by_key(|result| result.created_at);
@@ -709,27 +812,6 @@ fn collect_recent_shared_bar_results(
     rows.truncate(limit);
 
     Value::Array(rows.into_iter().map(shared_bar_result_json).collect())
-}
-
-fn build_key_levels_json(h1_structure_json: &Value, d1_structure_json: &Value) -> Value {
-    json!({
-        "h1_recent_highs": collect_numeric_field(h1_structure_json, "high"),
-        "h1_recent_lows": collect_numeric_field(h1_structure_json, "low"),
-        "d1_recent_highs": collect_numeric_field(d1_structure_json, "high"),
-        "d1_recent_lows": collect_numeric_field(d1_structure_json, "low"),
-    })
-}
-
-fn build_signal_bar_candidates_json(
-    m15_structure_json: &Value,
-    h1_structure_json: &Value,
-    recent_shared_bar_analyses_json: &Value,
-) -> Value {
-    json!({
-        "m15_recent_bars": m15_structure_json["rows"],
-        "h1_recent_bars": h1_structure_json["rows"],
-        "recent_shared_bar_analyses": recent_shared_bar_analyses_json,
-    })
 }
 
 async fn build_market_background_json(
@@ -770,11 +852,11 @@ fn find_matching_shared_bar_result(
         .results()
         .into_iter()
         .filter(|result| {
-            result.task_type == shared_bar_analysis_v1().task_type
+            result.task_type == shared_bar_analysis_v2().task_type
                 && result.instrument_id == instrument_id
                 && result.timeframe == Some(timeframe)
                 && result.bar_state == bar_state
-                && result.prompt_version == shared_bar_analysis_v1().prompt_version
+                && result.prompt_version == shared_bar_analysis_v2().step_version
         })
         .find(|result| match bar_state {
             AnalysisBarState::Closed => result.bar_close_time == Some(bar_close_time),
@@ -794,6 +876,43 @@ fn find_matching_shared_bar_result(
         }))
 }
 
+fn find_matching_shared_pa_state(
+    state: &AppState,
+    instrument_id: Uuid,
+    timeframe: Timeframe,
+    bar_state: AnalysisBarState,
+    bar_open_time: DateTime<Utc>,
+    bar_close_time: DateTime<Utc>,
+) -> Result<Value, ApiError> {
+    state
+        .orchestration_repository
+        .results()
+        .into_iter()
+        .filter(|result| {
+            result.task_type == shared_pa_state_bar_v1().task_type
+                && result.instrument_id == instrument_id
+                && result.timeframe == Some(timeframe)
+                && result.bar_state == bar_state
+                && result.prompt_version == shared_pa_state_bar_v1().step_version
+        })
+        .find(|result| match bar_state {
+            AnalysisBarState::Closed => result.bar_close_time == Some(bar_close_time),
+            AnalysisBarState::Open => result.bar_open_time == Some(bar_open_time),
+            AnalysisBarState::None => false,
+        })
+        .map(|result| result.output_json)
+        .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
+            message: format!(
+                "missing shared pa state for instrument_id={instrument_id}, timeframe={}, bar_state={}, bar_open_time={}, bar_close_time={}",
+                timeframe.as_str(),
+                bar_state.as_str(),
+                bar_open_time.to_rfc3339(),
+                bar_close_time.to_rfc3339()
+            ),
+            source: None,
+        }))
+}
+
 fn find_matching_shared_daily_context(
     state: &AppState,
     instrument_id: Uuid,
@@ -804,9 +923,9 @@ fn find_matching_shared_daily_context(
         .results()
         .into_iter()
         .filter(|result| {
-            result.task_type == shared_daily_context_v1().task_type
+            result.task_type == shared_daily_context_v2().task_type
                 && result.instrument_id == instrument_id
-                && result.prompt_version == shared_daily_context_v1().prompt_version
+                && result.prompt_version == shared_daily_context_v2().step_version
         })
         .find(|result| result.trading_date == Some(trading_date))
         .map(|result| result.output_json)
@@ -819,6 +938,14 @@ fn find_matching_shared_daily_context(
 }
 
 fn shared_bar_result_json(result: pa_orchestrator::AnalysisResult) -> Value {
+    shared_result_json(result)
+}
+
+fn pa_state_result_json(result: pa_orchestrator::AnalysisResult) -> Value {
+    shared_result_json(result)
+}
+
+fn shared_result_json(result: pa_orchestrator::AnalysisResult) -> Value {
     let mut object = match result.output_json {
         Value::Object(object) => object,
         other => {
@@ -827,7 +954,10 @@ fn shared_bar_result_json(result: pa_orchestrator::AnalysisResult) -> Value {
             object
         }
     };
-    object.insert("timeframe".to_string(), json!(result.timeframe.map(|timeframe| timeframe.as_str())));
+    object.insert(
+        "timeframe".to_string(),
+        json!(result.timeframe.map(|timeframe| timeframe.as_str())),
+    );
     object.insert("bar_state".to_string(), json!(result.bar_state.as_str()));
     object.insert(
         "bar_open_time".to_string(),
@@ -894,18 +1024,6 @@ fn derived_open_bar_json(row: &DerivedOpenBar) -> Value {
     })
 }
 
-fn collect_numeric_field(structure_json: &Value, field: &str) -> Vec<Value> {
-    structure_json["rows"]
-        .as_array()
-        .map(|rows| {
-            rows.iter()
-                .filter_map(|row| row.get(field))
-                .cloned()
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
 fn parse_timeframe(value: &str) -> Result<Timeframe, ApiError> {
     value.parse::<Timeframe>().map_err(ApiError::from)
 }
@@ -920,9 +1038,9 @@ fn parse_optional_timestamp(value: Option<&str>) -> Result<Option<DateTime<Utc>>
         .map(|value| {
             DateTime::parse_from_rfc3339(value)
                 .map(|value| value.with_timezone(&Utc))
-                .map_err(|source| ApiError::bad_request(format!(
-                    "invalid RFC3339 timestamp `{value}`: {source}"
-                )))
+                .map_err(|source| {
+                    ApiError::bad_request(format!("invalid RFC3339 timestamp `{value}`: {source}"))
+                })
         })
         .transpose()
 }
