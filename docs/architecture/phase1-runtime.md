@@ -50,3 +50,54 @@ and serves the Axum router.
 - The first replay implementation is intentionally offline and deterministic: it validates
   pre-baked variant outputs against the real registered step schemas so prompt/flow experiments
   can be compared without requiring live LLM calls.
+
+## Live Historical Replay Operator Flow
+
+- Live mode command shape:
+  - `cargo run -p pa-app --bin replay_analysis -- --mode live --dataset <dataset.json> --config <config.toml> --variant baseline_a`
+- Replay mode contracts:
+  - `execution_mode` must be `LiveHistorical`.
+  - `config_source_path` must be present.
+  - `raw_response_json` and `latency_ms` are recorded per target step.
+- Data contract expectations:
+  - dataset market/timeframe/variant remain constrained to `crypto + 15m + baseline_a`.
+  - lookback depth must satisfy `lookback_15m_bar_count >= warmup_bar_count + 1`.
+  - warmup bars and target bars are strict closed bars for this first slice.
+
+## Prompt Iteration Findings (2026-04-22)
+
+- Shared pipeline prompt hardening:
+  - `shared_pa_state_bar_v1` now enforces full top-level schema skeleton, full `decision_tree_state` subtree, and object-only `evidence_log`.
+  - `shared_bar_analysis_v2` now enforces canonical key names (`bullish_case`, `bearish_case`, etc.) and rejects ad-hoc aliases.
+  - `shared_daily_context_v2` now enforces object-only `decision_tree_nodes`, object-only `signal_bars`, and object-only `path_of_least_resistance`.
+  - `user_position_advice_v2` now enforces required top-level keys (`position_state`, `market_read_through`, etc.) and rejects alias keys like `user_position`.
+- OpenAI-compatible robustness updates:
+  - `developer` role instructions are folded into `system` content for broader provider compatibility.
+  - Non-JSON-schema execution profiles now default to `response_format = json_object` to reduce malformed JSON outputs.
+  - JSON parsing now tolerates fenced JSON and wrapper text before strict schema validation.
+- Legacy config normalization hardening:
+  - `pa-analyze-server` legacy shape now tolerates missing retry/timeout legacy keys by applying conservative defaults.
+
+## Model Slice Result (Single-Sample Live Replay)
+
+- Verified successful full target chain (`shared_pa_state_bar -> shared_bar_analysis -> shared_daily_context -> user_position_advice`) on real provider data and real LLM calls.
+- Best validated slice so far:
+  - provider: `dashscope`
+  - model: `qwen-plus`
+  - per-step tokens:
+    - `shared_pa_state_bar`: 4096
+    - `shared_bar_analysis`: 4096
+    - `shared_daily_context`: 8192
+    - `user_position_advice`: 4096
+- Single-sample report quality (latest validated run):
+  - `schema_hit_rate = 1.0`
+  - `decision_tree_completeness = 1.0`
+  - `key_level_completeness = 1.0`
+  - `signal_bar_completeness = 1.0`
+  - `bull_bear_dual_path_completeness = 1.0`
+  - `cross_step_consistency_rate = 1.0`
+
+## Expansion Note
+
+- Full multi-sample `live_crypto_15m.json` runs are significantly slower because warmup bars execute real LLM calls.
+- Operationally, prompt iteration should use single-sample live replay for tight loops, then run expanded sample sets for periodic regression sweeps.

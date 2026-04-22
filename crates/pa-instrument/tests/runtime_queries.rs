@@ -6,7 +6,9 @@ use uuid::Uuid;
 #[tokio::test]
 async fn resolves_market_policy_when_instrument_policy_is_missing() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping resolves_market_policy_when_instrument_policy_is_missing: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping resolves_market_policy_when_instrument_policy_is_missing: PA_DATABASE_URL not set"
+        );
         return;
     };
     let repository = InstrumentRepository::new(pool.clone());
@@ -33,7 +35,9 @@ async fn resolves_market_policy_when_instrument_policy_is_missing() {
 #[tokio::test]
 async fn resolves_instrument_policy_over_market_policy() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping resolves_instrument_policy_over_market_policy: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping resolves_instrument_policy_over_market_policy: PA_DATABASE_URL not set"
+        );
         return;
     };
     let repository = InstrumentRepository::new(pool.clone());

@@ -2,7 +2,8 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use pa_analysis::{
     SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput,
     build_shared_bar_analysis_task, build_shared_daily_context_task,
-    build_shared_pa_state_bar_task, shared_bar_analysis_v2, shared_daily_context_v2,
+    build_shared_pa_state_bar_task, shared_bar_analysis_prompt_v2, shared_bar_analysis_v2,
+    shared_daily_context_prompt_v2, shared_daily_context_v2, shared_pa_state_bar_prompt_v1,
     shared_pa_state_bar_v1,
 };
 use pa_core::{AppError, Timeframe};
@@ -253,6 +254,47 @@ fn shared_prompt_specs_include_required_pa_contract_fields() {
     ] {
         assert!(decision_required.contains(&field.to_string()));
     }
+}
+
+#[test]
+fn shared_pa_state_prompt_v1_requires_complete_decision_tree_and_strict_json() {
+    let prompt = shared_pa_state_bar_prompt_v1();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("decision_tree_state.trend_context"));
+    assert!(instructions.contains("decision_tree_state.bias_balance"));
+    assert!(instructions.contains("bar_identity"));
+    assert!(instructions.contains("evidence_log"));
+    assert!(instructions.contains("support_resistance_map"));
+    assert!(instructions.contains("signal_assessment"));
+    assert!(instructions.contains("Return JSON only"));
+}
+
+#[test]
+fn shared_bar_analysis_prompt_v2_requires_named_schema_sections() {
+    let prompt = shared_bar_analysis_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("bar_identity"));
+    assert!(instructions.contains("bar_summary"));
+    assert!(instructions.contains("bullish_case"));
+    assert!(instructions.contains("bearish_case"));
+    assert!(instructions.contains("bullish_path or bearish_path"));
+    assert!(instructions.contains("Return JSON only"));
+}
+
+#[test]
+fn shared_daily_context_prompt_v2_requires_single_object_decision_tree() {
+    let prompt = shared_daily_context_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("context_identity"));
+    assert!(instructions.contains("dominant_structure"));
+    assert!(instructions.contains("decision_tree_nodes must be a single JSON object"));
+    assert!(instructions.contains("path_of_least_resistance must be a JSON object"));
+    assert!(instructions.contains("signal_bars must be a JSON object"));
+    assert!(instructions.contains("scenario_map"));
+    assert!(instructions.contains("Return JSON only"));
 }
 
 fn required_fields(schema: &Value) -> Vec<String> {

@@ -368,6 +368,10 @@ async fn executor_uses_bound_execution_profile_metadata() {
                 attempt.request_payload_json["output_json_schema"],
                 serde_json::json!({"type":"object"})
             );
+            assert_eq!(
+                attempt.request_payload_json["structured_output_mode"],
+                "json_object"
+            );
         }
         other => panic!("expected success, got {other:?}"),
     }

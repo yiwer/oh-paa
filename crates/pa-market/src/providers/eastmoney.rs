@@ -24,15 +24,14 @@ impl EastMoneyProvider {
         }
     }
 
-    async fn get_text(
-        &self,
-        path: &str,
-        query: &[(&str, String)],
-    ) -> Result<String, AppError> {
-        let url = self.base_url.join(path).map_err(|source| AppError::Provider {
-            message: format!("failed to build eastmoney url for `{path}`"),
-            source: Some(Box::new(source)),
-        })?;
+    async fn get_text(&self, path: &str, query: &[(&str, String)]) -> Result<String, AppError> {
+        let url = self
+            .base_url
+            .join(path)
+            .map_err(|source| AppError::Provider {
+                message: format!("failed to build eastmoney url for `{path}`"),
+                source: Some(Box::new(source)),
+            })?;
         let response = self
             .client
             .get(url)
@@ -43,10 +42,12 @@ impl EastMoneyProvider {
                 message: "failed to call eastmoney".into(),
                 source: Some(Box::new(source)),
             })?;
-        let response = response.error_for_status().map_err(|source| AppError::Provider {
-            message: "eastmoney returned error status".into(),
-            source: Some(Box::new(source)),
-        })?;
+        let response = response
+            .error_for_status()
+            .map_err(|source| AppError::Provider {
+                message: "eastmoney returned error status".into(),
+                source: Some(Box::new(source)),
+            })?;
 
         response.text().await.map_err(|source| AppError::Provider {
             message: "failed to read eastmoney response body".into(),
@@ -145,7 +146,10 @@ impl MarketDataProvider for EastMoneyProvider {
                 &[
                     ("secid", provider_symbol.to_owned()),
                     ("fields1", "f1,f2,f3,f4,f5,f6".to_string()),
-                    ("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61".to_string()),
+                    (
+                        "fields2",
+                        "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61".to_string(),
+                    ),
                     ("klt", Self::timeframe_klt(timeframe).to_owned()),
                     ("fqt", "1".to_string()),
                     ("beg", "0".to_string()),
@@ -182,10 +186,12 @@ impl MarketDataProvider for EastMoneyProvider {
                 source: Some(Box::new(source)),
             })?;
 
-        response.error_for_status().map_err(|source| AppError::Provider {
-            message: "eastmoney healthcheck returned error status".into(),
-            source: Some(Box::new(source)),
-        })?;
+        response
+            .error_for_status()
+            .map_err(|source| AppError::Provider {
+                message: "eastmoney healthcheck returned error status".into(),
+                source: Some(Box::new(source)),
+            })?;
 
         Ok(())
     }
@@ -318,7 +324,9 @@ fn parse_tick_price(data: &EastMoneyTickData) -> Result<Decimal, AppError> {
 
     match value {
         EastMoneyNumber::Integer(value) => Ok(Decimal::new(*value, scale)),
-        EastMoneyNumber::String(value) => parse_decimal(Some(value.as_str()), "eastmoney tick price"),
+        EastMoneyNumber::String(value) => {
+            parse_decimal(Some(value.as_str()), "eastmoney tick price")
+        }
     }
 }
 
@@ -339,12 +347,11 @@ fn parse_tick_time(data: &EastMoneyTickData) -> Result<DateTime<Utc>, AppError> 
     })?;
 
     match value {
-        EastMoneyTimestamp::Integer(value) => {
-            DateTime::<Utc>::from_timestamp(*value, 0).ok_or_else(|| AppError::Provider {
+        EastMoneyTimestamp::Integer(value) => DateTime::<Utc>::from_timestamp(*value, 0)
+            .ok_or_else(|| AppError::Provider {
                 message: "invalid eastmoney tick timestamp".into(),
                 source: None,
-            })
-        }
+            }),
         EastMoneyTimestamp::String(value) => {
             parse_rfc3339_timestamp(Some(value.as_str()), "eastmoney tick timestamp")
         }

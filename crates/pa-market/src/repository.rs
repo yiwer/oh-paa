@@ -225,12 +225,12 @@ impl CanonicalKlineRepository for PgCanonicalKlineRepository {
 
         rows.into_iter()
             .map(|row| {
-                let timeframe = row.try_get::<String, _>("timeframe").map_err(|source| {
-                    AppError::Storage {
-                        message: "failed to decode canonical kline timeframe".into(),
-                        source: Some(Box::new(source)),
-                    }
-                })?;
+                let timeframe =
+                    row.try_get::<String, _>("timeframe")
+                        .map_err(|source| AppError::Storage {
+                            message: "failed to decode canonical kline timeframe".into(),
+                            source: Some(Box::new(source)),
+                        })?;
 
                 Ok(CanonicalKlineRow {
                     instrument_id: row.try_get("instrument_id").map_err(storage_decode_error)?,

@@ -148,10 +148,10 @@ pub async fn aggregate_canonical_klines(
             timeframe: request.source_timeframe,
             start_open_time: request.start_open_time,
             end_open_time: request.end_open_time,
-            limit: request.limit.saturating_mul(session_profile.expected_child_bar_count(
-                request.source_timeframe,
-                request.target_timeframe,
-            )?),
+            limit: request.limit.saturating_mul(
+                session_profile
+                    .expected_child_bar_count(request.source_timeframe, request.target_timeframe)?,
+            ),
             descending: true,
         })
         .await?;
@@ -166,6 +166,46 @@ pub async fn aggregate_canonical_klines(
         request.instrument_id,
         request.source_timeframe,
         request.target_timeframe,
+        &session_profile,
+    )
+}
+
+pub fn aggregate_replay_window_rows(
+    rows: &[CanonicalKlineRow],
+    instrument_id: Uuid,
+    source_timeframe: Timeframe,
+    target_timeframe: Timeframe,
+    market_code: Option<&str>,
+    market_timezone: Option<&str>,
+) -> Result<Vec<AggregatedKline>, AppError> {
+    let session_profile = MarketSessionProfile::from_market(market_code, market_timezone);
+    let mut source_rows = rows
+        .iter()
+        .filter(|row| row.instrument_id == instrument_id)
+        .filter(|row| row.timeframe == source_timeframe)
+        .filter(|row| session_profile.accepts_bar_open(source_timeframe, row.open_time))
+        .cloned()
+        .collect::<Vec<_>>();
+    source_rows.sort_by_key(|row| row.open_time);
+    for duplicate_pair in source_rows.windows(2) {
+        if duplicate_pair[0].open_time == duplicate_pair[1].open_time {
+            return Err(AppError::Validation {
+                message: format!(
+                    "duplicate child row open_time={} for instrument {} timeframe {}",
+                    duplicate_pair[0].open_time.to_rfc3339(),
+                    instrument_id,
+                    source_timeframe,
+                ),
+                source: None,
+            });
+        }
+    }
+
+    aggregate_rows(
+        &source_rows,
+        instrument_id,
+        source_timeframe,
+        target_timeframe,
         &session_profile,
     )
 }
@@ -187,7 +227,9 @@ pub async fn derive_open_bar(
             request.fallback_provider_symbol,
         )
         .await?;
-    let Some(bucket) = session_profile.current_bucket_for_tick(request.timeframe, routed_tick.tick.tick_time)? else {
+    let Some(bucket) =
+        session_profile.current_bucket_for_tick(request.timeframe, routed_tick.tick.tick_time)?
+    else {
         return Ok(None);
     };
     let source_timeframe = source_timeframe_for_open_bar(request.timeframe);
@@ -231,46 +273,44 @@ pub async fn derive_open_bar(
         });
     }
 
-    let (open, mut high, mut low, child_bar_count) =
-        if let Some(first_row) = bucket_rows.first() {
-            (
-                first_row.open,
-                bucket_rows
-                    .iter()
-                    .map(|row| row.high)
-                    .max()
-                    .expect("bucket rows should not be empty"),
-                bucket_rows
-                    .iter()
-                    .map(|row| row.low)
-                    .min()
-                    .expect("bucket rows should not be empty"),
-                bucket_rows.len(),
-            )
-        } else if let Some(previous_row) =
-            latest_closed_row_before(
-                repository,
-                request.instrument_id,
-                source_timeframe,
-                bucket.open_time,
-                &session_profile,
-            )
-            .await?
-        {
-            (
-                previous_row.close,
-                previous_row.close,
-                previous_row.close,
-                0,
-            )
-        } else {
-            (
-                routed_tick.tick.price,
-                routed_tick.tick.price,
-                routed_tick.tick.price,
-                0,
-            )
-        };
+    let (open, mut high, mut low, child_bar_count) = if let Some(first_row) = bucket_rows.first() {
+        (
+            first_row.open,
+            bucket_rows
+                .iter()
+                .map(|row| row.high)
+                .max()
+                .expect("bucket rows should not be empty"),
+            bucket_rows
+                .iter()
+                .map(|row| row.low)
+                .min()
+                .expect("bucket rows should not be empty"),
+            bucket_rows.len(),
+        )
+    } else if let Some(previous_row) = latest_closed_row_before(
+        repository,
+        request.instrument_id,
+        source_timeframe,
+        bucket.open_time,
+        &session_profile,
+    )
+    .await?
+    {
+        (
+            previous_row.close,
+            previous_row.close,
+            previous_row.close,
+            0,
+        )
+    } else {
+        (
+            routed_tick.tick.price,
+            routed_tick.tick.price,
+            routed_tick.tick.price,
+            0,
+        )
+    };
 
     high = high.max(routed_tick.tick.price);
     low = low.min(routed_tick.tick.price);

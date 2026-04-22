@@ -246,7 +246,9 @@ async fn get_open_bar(
     })))
 }
 
-fn market_runtime(state: &AppState) -> Result<&std::sync::Arc<crate::router::MarketRuntime>, ApiError> {
+fn market_runtime(
+    state: &AppState,
+) -> Result<&std::sync::Arc<crate::router::MarketRuntime>, ApiError> {
     state
         .market_runtime
         .as_ref()
@@ -258,9 +260,9 @@ fn parse_optional_timestamp(value: Option<&str>) -> Result<Option<DateTime<Utc>>
         .map(|value| {
             DateTime::parse_from_rfc3339(value)
                 .map(|value| value.with_timezone(&Utc))
-                .map_err(|source| ApiError::bad_request(format!(
-                    "invalid RFC3339 timestamp `{value}`: {source}"
-                )))
+                .map_err(|source| {
+                    ApiError::bad_request(format!("invalid RFC3339 timestamp `{value}`: {source}"))
+                })
         })
         .transpose()
 }

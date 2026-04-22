@@ -1,6 +1,7 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 use pa_analysis::{BarAnalysis, DailyMarketContext};
 use pa_core::{AppError, Timeframe};
+use pa_orchestrator::AnalysisBarState;
 use pa_user::{
     models::{
         ManualUserAnalysisInput, ManualUserAnalysisRequest, PositionSide, PositionSnapshot,
@@ -10,7 +11,6 @@ use pa_user::{
     service::UserAnalysisService,
     user_position_advice_v1,
 };
-use pa_orchestrator::AnalysisBarState;
 use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
@@ -259,7 +259,15 @@ fn manual_user_input_contract_includes_shared_pa_state_json() {
         input_json["shared_pa_state_json"]["bar_identity"]["tag"],
         "evidence"
     );
-    assert!(prompt_spec.system_prompt.contains("shared_daily_context_json"));
-    assert!(prompt_spec.system_prompt.contains("shared_bar_analysis_json"));
+    assert!(
+        prompt_spec
+            .system_prompt
+            .contains("shared_daily_context_json")
+    );
+    assert!(
+        prompt_spec
+            .system_prompt
+            .contains("shared_bar_analysis_json")
+    );
     assert!(prompt_spec.system_prompt.contains("shared_pa_state_json"));
 }

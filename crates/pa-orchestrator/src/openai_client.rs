@@ -88,20 +88,13 @@ impl OpenAiCompatibleClient {
             })?;
 
         match content {
-            Value::String(text) => serde_json::from_str(text).map_err(|err| AppError::Provider {
-                message: "chat completions response content was not valid JSON".to_string(),
-                source: Some(Box::new(err)),
-            }),
+            Value::String(text) => parse_json_like_text(text),
             Value::Array(parts) => {
                 let joined = parts
                     .iter()
                     .filter_map(|part| part.get("text").and_then(Value::as_str))
                     .collect::<String>();
-                serde_json::from_str(&joined).map_err(|err| AppError::Provider {
-                    message: "chat completions response content parts were not valid JSON"
-                        .to_string(),
-                    source: Some(Box::new(err)),
-                })
+                parse_json_like_text(&joined)
             }
             other if other.is_object() || other.is_array() => Ok(other.clone()),
             _ => Err(AppError::Provider {
@@ -146,27 +139,26 @@ impl LlmClient for OpenAiCompatibleClient {
 }
 
 fn build_messages(request: &LlmRequest) -> Vec<Value> {
-    let mut messages = vec![json!({
-        "role": "system",
-        "content": request.system_prompt,
-    })];
-
-    for instruction in &request.developer_instructions {
-        messages.push(json!({
-            "role": "developer",
-            "content": instruction,
-        }));
+    let mut system_content = request.system_prompt.clone();
+    if !request.developer_instructions.is_empty() {
+        system_content.push_str("\n\nFollow these additional instructions strictly:");
+        for instruction in &request.developer_instructions {
+            system_content.push_str("\n- ");
+            system_content.push_str(instruction);
+        }
     }
 
     if matches!(
         request.structured_output_mode,
         StructuredOutputMode::PromptEnforcedJson
     ) {
-        messages.push(json!({
-            "role": "developer",
-            "content": "Return only valid JSON with no markdown or prose.",
-        }));
+        system_content.push_str("\n- Return only valid JSON with no markdown or prose.");
     }
+
+    let mut messages = vec![json!({
+        "role": "system",
+        "content": system_content,
+    })];
 
     messages.push(json!({
         "role": "user",
@@ -192,6 +184,63 @@ fn response_format_for(request: &LlmRequest) -> Option<Value> {
             "type": "json_object"
         })),
         StructuredOutputMode::PromptEnforcedJson => None,
+    }
+}
+
+fn parse_json_like_text(text: &str) -> Result<Value, AppError> {
+    let trimmed = text.trim();
+    if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        return Ok(parsed);
+    }
+
+    if let Some(unfenced) = strip_markdown_code_fence(trimmed) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(unfenced) {
+            return Ok(parsed);
+        }
+    }
+
+    if let Some(candidate) = extract_json_candidate(trimmed) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&candidate) {
+            return Ok(parsed);
+        }
+    }
+
+    serde_json::from_str::<Value>(trimmed).map_err(|err| AppError::Provider {
+        message: "chat completions response content was not valid JSON".to_string(),
+        source: Some(Box::new(err)),
+    })
+}
+
+fn strip_markdown_code_fence(text: &str) -> Option<&str> {
+    let stripped = text.strip_prefix("```")?;
+    let newline_index = stripped.find('\n')?;
+    let content = &stripped[(newline_index + 1)..];
+    content.strip_suffix("```").map(str::trim)
+}
+
+fn extract_json_candidate(text: &str) -> Option<String> {
+    let object_candidate = text
+        .find('{')
+        .zip(text.rfind('}'))
+        .filter(|(start, end)| start < end)
+        .map(|(start, end)| text[start..=end].to_string());
+    let array_candidate = text
+        .find('[')
+        .zip(text.rfind(']'))
+        .filter(|(start, end)| start < end)
+        .map(|(start, end)| text[start..=end].to_string());
+
+    match (object_candidate, array_candidate) {
+        (Some(object), Some(array)) => {
+            if text.find('{').unwrap_or(usize::MAX) <= text.find('[').unwrap_or(usize::MAX) {
+                Some(object)
+            } else {
+                Some(array)
+            }
+        }
+        (Some(object), None) => Some(object),
+        (None, Some(array)) => Some(array),
+        (None, None) => None,
     }
 }
 
@@ -233,6 +282,14 @@ mod tests {
 
         assert_eq!(payload["model"], "qwen-plus");
         assert_eq!(payload["max_tokens"], 1024);
+        assert_eq!(payload["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(payload["messages"][0]["role"], "system");
+        assert!(
+            payload["messages"][0]["content"]
+                .as_str()
+                .unwrap()
+                .contains("Do not invent fields")
+        );
         assert_eq!(
             payload["response_format"]["json_schema"]["schema"],
             json!({
@@ -260,6 +317,14 @@ mod tests {
             client.build_payload(&sample_request(StructuredOutputMode::PromptEnforcedJson));
 
         assert!(payload.get("response_format").is_none());
+        assert_eq!(payload["messages"].as_array().unwrap().len(), 2);
+        assert_eq!(payload["messages"][0]["role"], "system");
+        assert!(
+            payload["messages"][0]["content"]
+                .as_str()
+                .unwrap()
+                .contains("Return only valid JSON with no markdown or prose.")
+        );
     }
 
     #[test]
@@ -289,6 +354,38 @@ mod tests {
                             { "type": "output_text", "text": "{\"symbol\":" },
                             { "type": "output_text", "text": "\"000001.SZ\"}" }
                         ]
+                    }
+                }]
+            }))
+            .unwrap();
+
+        assert_eq!(parsed, json!({"symbol": "000001.SZ"}));
+    }
+
+    #[test]
+    fn parse_response_json_strips_markdown_code_fences() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let parsed = client
+            .parse_response_json(&json!({
+                "choices": [{
+                    "message": {
+                        "content": "```json\n{\"symbol\":\"000001.SZ\"}\n```"
+                    }
+                }]
+            }))
+            .unwrap();
+
+        assert_eq!(parsed, json!({"symbol": "000001.SZ"}));
+    }
+
+    #[test]
+    fn parse_response_json_extracts_json_from_wrapped_text() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let parsed = client
+            .parse_response_json(&json!({
+                "choices": [{
+                    "message": {
+                        "content": "Here is the JSON you requested:\n{\"symbol\":\"000001.SZ\"}\nUse it directly."
                     }
                 }]
             }))

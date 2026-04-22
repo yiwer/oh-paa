@@ -133,6 +133,16 @@ pub fn user_position_advice_prompt_v2() -> PromptTemplateSpec {
                 .to_string(),
             "Translate shared_bar_analysis_json and shared_pa_state_json into concrete user-specific scenarios, controls, and invalidations."
                 .to_string(),
+            "Return exactly one JSON object with these top-level keys present every time: position_state, market_read_through, bullish_path_for_user, bearish_path_for_user, hold_reduce_exit_conditions, risk_control_levels, invalidations, action_candidates."
+                .to_string(),
+            "Do not rename schema sections. Use position_state instead of user_position, market_read_through instead of current_bar_context or higher_timeframe_bias, and keep all required top-level keys as objects."
+                .to_string(),
+            "If evidence is mixed, keep every required top-level object and express uncertainty inside those objects instead of omitting sections."
+                .to_string(),
+            "Use this minimum output skeleton and expand each object with evidence-driven details: {\"position_state\":{},\"market_read_through\":{},\"bullish_path_for_user\":{},\"bearish_path_for_user\":{},\"hold_reduce_exit_conditions\":{},\"risk_control_levels\":{},\"invalidations\":{},\"action_candidates\":{}}"
+                .to_string(),
+            "Prefer compact outputs: concise bullets or short phrases; avoid long narrative paragraphs unless critical for risk control clarity."
+                .to_string(),
             "Return JSON only and include every required top-level field.".to_string(),
         ],
     }

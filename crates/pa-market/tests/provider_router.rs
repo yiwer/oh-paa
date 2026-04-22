@@ -208,12 +208,7 @@ async fn fetch_latest_tick_uses_fallback_when_primary_fails() {
     }));
 
     let actual = router
-        .fetch_latest_tick_with_fallback(
-            "primary",
-            "fallback",
-            "AAA",
-            "BBB",
-        )
+        .fetch_latest_tick_with_fallback("primary", "fallback", "AAA", "BBB")
         .await
         .expect("fallback tick provider should satisfy request");
 

@@ -10,7 +10,9 @@ use uuid::Uuid;
 #[tokio::test]
 async fn pg_repository_upserts_and_reads_canonical_rows() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping pg_repository_upserts_and_reads_canonical_rows: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping pg_repository_upserts_and_reads_canonical_rows: PA_DATABASE_URL not set"
+        );
         return;
     };
     let repository = PgCanonicalKlineRepository::new(pool.clone());
@@ -54,7 +56,9 @@ async fn pg_repository_upserts_and_reads_canonical_rows() {
 #[tokio::test]
 async fn pg_repository_filters_by_window_and_descending_order() {
     let Some(pool) = test_pool().await else {
-        eprintln!("skipping pg_repository_filters_by_window_and_descending_order: PA_DATABASE_URL not set");
+        eprintln!(
+            "skipping pg_repository_filters_by_window_and_descending_order: PA_DATABASE_URL not set"
+        );
         return;
     };
     let repository = PgCanonicalKlineRepository::new(pool.clone());

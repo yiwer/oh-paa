@@ -338,6 +338,19 @@ fn user_prompt_spec_includes_required_pa_contract_fields() {
     assert!(prompt.system_prompt.contains("shared_pa_state_json"));
 }
 
+#[test]
+fn user_prompt_v2_requires_schema_named_top_level_sections() {
+    let prompt = user_position_advice_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("position_state"));
+    assert!(instructions.contains("market_read_through"));
+    assert!(instructions.contains("bullish_path_for_user"));
+    assert!(instructions.contains("bearish_path_for_user"));
+    assert!(instructions.contains("Use position_state instead of user_position"));
+    assert!(instructions.contains("Return JSON only"));
+}
+
 fn required_fields(schema: &Value) -> Vec<String> {
     schema
         .get("required")

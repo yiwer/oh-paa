@@ -75,7 +75,9 @@ impl MarketSessionProfile {
     ) -> Result<SessionBucket, AppError> {
         let bucket_open_time = match self.kind {
             MarketSessionKind::CnA => self.cn_a_bucket_open_time(target_timeframe, open_time)?,
-            MarketSessionKind::Fx24x5Utc => self.fx_bucket_open_time(target_timeframe, open_time)?,
+            MarketSessionKind::Fx24x5Utc => {
+                self.fx_bucket_open_time(target_timeframe, open_time)?
+            }
             MarketSessionKind::ContinuousUtc => {
                 continuous_bucket_open_time(open_time, target_timeframe)?
             }
@@ -95,7 +97,11 @@ impl MarketSessionProfile {
         match self.kind {
             MarketSessionKind::ContinuousUtc => true,
             MarketSessionKind::Fx24x5Utc => match timeframe {
-                Timeframe::D1 => is_fx_market_open(open_time) && open_time.hour() == 22 && open_time.minute() == 0,
+                Timeframe::D1 => {
+                    is_fx_market_open(open_time)
+                        && open_time.hour() == 22
+                        && open_time.minute() == 0
+                }
                 Timeframe::H1 => is_fx_market_open(open_time) && open_time.minute() == 0,
                 Timeframe::M15 => {
                     is_fx_market_open(open_time) && open_time.minute().is_multiple_of(15)
@@ -137,7 +143,8 @@ impl MarketSessionProfile {
                 cn_a_expected_open_times(source_timeframe, target_timeframe, bucket_open_time)
             }
             MarketSessionKind::ContinuousUtc | MarketSessionKind::Fx24x5Utc => {
-                let expected_count = self.expected_child_bar_count(source_timeframe, target_timeframe)?;
+                let expected_count =
+                    self.expected_child_bar_count(source_timeframe, target_timeframe)?;
                 let duration = duration_from_timeframe(source_timeframe)?;
                 Ok((0..expected_count)
                     .map(|offset| {

@@ -267,7 +267,12 @@ fn load_from_path_parses_config_example_toml() {
 
     assert!(config.llm.providers.contains_key("deepseek"));
     assert!(config.llm.providers.contains_key("dashscope"));
-    assert!(config.llm.execution_profiles.contains_key("pa_state_extract_fast"));
+    assert!(
+        config
+            .llm
+            .execution_profiles
+            .contains_key("pa_state_extract_fast")
+    );
     assert!(
         config
             .llm

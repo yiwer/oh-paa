@@ -208,7 +208,7 @@ fn choose_structured_output_mode(profile: &ModelExecutionProfile) -> StructuredO
     if profile.supports_json_schema {
         StructuredOutputMode::NativeJsonSchema
     } else {
-        StructuredOutputMode::PromptEnforcedJson
+        StructuredOutputMode::JsonObject
     }
 }
 

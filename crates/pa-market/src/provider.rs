@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use pa_core::{AppError, Timeframe};
 
 use crate::models::{ProviderKline, ProviderTick};
@@ -21,7 +22,44 @@ pub trait MarketDataProvider: Send + Sync {
 
     async fn fetch_latest_tick(&self, provider_symbol: &str) -> Result<ProviderTick, AppError>;
 
+    async fn fetch_klines_window(
+        &self,
+        query: HistoricalKlineQuery,
+    ) -> Result<Vec<ProviderKline>, AppError> {
+        let HistoricalKlineQuery {
+            provider_symbol,
+            timeframe,
+            start_open_time,
+            end_close_time,
+            limit,
+        } = query;
+
+        if start_open_time.is_none()
+            && end_close_time.is_none()
+            && let Some(limit) = limit
+        {
+            return self.fetch_klines(&provider_symbol, timeframe, limit).await;
+        }
+
+        Err(AppError::Validation {
+            message: format!(
+                "provider `{}` does not support historical window fetch",
+                self.name()
+            ),
+            source: None,
+        })
+    }
+
     async fn healthcheck(&self) -> Result<(), AppError>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HistoricalKlineQuery {
+    pub provider_symbol: String,
+    pub timeframe: Timeframe,
+    pub start_open_time: Option<DateTime<Utc>>,
+    pub end_close_time: Option<DateTime<Utc>>,
+    pub limit: Option<usize>,
 }
 
 pub type ProviderMap = HashMap<&'static str, Arc<dyn MarketDataProvider>>;
@@ -200,5 +238,20 @@ impl ProviderRouter {
             })?;
 
         provider.fetch_latest_tick(provider_symbol).await
+    }
+
+    pub async fn fetch_klines_window_from(
+        &self,
+        provider_name: &str,
+        query: HistoricalKlineQuery,
+    ) -> Result<Vec<ProviderKline>, AppError> {
+        let provider = self
+            .provider(provider_name)
+            .ok_or_else(|| AppError::Validation {
+                message: format!("provider `{provider_name}` is not registered"),
+                source: None,
+            })?;
+
+        provider.fetch_klines_window(query).await
     }
 }

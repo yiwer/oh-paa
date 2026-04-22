@@ -16,7 +16,10 @@ pub struct InstrumentMarketDataContext {
 }
 
 impl InstrumentMarketDataContext {
-    pub fn binding_for_provider(&self, provider: &str) -> Result<&InstrumentSymbolBinding, AppError> {
+    pub fn binding_for_provider(
+        &self,
+        provider: &str,
+    ) -> Result<&InstrumentSymbolBinding, AppError> {
         self.bindings
             .iter()
             .find(|binding| binding.provider == provider)
@@ -48,13 +51,13 @@ impl InstrumentRepository {
         &self,
         instrument_id: Uuid,
     ) -> Result<InstrumentMarketDataContext, AppError> {
-        let instrument = self
-            .load_instrument(instrument_id)
-            .await?
-            .ok_or_else(|| AppError::Validation {
-                message: format!("instrument not found: {instrument_id}"),
-                source: None,
-            })?;
+        let instrument =
+            self.load_instrument(instrument_id)
+                .await?
+                .ok_or_else(|| AppError::Validation {
+                    message: format!("instrument not found: {instrument_id}"),
+                    source: None,
+                })?;
         let market = self
             .load_market(instrument.market_id)
             .await?
@@ -125,7 +128,9 @@ impl InstrumentRepository {
         .bind(instrument_id)
         .fetch_all(&self.pool)
         .await
-        .map_err(storage_query_error("failed to load instrument symbol bindings"))?;
+        .map_err(storage_query_error(
+            "failed to load instrument symbol bindings",
+        ))?;
 
         rows.into_iter().map(map_binding_row).collect()
     }
@@ -149,7 +154,10 @@ impl InstrumentRepository {
         row.map(map_policy_row).transpose()
     }
 
-    async fn load_market_policy(&self, market_id: Uuid) -> Result<Option<ProviderPolicy>, AppError> {
+    async fn load_market_policy(
+        &self,
+        market_id: Uuid,
+    ) -> Result<Option<ProviderPolicy>, AppError> {
         let row = sqlx::query(
             r#"
             SELECT scope_type, market_id, instrument_id, kline_primary, kline_fallback, tick_primary, tick_fallback
@@ -183,7 +191,9 @@ fn map_instrument_row(row: sqlx::postgres::PgRow) -> Result<Instrument, AppError
         market_id: row.try_get("market_id").map_err(storage_decode_error)?,
         symbol: row.try_get("symbol").map_err(storage_decode_error)?,
         name: row.try_get("name").map_err(storage_decode_error)?,
-        instrument_type: row.try_get("instrument_type").map_err(storage_decode_error)?,
+        instrument_type: row
+            .try_get("instrument_type")
+            .map_err(storage_decode_error)?,
         created_at: row.try_get("created_at").map_err(storage_decode_error)?,
         updated_at: row.try_get("updated_at").map_err(storage_decode_error)?,
     })
@@ -194,7 +204,9 @@ fn map_binding_row(row: sqlx::postgres::PgRow) -> Result<InstrumentSymbolBinding
         id: row.try_get("id").map_err(storage_decode_error)?,
         instrument_id: row.try_get("instrument_id").map_err(storage_decode_error)?,
         provider: row.try_get("provider").map_err(storage_decode_error)?,
-        provider_symbol: row.try_get("provider_symbol").map_err(storage_decode_error)?,
+        provider_symbol: row
+            .try_get("provider_symbol")
+            .map_err(storage_decode_error)?,
         created_at: row.try_get("created_at").map_err(storage_decode_error)?,
     })
 }
@@ -236,9 +248,7 @@ fn map_policy_row(row: sqlx::postgres::PgRow) -> Result<ProviderPolicy, AppError
 
     Ok(ProviderPolicy {
         scope,
-        kline_primary: row
-            .try_get("kline_primary")
-            .map_err(storage_decode_error)?,
+        kline_primary: row.try_get("kline_primary").map_err(storage_decode_error)?,
         kline_fallback: row
             .try_get("kline_fallback")
             .map_err(storage_decode_error)?,
@@ -247,9 +257,7 @@ fn map_policy_row(row: sqlx::postgres::PgRow) -> Result<ProviderPolicy, AppError
     })
 }
 
-fn storage_query_error(
-    message: &'static str,
-) -> impl FnOnce(sqlx::Error) -> AppError {
+fn storage_query_error(message: &'static str) -> impl FnOnce(sqlx::Error) -> AppError {
     move |source| AppError::Storage {
         message: message.to_string(),
         source: Some(Box::new(source)),

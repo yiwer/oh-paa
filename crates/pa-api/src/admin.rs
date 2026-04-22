@@ -1,9 +1,4 @@
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    routing::post,
-};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use pa_core::Timeframe;
 use pa_market::{BackfillCanonicalKlinesRequest, backfill_canonical_klines};
 use serde::Deserialize;

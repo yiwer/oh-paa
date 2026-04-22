@@ -4,27 +4,47 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use pa_app::replay::{ReplayDataset, load_replay_dataset, run_replay_variant_from_path};
+use pa_app::replay::{
+    ReplayDataset, ReplayExecutionMode, ReplayExperimentReport, load_replay_dataset,
+    parse_replay_cli_args, run_fixture_replay_variant_from_path, run_replay_variant_from_path,
+};
 
 static TEMP_DATASET_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[tokio::test]
 async fn replay_runner_records_variant_step_outputs_and_scores() {
-    let report =
-        run_replay_variant_from_path("testdata/analysis_replay/sample_set.json", "baseline_a")
-            .await
-            .unwrap();
-    let second_report =
+    let report = run_fixture_replay_variant_from_path(
+        "testdata/analysis_replay/sample_set.json",
+        "baseline_a",
+    )
+    .await
+    .unwrap();
+    let second_report = run_fixture_replay_variant_from_path(
+        "testdata/analysis_replay/sample_set.json",
+        "baseline_a",
+    )
+    .await
+    .unwrap();
+    let wrapper_report =
         run_replay_variant_from_path("testdata/analysis_replay/sample_set.json", "baseline_a")
             .await
             .unwrap();
 
     assert_eq!(report.experiment_id, second_report.experiment_id);
+    assert_eq!(report.experiment_id, wrapper_report.experiment_id);
     assert_eq!(report.dataset_id, "sample_set");
     assert_eq!(report.pipeline_variant, "baseline_a");
+    assert_eq!(report.execution_mode, ReplayExecutionMode::Fixture);
+    assert_eq!(report.config_source_path, None);
     assert_eq!(report.step_runs.len(), 12);
-    assert_eq!(report.programmatic_scores["total_step_runs"].as_u64(), Some(12));
-    assert_eq!(report.programmatic_scores["valid_step_runs"].as_u64(), Some(12));
+    assert_eq!(
+        report.programmatic_scores["total_step_runs"].as_u64(),
+        Some(12)
+    );
+    assert_eq!(
+        report.programmatic_scores["valid_step_runs"].as_u64(),
+        Some(12)
+    );
     assert_eq!(
         report.programmatic_scores["schema_hit_rate"].as_f64(),
         Some(1.0)
@@ -32,6 +52,16 @@ async fn replay_runner_records_variant_step_outputs_and_scores() {
     assert_eq!(
         report.programmatic_scores["latency_coverage"].as_f64(),
         Some(1.0)
+    );
+    assert!(
+        report
+            .programmatic_scores
+            .contains_key("decision_tree_completeness")
+    );
+    assert!(
+        report
+            .programmatic_scores
+            .contains_key("cross_step_consistency_rate")
     );
 
     let first = &report.step_runs[0];
@@ -44,6 +74,9 @@ async fn replay_runner_records_variant_step_outputs_and_scores() {
     assert!(first.schema_valid);
     assert!(first.schema_validation_error.is_none());
     assert_eq!(first.latency_ms, Some(210));
+    assert_eq!(first.raw_response_json, None);
+    assert_eq!(first.failure_category, None);
+    assert_eq!(first.outbound_error_message, None);
     assert!(first.input_json.is_object());
     assert!(first.output_json.is_object());
 }
@@ -87,7 +120,12 @@ async fn replay_runner_excludes_missing_latency_from_average_and_reports_coverag
         report.programmatic_scores["latency_coverage"].as_f64(),
         Some(11.0 / 12.0)
     );
-    assert!(report.programmatic_scores["avg_latency_ms"].as_f64().unwrap() > 0.0);
+    assert!(
+        report.programmatic_scores["avg_latency_ms"]
+            .as_f64()
+            .unwrap()
+            > 0.0
+    );
 }
 
 #[tokio::test]
@@ -110,7 +148,47 @@ async fn replay_runner_experiment_id_depends_only_on_selected_variant() {
         .expect("unrelated variant should not affect baseline id");
 
     assert_eq!(baseline_report.step_runs, candidate_report.step_runs);
-    assert_eq!(baseline_report.experiment_id, candidate_report.experiment_id);
+    assert_eq!(
+        baseline_report.experiment_id,
+        candidate_report.experiment_id
+    );
+}
+
+#[test]
+fn replay_report_deserializes_legacy_fixture_report_without_execution_mode() {
+    let legacy_report_json = serde_json::json!({
+        "experiment_id": "legacy-id",
+        "dataset_id": "sample_set",
+        "pipeline_variant": "baseline_a",
+        "step_runs": [],
+        "programmatic_scores": {}
+    });
+
+    let report: ReplayExperimentReport =
+        serde_json::from_value(legacy_report_json).expect("legacy report JSON should deserialize");
+
+    assert_eq!(report.execution_mode, ReplayExecutionMode::Fixture);
+    assert_eq!(report.config_source_path, None);
+}
+
+#[test]
+fn replay_cli_parser_defaults_to_fixture_mode_without_config() {
+    let args = parse_replay_cli_args([
+        "replay_analysis",
+        "--dataset",
+        "testdata/analysis_replay/sample_set.json",
+        "--variant",
+        "baseline_a",
+    ])
+    .expect("fixture mode should not require --config");
+
+    assert_eq!(args.mode, ReplayExecutionMode::Fixture);
+    assert_eq!(
+        args.dataset_path,
+        "testdata/analysis_replay/sample_set.json"
+    );
+    assert_eq!(args.config_path, None);
+    assert_eq!(args.variant, "baseline_a");
 }
 
 fn sample_dataset() -> ReplayDataset {

@@ -9,6 +9,9 @@ use pa_orchestrator::{
 };
 
 pub mod replay;
+pub mod replay_config;
+pub mod replay_live;
+pub mod replay_score;
 
 pub fn build_openai_provider_runtimes(
     config: &AppConfig,

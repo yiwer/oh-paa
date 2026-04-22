@@ -1,0 +1,108 @@
+{
+  "dataset_id": "live_crypto_15m_v1",
+  "market": "crypto",
+  "timeframe": "15m",
+  "pipeline_variant": "baseline_a",
+  "samples": [
+    {
+      "sample_id": "crypto-btcusd-2026-04-18t08-15z",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "provider": "twelvedata",
+      "provider_symbol": "BTC/USD",
+      "display_symbol": "BTC/USD",
+      "target_bar_open_time": "2026-04-18T08:00:00Z",
+      "target_bar_close_time": "2026-04-18T08:15:00Z",
+      "lookback_15m_bar_count": 12,
+      "warmup_bar_count": 8,
+      "user_position_json": {
+        "side": "long",
+        "size": 0.25,
+        "avg_price": 83880.0
+      },
+      "user_subscription_json": {
+        "risk_mode": "standard",
+        "max_leverage": 3
+      }
+    },
+    {
+      "sample_id": "crypto-btcusd-2026-04-18t08-30z",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "provider": "twelvedata",
+      "provider_symbol": "BTC/USD",
+      "display_symbol": "BTC/USD",
+      "target_bar_open_time": "2026-04-18T08:15:00Z",
+      "target_bar_close_time": "2026-04-18T08:30:00Z",
+      "lookback_15m_bar_count": 12,
+      "warmup_bar_count": 8,
+      "user_position_json": {
+        "side": "long",
+        "size": 0.25,
+        "avg_price": 83880.0
+      },
+      "user_subscription_json": {
+        "risk_mode": "standard",
+        "max_leverage": 3
+      }
+    },
+    {
+      "sample_id": "crypto-btcusd-2026-04-18t08-45z",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "provider": "twelvedata",
+      "provider_symbol": "BTC/USD",
+      "display_symbol": "BTC/USD",
+      "target_bar_open_time": "2026-04-18T08:30:00Z",
+      "target_bar_close_time": "2026-04-18T08:45:00Z",
+      "lookback_15m_bar_count": 12,
+      "warmup_bar_count": 9,
+      "user_position_json": {
+        "side": "long",
+        "size": 0.2,
+        "avg_price": 84110.0
+      },
+      "user_subscription_json": {
+        "risk_mode": "standard",
+        "max_leverage": 2
+      }
+    },
+    {
+      "sample_id": "crypto-btcusd-2026-04-18t09-00z",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "provider": "twelvedata",
+      "provider_symbol": "BTC/USD",
+      "display_symbol": "BTC/USD",
+      "target_bar_open_time": "2026-04-18T08:45:00Z",
+      "target_bar_close_time": "2026-04-18T09:00:00Z",
+      "lookback_15m_bar_count": 12,
+      "warmup_bar_count": 10,
+      "user_position_json": {
+        "side": "long",
+        "size": 0.18,
+        "avg_price": 84210.0
+      },
+      "user_subscription_json": {
+        "risk_mode": "standard",
+        "max_leverage": 2
+      }
+    },
+    {
+      "sample_id": "crypto-btcusd-2026-04-18t09-15z",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "provider": "twelvedata",
+      "provider_symbol": "BTC/USD",
+      "display_symbol": "BTC/USD",
+      "target_bar_open_time": "2026-04-18T09:00:00Z",
+      "target_bar_close_time": "2026-04-18T09:15:00Z",
+      "lookback_15m_bar_count": 12,
+      "warmup_bar_count": 10,
+      "user_position_json": {
+        "side": "long",
+        "size": 0.18,
+        "avg_price": 84210.0
+      },
+      "user_subscription_json": {
+        "risk_mode": "standard",
+        "max_leverage": 2
+      }
+    }
+  ]
+}

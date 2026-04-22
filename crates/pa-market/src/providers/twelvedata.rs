@@ -7,7 +7,7 @@ use reqwest::Url;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
-use crate::{MarketDataProvider, ProviderKline, ProviderTick};
+use crate::{HistoricalKlineQuery, MarketDataProvider, ProviderKline, ProviderTick};
 
 #[derive(Debug, Clone)]
 pub struct TwelveDataProvider {
@@ -26,15 +26,14 @@ impl TwelveDataProvider {
         }
     }
 
-    async fn get_text(
-        &self,
-        path: &str,
-        query: &[(&str, String)],
-    ) -> Result<String, AppError> {
-        let url = self.base_url.join(path).map_err(|source| AppError::Provider {
-            message: format!("failed to build twelvedata url for `{path}`"),
-            source: Some(Box::new(source)),
-        })?;
+    async fn get_text(&self, path: &str, query: &[(&str, String)]) -> Result<String, AppError> {
+        let url = self
+            .base_url
+            .join(path)
+            .map_err(|source| AppError::Provider {
+                message: format!("failed to build twelvedata url for `{path}`"),
+                source: Some(Box::new(source)),
+            })?;
         let response = self
             .client
             .get(url)
@@ -45,10 +44,12 @@ impl TwelveDataProvider {
                 message: "failed to call twelvedata".into(),
                 source: Some(Box::new(source)),
             })?;
-        let response = response.error_for_status().map_err(|source| AppError::Provider {
-            message: "twelvedata returned error status".into(),
-            source: Some(Box::new(source)),
-        })?;
+        let response = response
+            .error_for_status()
+            .map_err(|source| AppError::Provider {
+                message: "twelvedata returned error status".into(),
+                source: Some(Box::new(source)),
+            })?;
 
         response.text().await.map_err(|source| AppError::Provider {
             message: "failed to read twelvedata response body".into(),
@@ -64,6 +65,44 @@ impl TwelveDataProvider {
         }
     }
 
+    async fn fetch_klines_time_series(
+        &self,
+        provider_symbol: &str,
+        timeframe: Timeframe,
+        start_open_time: Option<DateTime<Utc>>,
+        end_close_time: Option<DateTime<Utc>>,
+        limit: Option<usize>,
+    ) -> Result<Vec<ProviderKline>, AppError> {
+        let fully_bounded = start_open_time.is_some() && end_close_time.is_some();
+        let mut query = vec![
+            ("symbol", provider_symbol.to_owned()),
+            ("interval", Self::timeframe_interval(timeframe).to_owned()),
+            ("order", "asc".to_string()),
+            ("timezone", "UTC".to_string()),
+        ];
+
+        if let Some(limit) = limit
+            && !fully_bounded
+        {
+            query.push(("outputsize", limit.to_string()));
+        }
+        if let Some(start_open_time) = start_open_time.as_ref() {
+            query.push(("start_date", start_open_time.to_rfc3339()));
+        }
+        if let Some(end_close_time) = end_close_time.as_ref() {
+            query.push(("end_date", end_close_time.to_rfc3339()));
+        }
+        query.push(("apikey", self.api_key.clone()));
+
+        let body = self.get_text("time_series", &query).await?;
+        let mut klines = Self::parse_klines_response(&body, timeframe)?;
+        if let Some(end_close_time) = end_close_time {
+            klines.retain(|kline| kline.close_time <= end_close_time);
+        }
+
+        Ok(klines)
+    }
+
     fn parse_klines_response(
         body: &str,
         timeframe: Timeframe,
@@ -73,7 +112,11 @@ impl TwelveDataProvider {
                 message: "failed to parse twelvedata kline response".into(),
                 source: Some(Box::new(source)),
             })?;
-        ensure_success_status(response.status.as_deref(), response.code, response.message.as_deref())?;
+        ensure_success_status(
+            response.status.as_deref(),
+            response.code,
+            response.message.as_deref(),
+        )?;
         let bar_duration = chrono::Duration::from_std(timeframe.duration()).map_err(|source| {
             AppError::Provider {
                 message: "invalid timeframe for twelvedata kline translation".into(),
@@ -85,7 +128,8 @@ impl TwelveDataProvider {
             .values
             .into_iter()
             .map(|row| {
-                let open_time = parse_twelvedata_datetime(&row.datetime, "twelvedata kline datetime")?;
+                let open_time =
+                    parse_twelvedata_datetime(&row.datetime, "twelvedata kline datetime")?;
 
                 Ok(ProviderKline {
                     open_time,
@@ -109,7 +153,11 @@ impl TwelveDataProvider {
                 message: "failed to parse twelvedata tick response".into(),
                 source: Some(Box::new(source)),
             })?;
-        ensure_success_status(response.status.as_deref(), response.code, response.message.as_deref())?;
+        ensure_success_status(
+            response.status.as_deref(),
+            response.code,
+            response.message.as_deref(),
+        )?;
 
         Ok(ProviderTick {
             price: parse_decimal(&response.price, "twelvedata tick price")?,
@@ -131,21 +179,22 @@ impl MarketDataProvider for TwelveDataProvider {
         timeframe: Timeframe,
         limit: usize,
     ) -> Result<Vec<ProviderKline>, AppError> {
-        let body = self
-            .get_text(
-                "time_series",
-                &[
-                    ("symbol", provider_symbol.to_owned()),
-                    ("interval", Self::timeframe_interval(timeframe).to_owned()),
-                    ("outputsize", limit.to_string()),
-                    ("order", "asc".to_string()),
-                    ("timezone", "UTC".to_string()),
-                    ("apikey", self.api_key.clone()),
-                ],
-            )
-            .await?;
+        self.fetch_klines_time_series(provider_symbol, timeframe, None, None, Some(limit))
+            .await
+    }
 
-        Self::parse_klines_response(&body, timeframe)
+    async fn fetch_klines_window(
+        &self,
+        query: HistoricalKlineQuery,
+    ) -> Result<Vec<ProviderKline>, AppError> {
+        self.fetch_klines_time_series(
+            &query.provider_symbol,
+            query.timeframe,
+            query.start_open_time,
+            query.end_close_time,
+            query.limit,
+        )
+        .await
     }
 
     async fn fetch_latest_tick(&self, provider_symbol: &str) -> Result<ProviderTick, AppError> {
@@ -174,10 +223,12 @@ impl MarketDataProvider for TwelveDataProvider {
                 source: Some(Box::new(source)),
             })?;
 
-        response.error_for_status().map_err(|source| AppError::Provider {
-            message: "twelvedata healthcheck returned error status".into(),
-            source: Some(Box::new(source)),
-        })?;
+        response
+            .error_for_status()
+            .map_err(|source| AppError::Provider {
+                message: "twelvedata healthcheck returned error status".into(),
+                source: Some(Box::new(source)),
+            })?;
 
         Ok(())
     }
@@ -273,10 +324,12 @@ fn parse_twelvedata_datetime(value: &str, field: &str) -> Result<DateTime<Utc>, 
     }
 
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
-        let timestamp = date.and_hms_opt(0, 0, 0).ok_or_else(|| AppError::Provider {
-            message: format!("invalid {field}"),
-            source: None,
-        })?;
+        let timestamp = date
+            .and_hms_opt(0, 0, 0)
+            .ok_or_else(|| AppError::Provider {
+                message: format!("invalid {field}"),
+                source: None,
+            })?;
         return Ok(DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc));
     }
 
@@ -289,27 +342,26 @@ fn parse_twelvedata_datetime(value: &str, field: &str) -> Result<DateTime<Utc>, 
 fn parse_tick_time(response: &TwelveDataTickResponse) -> Result<DateTime<Utc>, AppError> {
     if let Some(timestamp) = &response.last_quote_at {
         return match timestamp {
-            TwelveDataTimestamp::Integer(value) => {
-                DateTime::<Utc>::from_timestamp(*value, 0).ok_or_else(|| AppError::Provider {
+            TwelveDataTimestamp::Integer(value) => DateTime::<Utc>::from_timestamp(*value, 0)
+                .ok_or_else(|| AppError::Provider {
                     message: "invalid twelvedata last_quote_at timestamp".into(),
                     source: None,
-                })
-            }
+                }),
             TwelveDataTimestamp::String(value) => {
-                parse_rfc3339_timestamp(value, "twelvedata last_quote_at timestamp")
-                    .or_else(|_| parse_twelvedata_datetime(value, "twelvedata last_quote_at timestamp"))
+                parse_rfc3339_timestamp(value, "twelvedata last_quote_at timestamp").or_else(|_| {
+                    parse_twelvedata_datetime(value, "twelvedata last_quote_at timestamp")
+                })
             }
         };
     }
 
     if let Some(timestamp) = &response.timestamp {
         return match timestamp {
-            TwelveDataTimestamp::Integer(value) => {
-                DateTime::<Utc>::from_timestamp(*value, 0).ok_or_else(|| AppError::Provider {
+            TwelveDataTimestamp::Integer(value) => DateTime::<Utc>::from_timestamp(*value, 0)
+                .ok_or_else(|| AppError::Provider {
                     message: "invalid twelvedata tick timestamp".into(),
                     source: None,
-                })
-            }
+                }),
             TwelveDataTimestamp::String(value) => {
                 parse_rfc3339_timestamp(value, "twelvedata tick timestamp")
                     .or_else(|_| parse_twelvedata_datetime(value, "twelvedata tick timestamp"))
@@ -446,9 +498,15 @@ mod tests {
 
     #[test]
     fn maps_timeframe_to_twelvedata_interval() {
-        assert_eq!(TwelveDataProvider::timeframe_interval(Timeframe::M15), "15min");
+        assert_eq!(
+            TwelveDataProvider::timeframe_interval(Timeframe::M15),
+            "15min"
+        );
         assert_eq!(TwelveDataProvider::timeframe_interval(Timeframe::H1), "1h");
-        assert_eq!(TwelveDataProvider::timeframe_interval(Timeframe::D1), "1day");
+        assert_eq!(
+            TwelveDataProvider::timeframe_interval(Timeframe::D1),
+            "1day"
+        );
     }
 
     #[test]

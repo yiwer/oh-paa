@@ -125,10 +125,38 @@ async fn cn_a_hourly_open_bar_after_lunch_uses_previous_close_as_open() {
     insert_rows(
         &repository,
         vec![
-            row(instrument_id, "2024-01-02T02:30:00Z", "10.4", "10.6", "10.3", "10.5"),
-            row(instrument_id, "2024-01-02T02:45:00Z", "10.5", "10.7", "10.4", "10.6"),
-            row(instrument_id, "2024-01-02T03:00:00Z", "10.6", "10.8", "10.5", "10.7"),
-            row(instrument_id, "2024-01-02T03:15:00Z", "10.7", "10.9", "10.6", "10.8"),
+            row(
+                instrument_id,
+                "2024-01-02T02:30:00Z",
+                "10.4",
+                "10.6",
+                "10.3",
+                "10.5",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T02:45:00Z",
+                "10.5",
+                "10.7",
+                "10.4",
+                "10.6",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T03:00:00Z",
+                "10.6",
+                "10.8",
+                "10.5",
+                "10.7",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T03:15:00Z",
+                "10.7",
+                "10.9",
+                "10.6",
+                "10.8",
+            ),
         ],
     )
     .await;
@@ -177,11 +205,46 @@ async fn cn_a_daily_open_bar_reuses_closed_children_before_applying_latest_tick(
     insert_rows(
         &repository,
         vec![
-            row(instrument_id, "2024-01-02T01:30:00Z", "10.0", "10.2", "9.9", "10.1"),
-            row(instrument_id, "2024-01-02T01:45:00Z", "10.1", "10.3", "10.0", "10.2"),
-            row(instrument_id, "2024-01-02T02:00:00Z", "10.2", "10.5", "10.1", "10.4"),
-            row(instrument_id, "2024-01-02T02:15:00Z", "10.4", "10.6", "10.3", "10.5"),
-            row(instrument_id, "2024-01-02T05:00:00Z", "10.5", "10.8", "10.4", "10.7"),
+            row(
+                instrument_id,
+                "2024-01-02T01:30:00Z",
+                "10.0",
+                "10.2",
+                "9.9",
+                "10.1",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T01:45:00Z",
+                "10.1",
+                "10.3",
+                "10.0",
+                "10.2",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T02:00:00Z",
+                "10.2",
+                "10.5",
+                "10.1",
+                "10.4",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T02:15:00Z",
+                "10.4",
+                "10.6",
+                "10.3",
+                "10.5",
+            ),
+            row(
+                instrument_id,
+                "2024-01-02T05:00:00Z",
+                "10.5",
+                "10.8",
+                "10.4",
+                "10.7",
+            ),
         ],
     )
     .await;

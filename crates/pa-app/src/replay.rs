@@ -4,19 +4,31 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::anyhow;
 use jsonschema::Validator;
 use pa_core::{AppConfig, AppError};
 use pa_orchestrator::sha256_json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::{build_step_registry_from_config, workspace_root};
+use crate::{build_step_registry_from_config, replay_score, workspace_root};
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ReplayExecutionMode {
+    #[default]
+    Fixture,
+    LiveHistorical,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplayExperimentReport {
     pub experiment_id: String,
     pub dataset_id: String,
     pub pipeline_variant: String,
+    #[serde(default)]
+    pub execution_mode: ReplayExecutionMode,
+    #[serde(default)]
+    pub config_source_path: Option<String>,
     pub step_runs: Vec<ReplayStepRun>,
     pub programmatic_scores: Map<String, Value>,
 }
@@ -33,8 +45,11 @@ pub struct ReplayStepRun {
     pub model: String,
     pub input_json: Value,
     pub output_json: Value,
+    pub raw_response_json: Option<Value>,
     pub schema_valid: bool,
     pub schema_validation_error: Option<String>,
+    pub failure_category: Option<String>,
+    pub outbound_error_message: Option<String>,
     pub latency_ms: Option<u64>,
     pub judge_score: Option<f64>,
     pub human_notes: Option<String>,
@@ -73,28 +88,90 @@ pub struct ReplayVariantStepFixture {
     pub human_notes: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplayCliArgs {
+    pub mode: ReplayExecutionMode,
+    pub dataset_path: String,
+    pub config_path: Option<String>,
+    pub variant: String,
+}
+
 pub async fn run_replay_variant_from_path(
+    path: impl AsRef<Path>,
+    pipeline_variant: &str,
+) -> Result<ReplayExperimentReport, AppError> {
+    run_fixture_replay_variant_from_path(path, pipeline_variant).await
+}
+
+pub async fn run_fixture_replay_variant_from_path(
     path: impl AsRef<Path>,
     pipeline_variant: &str,
 ) -> Result<ReplayExperimentReport, AppError> {
     let dataset = load_replay_dataset(path)?;
     let step_runs = execute_variant(&dataset, pipeline_variant)?;
     let programmatic_scores = score_step_runs(&step_runs);
-    let experiment_id = build_experiment_id(&dataset.dataset_id, pipeline_variant, &step_runs)?;
+    let execution_mode = ReplayExecutionMode::Fixture;
+    let config_source_path = None;
+    let experiment_id = build_experiment_id(
+        &dataset.dataset_id,
+        pipeline_variant,
+        &step_runs,
+        execution_mode.clone(),
+        config_source_path.as_deref(),
+    )?;
 
     Ok(ReplayExperimentReport {
         experiment_id,
         dataset_id: dataset.dataset_id,
         pipeline_variant: pipeline_variant.to_string(),
+        execution_mode,
+        config_source_path,
         step_runs,
         programmatic_scores,
+    })
+}
+
+pub fn parse_replay_cli_args<I, S>(args: I) -> Result<ReplayCliArgs, anyhow::Error>
+where
+    I: IntoIterator<Item = S>,
+    S: Into<String>,
+{
+    let values = args.into_iter().map(Into::into).collect::<Vec<_>>();
+    let mode_value = match value_after(&values, "--mode") {
+        Some(mode) => mode,
+        None if has_flag(&values, "--mode") => return Err(anyhow!("missing --mode")),
+        None => "fixture".to_string(),
+    };
+    let dataset_path =
+        value_after(&values, "--dataset").ok_or_else(|| anyhow!("missing --dataset"))?;
+    let variant = value_after(&values, "--variant").ok_or_else(|| anyhow!("missing --variant"))?;
+    let config_path = value_after(&values, "--config");
+
+    let mode = match mode_value.as_str() {
+        "fixture" => ReplayExecutionMode::Fixture,
+        "live" => ReplayExecutionMode::LiveHistorical,
+        other => return Err(anyhow!("unsupported --mode {other}")),
+    };
+
+    if mode == ReplayExecutionMode::LiveHistorical && config_path.is_none() {
+        return Err(anyhow!("--config is required when --mode live"));
+    }
+
+    Ok(ReplayCliArgs {
+        mode,
+        dataset_path,
+        config_path,
+        variant,
     })
 }
 
 pub fn load_replay_dataset(path: impl AsRef<Path>) -> Result<ReplayDataset, AppError> {
     let resolved_path = resolve_input_path(path);
     let raw = fs::read_to_string(&resolved_path).map_err(|err| AppError::Storage {
-        message: format!("failed to read replay dataset from {}", resolved_path.display()),
+        message: format!(
+            "failed to read replay dataset from {}",
+            resolved_path.display()
+        ),
         source: Some(Box::new(err)),
     })?;
 
@@ -157,8 +234,11 @@ fn execute_variant(
                 model: resolved.profile.model.clone(),
                 input_json: sample_input_for_step(sample, &step.step_key)?,
                 output_json: step.output_json.clone(),
+                raw_response_json: None,
                 schema_valid,
                 schema_validation_error,
+                failure_category: None,
+                outbound_error_message: None,
                 latency_ms: step.latency_ms,
                 judge_score: step.judge_score,
                 human_notes: step.human_notes.clone(),
@@ -206,19 +286,38 @@ fn resolve_input_path(path: impl AsRef<Path>) -> PathBuf {
     workspace_root().join(path)
 }
 
-fn build_experiment_id(
+fn value_after(values: &[String], flag: &str) -> Option<String> {
+    values
+        .iter()
+        .position(|value| value == flag)
+        .and_then(|index| values.get(index + 1))
+        .filter(|value| !value.starts_with("--"))
+        .cloned()
+}
+
+fn has_flag(values: &[String], flag: &str) -> bool {
+    values.iter().any(|value| value == flag)
+}
+
+pub(crate) fn build_experiment_id(
     dataset_id: &str,
     pipeline_variant: &str,
     step_runs: &[ReplayStepRun],
+    execution_mode: ReplayExecutionMode,
+    config_source_path: Option<&str>,
 ) -> Result<String, AppError> {
     sha256_json(&serde_json::json!({
         "dataset_id": dataset_id,
         "pipeline_variant": pipeline_variant,
+        "execution_mode": execution_mode,
+        "config_source_path": config_source_path,
         "step_runs": step_runs,
     }))
 }
 
-fn expected_variant_steps(pipeline_variant: &str) -> Result<&'static [(&'static str, &'static str)], AppError> {
+fn expected_variant_steps(
+    pipeline_variant: &str,
+) -> Result<&'static [(&'static str, &'static str)], AppError> {
     match pipeline_variant {
         "baseline_a" => Ok(&[
             ("shared_pa_state_bar", "v1"),
@@ -277,34 +376,65 @@ fn validate_variant_steps(
     Ok(())
 }
 
-fn score_step_runs(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
-    let total_step_runs = step_runs.len() as u64;
-    let valid_step_runs = step_runs.iter().filter(|run| run.schema_valid).count() as u64;
-    let schema_hit_rate = if total_step_runs == 0 {
-        0.0
-    } else {
-        valid_step_runs as f64 / total_step_runs as f64
-    };
-    let timed_step_runs = step_runs
-        .iter()
-        .filter_map(|run| run.latency_ms.map(|latency| latency as f64))
-        .collect::<Vec<_>>();
-    let avg_latency_ms = if timed_step_runs.is_empty() {
-        0.0
-    } else {
-        timed_step_runs.iter().sum::<f64>() / timed_step_runs.len() as f64
-    };
-    let latency_coverage = if total_step_runs == 0 {
-        0.0
-    } else {
-        timed_step_runs.len() as f64 / total_step_runs as f64
-    };
+pub(crate) fn score_step_runs(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
+    replay_score::score_step_runs(step_runs)
+}
 
-    Map::from_iter([
-        ("total_step_runs".to_string(), Value::from(total_step_runs)),
-        ("valid_step_runs".to_string(), Value::from(valid_step_runs)),
-        ("schema_hit_rate".to_string(), Value::from(schema_hit_rate)),
-        ("avg_latency_ms".to_string(), Value::from(avg_latency_ms)),
-        ("latency_coverage".to_string(), Value::from(latency_coverage)),
-    ])
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{ReplayExecutionMode, ReplayStepRun, build_experiment_id};
+
+    #[test]
+    fn build_experiment_id_changes_when_execution_context_changes() {
+        let step_runs = vec![ReplayStepRun {
+            sample_id: "sample-1".to_string(),
+            market: "crypto-btc".to_string(),
+            timeframe: "15m".to_string(),
+            step_key: "shared_pa_state_bar".to_string(),
+            step_version: "v1".to_string(),
+            prompt_version: "v1".to_string(),
+            llm_provider: "dashscope".to_string(),
+            model: "qwen-plus".to_string(),
+            input_json: json!({"input": "value"}),
+            output_json: json!({"output": "value"}),
+            raw_response_json: None,
+            schema_valid: true,
+            schema_validation_error: None,
+            failure_category: None,
+            outbound_error_message: None,
+            latency_ms: Some(200),
+            judge_score: Some(0.9),
+            human_notes: None,
+        }];
+
+        let fixture_id = build_experiment_id(
+            "sample_set",
+            "baseline_a",
+            &step_runs,
+            ReplayExecutionMode::Fixture,
+            None,
+        )
+        .expect("fixture experiment id should hash");
+        let live_id = build_experiment_id(
+            "sample_set",
+            "baseline_a",
+            &step_runs,
+            ReplayExecutionMode::LiveHistorical,
+            Some("config/live.toml"),
+        )
+        .expect("live experiment id should hash");
+        let live_with_other_config_id = build_experiment_id(
+            "sample_set",
+            "baseline_a",
+            &step_runs,
+            ReplayExecutionMode::LiveHistorical,
+            Some("config/live-alt.toml"),
+        )
+        .expect("alternate config experiment id should hash");
+
+        assert_ne!(fixture_id, live_id);
+        assert_ne!(live_id, live_with_other_config_id);
+    }
 }

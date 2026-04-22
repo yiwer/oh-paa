@@ -628,7 +628,9 @@ fn assert_json_decimal_eq(value: &Value, expected: &str) {
         .expect("json decimal value should be encoded as string")
         .parse::<f64>()
         .expect("actual decimal should parse");
-    let expected = expected.parse::<f64>().expect("expected decimal should parse");
+    let expected = expected
+        .parse::<f64>()
+        .expect("expected decimal should parse");
 
     assert!(
         (actual - expected).abs() < f64::EPSILON,

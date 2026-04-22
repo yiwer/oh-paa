@@ -170,7 +170,9 @@ impl TestServer {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .expect("test listener should bind");
-        let address = listener.local_addr().expect("listener address should exist");
+        let address = listener
+            .local_addr()
+            .expect("listener address should exist");
         tokio::spawn(async move {
             axum::serve(listener, app)
                 .await
@@ -262,11 +264,7 @@ async fn eastmoney_quote(
     )
 }
 
-fn record_request(
-    state: Arc<Mutex<Vec<ObservedRequest>>>,
-    path: &str,
-    query: RequestQuery,
-) {
+fn record_request(state: Arc<Mutex<Vec<ObservedRequest>>>, path: &str, query: RequestQuery) {
     let mut requests = state.lock().expect("request log should lock");
     let mut query_pairs = query.values.into_iter().collect::<Vec<_>>();
     query_pairs.sort_by(|left, right| left.0.cmp(&right.0));
