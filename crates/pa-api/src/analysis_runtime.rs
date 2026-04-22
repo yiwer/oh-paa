@@ -114,7 +114,14 @@ pub(crate) async fn resolve_shared_bar_input(
         )?,
     };
     let recent_pa_states_json = request.recent_pa_states_json.unwrap_or_else(|| {
-        collect_recent_shared_pa_states(state, request.instrument_id, Some(timeframe), 8)
+        collect_recent_shared_pa_states_for_bar(
+            state,
+            request.instrument_id,
+            timeframe,
+            resolved.bar_open_time,
+            resolved.bar_close_time,
+            8,
+        )
     });
 
     Ok(SharedBarAnalysisInput {
@@ -187,15 +194,24 @@ pub(crate) async fn resolve_shared_daily_input(
 
     let recent_pa_states_json = match request.recent_pa_states_json {
         Some(value) => value,
-        None => require_recent_shared_pa_states(
+        None => collect_recent_shared_pa_states_for_trading_date(
+            state,
             request.instrument_id,
+            &context.market.timezone,
             trading_date,
-            collect_recent_shared_pa_states(state, request.instrument_id, None, 8),
+            8,
         )?,
     };
-    let recent_shared_bar_analyses_json = request
-        .recent_shared_bar_analyses_json
-        .unwrap_or_else(|| collect_recent_shared_bar_results(state, request.instrument_id, 8));
+    let recent_shared_bar_analyses_json =
+        request.recent_shared_bar_analyses_json.unwrap_or_else(|| {
+            collect_recent_shared_bar_results_for_trading_date(
+                state,
+                request.instrument_id,
+                &context.market.timezone,
+                trading_date,
+                8,
+            )
+        });
     let multi_timeframe_structure_json = request
         .multi_timeframe_structure_json
         .unwrap_or(build_multi_timeframe_context_json(runtime, &context).await?);
@@ -213,24 +229,13 @@ pub(crate) async fn resolve_shared_daily_input(
     })
 }
 
-fn require_recent_shared_pa_states(
-    instrument_id: Uuid,
-    trading_date: NaiveDate,
-    recent_pa_states_json: Value,
-) -> Result<Value, ApiError> {
-    if recent_pa_states_json
-        .as_array()
-        .is_some_and(|rows| !rows.is_empty())
-    {
-        return Ok(recent_pa_states_json);
-    }
-
-    Err(ApiError::from(pa_core::AppError::Analysis {
+fn missing_shared_pa_state_error(instrument_id: Uuid, trading_date: NaiveDate) -> ApiError {
+    ApiError::from(pa_core::AppError::Analysis {
         message: format!(
             "missing shared pa state for instrument_id={instrument_id}, trading_date={trading_date}"
         ),
         source: None,
-    }))
+    })
 }
 
 pub(crate) async fn resolve_manual_user_input(
@@ -797,46 +802,168 @@ async fn list_latest_canonical_row(
     Ok(rows.pop())
 }
 
-fn collect_recent_shared_pa_states(
+fn collect_recent_shared_pa_states_for_bar(
     state: &AppState,
     instrument_id: Uuid,
-    timeframe: Option<Timeframe>,
+    timeframe: Timeframe,
+    target_bar_open_time: DateTime<Utc>,
+    target_bar_close_time: DateTime<Utc>,
+    limit: usize,
+) -> Value {
+    let rows = collect_recent_shared_pa_states_for_bar_from_results(
+        state.orchestration_repository.results(),
+        instrument_id,
+        timeframe,
+        target_bar_open_time,
+        target_bar_close_time,
+        limit,
+    );
+
+    Value::Array(rows.into_iter().map(pa_state_result_json).collect())
+}
+
+fn collect_recent_shared_pa_states_for_bar_from_results(
+    results: Vec<pa_orchestrator::AnalysisResult>,
+    instrument_id: Uuid,
+    timeframe: Timeframe,
+    target_bar_open_time: DateTime<Utc>,
+    target_bar_close_time: DateTime<Utc>,
+    limit: usize,
+) -> Vec<pa_orchestrator::AnalysisResult> {
+    let mut rows = results
+        .into_iter()
+        .filter(|result| is_shared_pa_state_result(result, instrument_id))
+        .filter(|result| result.timeframe == Some(timeframe))
+        .filter(|result| {
+            is_result_at_or_before_target_bar(result, target_bar_open_time, target_bar_close_time)
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|result| result.created_at);
+    rows.reverse();
+    rows.truncate(limit);
+    rows
+}
+
+fn collect_recent_shared_pa_states_for_trading_date(
+    state: &AppState,
+    instrument_id: Uuid,
+    market_timezone: &str,
+    trading_date: NaiveDate,
+    limit: usize,
+) -> Result<Value, ApiError> {
+    let rows = collect_recent_shared_pa_states_for_trading_date_from_results(
+        state.orchestration_repository.results(),
+        instrument_id,
+        market_timezone,
+        trading_date,
+        limit,
+    )?;
+
+    Ok(Value::Array(
+        rows.into_iter().map(pa_state_result_json).collect(),
+    ))
+}
+
+fn collect_recent_shared_pa_states_for_trading_date_from_results(
+    results: Vec<pa_orchestrator::AnalysisResult>,
+    instrument_id: Uuid,
+    market_timezone: &str,
+    trading_date: NaiveDate,
+    limit: usize,
+) -> Result<Vec<pa_orchestrator::AnalysisResult>, ApiError> {
+    let mut rows = results
+        .into_iter()
+        .filter(|result| is_shared_pa_state_result(result, instrument_id))
+        .filter(|result| result_matches_trading_date(result, market_timezone, trading_date))
+        .collect::<Vec<_>>();
+    rows.sort_by_key(|result| result.created_at);
+    rows.reverse();
+    rows.truncate(limit);
+    if rows.is_empty() {
+        return Err(missing_shared_pa_state_error(instrument_id, trading_date));
+    }
+
+    Ok(rows)
+}
+
+fn collect_recent_shared_bar_results_for_trading_date(
+    state: &AppState,
+    instrument_id: Uuid,
+    market_timezone: &str,
+    trading_date: NaiveDate,
     limit: usize,
 ) -> Value {
     let mut rows = state
         .orchestration_repository
         .results()
         .into_iter()
-        .filter(|result| {
-            result.task_type == shared_pa_state_bar_v1().task_type
-                && result.instrument_id == instrument_id
-                && result.prompt_version == shared_pa_state_bar_v1().step_version
-                && timeframe.is_none_or(|value| result.timeframe == Some(value))
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by_key(|result| result.created_at);
-    rows.reverse();
-    rows.truncate(limit);
-
-    Value::Array(rows.into_iter().map(pa_state_result_json).collect())
-}
-
-fn collect_recent_shared_bar_results(state: &AppState, instrument_id: Uuid, limit: usize) -> Value {
-    let mut rows = state
-        .orchestration_repository
-        .results()
-        .into_iter()
-        .filter(|result| {
-            result.task_type == shared_bar_analysis_v2().task_type
-                && result.instrument_id == instrument_id
-                && result.prompt_version == shared_bar_analysis_v2().step_version
-        })
+        .filter(|result| is_shared_bar_result(result, instrument_id))
+        .filter(|result| result_matches_trading_date(result, market_timezone, trading_date))
         .collect::<Vec<_>>();
     rows.sort_by_key(|result| result.created_at);
     rows.reverse();
     rows.truncate(limit);
 
     Value::Array(rows.into_iter().map(shared_bar_result_json).collect())
+}
+
+fn is_shared_pa_state_result(
+    result: &pa_orchestrator::AnalysisResult,
+    instrument_id: Uuid,
+) -> bool {
+    result.task_type == shared_pa_state_bar_v1().task_type
+        && result.instrument_id == instrument_id
+        && result.prompt_version == shared_pa_state_bar_v1().step_version
+}
+
+fn is_shared_bar_result(result: &pa_orchestrator::AnalysisResult, instrument_id: Uuid) -> bool {
+    result.task_type == shared_bar_analysis_v2().task_type
+        && result.instrument_id == instrument_id
+        && result.prompt_version == shared_bar_analysis_v2().step_version
+}
+
+fn is_result_at_or_before_target_bar(
+    result: &pa_orchestrator::AnalysisResult,
+    target_bar_open_time: DateTime<Utc>,
+    target_bar_close_time: DateTime<Utc>,
+) -> bool {
+    let has_bar_time = result.bar_open_time.is_some() || result.bar_close_time.is_some();
+    if !has_bar_time {
+        return false;
+    }
+
+    result
+        .bar_open_time
+        .is_none_or(|open_time| open_time <= target_bar_open_time)
+        && result
+            .bar_close_time
+            .is_none_or(|close_time| close_time <= target_bar_close_time)
+}
+
+fn result_matches_trading_date(
+    result: &pa_orchestrator::AnalysisResult,
+    market_timezone: &str,
+    trading_date: NaiveDate,
+) -> bool {
+    result_trading_date(result, market_timezone) == Some(trading_date)
+}
+
+fn result_trading_date(
+    result: &pa_orchestrator::AnalysisResult,
+    market_timezone: &str,
+) -> Option<NaiveDate> {
+    result
+        .trading_date
+        .or_else(|| {
+            result
+                .bar_open_time
+                .and_then(|value| trading_date_for_datetime(market_timezone, value).ok())
+        })
+        .or_else(|| {
+            result
+                .bar_close_time
+                .and_then(|value| trading_date_for_datetime(market_timezone, value).ok())
+        })
 }
 
 async fn build_market_background_json(
@@ -872,33 +999,48 @@ fn find_matching_shared_bar_result(
     bar_open_time: DateTime<Utc>,
     bar_close_time: DateTime<Utc>,
 ) -> Result<Value, ApiError> {
-    state
-        .orchestration_repository
-        .results()
+    latest_matching_shared_bar_result_from_results(
+        state.orchestration_repository.results(),
+        instrument_id,
+        timeframe,
+        bar_state,
+        bar_open_time,
+        bar_close_time,
+    )
+    .map(|result| result.output_json)
+    .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
+        message: format!(
+            "missing shared bar analysis for instrument_id={instrument_id}, timeframe={}, bar_state={}, bar_open_time={}, bar_close_time={}",
+            timeframe.as_str(),
+            bar_state.as_str(),
+            bar_open_time.to_rfc3339(),
+            bar_close_time.to_rfc3339()
+        ),
+        source: None,
+    }))
+}
+
+fn latest_matching_shared_bar_result_from_results(
+    results: Vec<pa_orchestrator::AnalysisResult>,
+    instrument_id: Uuid,
+    timeframe: Timeframe,
+    bar_state: AnalysisBarState,
+    bar_open_time: DateTime<Utc>,
+    bar_close_time: DateTime<Utc>,
+) -> Option<pa_orchestrator::AnalysisResult> {
+    results
         .into_iter()
         .filter(|result| {
-            result.task_type == shared_bar_analysis_v2().task_type
-                && result.instrument_id == instrument_id
+            is_shared_bar_result(result, instrument_id)
                 && result.timeframe == Some(timeframe)
                 && result.bar_state == bar_state
-                && result.prompt_version == shared_bar_analysis_v2().step_version
         })
-        .find(|result| match bar_state {
+        .filter(|result| match bar_state {
             AnalysisBarState::Closed => result.bar_close_time == Some(bar_close_time),
             AnalysisBarState::Open => result.bar_open_time == Some(bar_open_time),
             AnalysisBarState::None => false,
         })
-        .map(|result| result.output_json)
-        .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
-            message: format!(
-                "missing shared bar analysis for instrument_id={instrument_id}, timeframe={}, bar_state={}, bar_open_time={}, bar_close_time={}",
-                timeframe.as_str(),
-                bar_state.as_str(),
-                bar_open_time.to_rfc3339(),
-                bar_close_time.to_rfc3339()
-            ),
-            source: None,
-        }))
+        .max_by_key(|result| result.created_at)
 }
 
 fn find_matching_shared_pa_state(
@@ -909,33 +1051,48 @@ fn find_matching_shared_pa_state(
     bar_open_time: DateTime<Utc>,
     bar_close_time: DateTime<Utc>,
 ) -> Result<Value, ApiError> {
-    state
-        .orchestration_repository
-        .results()
+    latest_matching_shared_pa_state_from_results(
+        state.orchestration_repository.results(),
+        instrument_id,
+        timeframe,
+        bar_state,
+        bar_open_time,
+        bar_close_time,
+    )
+    .map(|result| result.output_json)
+    .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
+        message: format!(
+            "missing shared pa state for instrument_id={instrument_id}, timeframe={}, bar_state={}, bar_open_time={}, bar_close_time={}",
+            timeframe.as_str(),
+            bar_state.as_str(),
+            bar_open_time.to_rfc3339(),
+            bar_close_time.to_rfc3339()
+        ),
+        source: None,
+    }))
+}
+
+fn latest_matching_shared_pa_state_from_results(
+    results: Vec<pa_orchestrator::AnalysisResult>,
+    instrument_id: Uuid,
+    timeframe: Timeframe,
+    bar_state: AnalysisBarState,
+    bar_open_time: DateTime<Utc>,
+    bar_close_time: DateTime<Utc>,
+) -> Option<pa_orchestrator::AnalysisResult> {
+    results
         .into_iter()
         .filter(|result| {
-            result.task_type == shared_pa_state_bar_v1().task_type
-                && result.instrument_id == instrument_id
+            is_shared_pa_state_result(result, instrument_id)
                 && result.timeframe == Some(timeframe)
                 && result.bar_state == bar_state
-                && result.prompt_version == shared_pa_state_bar_v1().step_version
         })
-        .find(|result| match bar_state {
+        .filter(|result| match bar_state {
             AnalysisBarState::Closed => result.bar_close_time == Some(bar_close_time),
             AnalysisBarState::Open => result.bar_open_time == Some(bar_open_time),
             AnalysisBarState::None => false,
         })
-        .map(|result| result.output_json)
-        .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
-            message: format!(
-                "missing shared pa state for instrument_id={instrument_id}, timeframe={}, bar_state={}, bar_open_time={}, bar_close_time={}",
-                timeframe.as_str(),
-                bar_state.as_str(),
-                bar_open_time.to_rfc3339(),
-                bar_close_time.to_rfc3339()
-            ),
-            source: None,
-        }))
+        .max_by_key(|result| result.created_at)
 }
 
 fn find_matching_shared_daily_context(
@@ -952,7 +1109,8 @@ fn find_matching_shared_daily_context(
                 && result.instrument_id == instrument_id
                 && result.prompt_version == shared_daily_context_v2().step_version
         })
-        .find(|result| result.trading_date == Some(trading_date))
+        .filter(|result| result.trading_date == Some(trading_date))
+        .max_by_key(|result| result.created_at)
         .map(|result| result.output_json)
         .ok_or_else(|| ApiError::from(pa_core::AppError::Analysis {
             message: format!(
@@ -1113,5 +1271,247 @@ fn session_kind_label(kind: MarketSessionKind) -> &'static str {
         MarketSessionKind::ContinuousUtc => "continuous_utc",
         MarketSessionKind::CnA => "cn_a",
         MarketSessionKind::Fx24x5Utc => "fx_24x5_utc",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pa_core::Timeframe;
+    use pa_orchestrator::AnalysisResult;
+    use uuid::Uuid;
+
+    #[test]
+    fn historical_shared_bar_recent_pa_states_exclude_future_bars() {
+        let instrument_id = Uuid::new_v4();
+        let target_open_time = utc("2026-04-21T10:00:00Z");
+        let target_close_time = utc("2026-04-21T10:15:00Z");
+        let rows = collect_recent_shared_pa_states_for_bar_from_results(
+            vec![
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Closed,
+                    utc("2026-04-21T09:45:00Z"),
+                    utc("2026-04-21T10:00:00Z"),
+                    utc("2026-04-21T10:01:00Z"),
+                    "past",
+                ),
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Closed,
+                    target_open_time,
+                    target_close_time,
+                    utc("2026-04-21T10:20:00Z"),
+                    "target",
+                ),
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Closed,
+                    utc("2026-04-21T10:15:00Z"),
+                    utc("2026-04-21T10:30:00Z"),
+                    utc("2026-04-21T10:31:00Z"),
+                    "future",
+                ),
+            ],
+            instrument_id,
+            Timeframe::M15,
+            target_open_time,
+            target_close_time,
+            8,
+        );
+        let tags = rows
+            .into_iter()
+            .filter_map(|row| row.output_json["tag"].as_str().map(str::to_owned))
+            .collect::<Vec<_>>();
+
+        assert_eq!(tags, vec!["target".to_string(), "past".to_string()]);
+    }
+
+    #[test]
+    fn daily_pa_state_selection_filters_and_rejects_wrong_day_states() {
+        let instrument_id = Uuid::new_v4();
+        let trading_date = NaiveDate::from_ymd_opt(2026, 4, 21).expect("valid date");
+        let selected = collect_recent_shared_pa_states_for_trading_date_from_results(
+            vec![
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Closed,
+                    utc("2026-04-22T00:00:00Z"),
+                    utc("2026-04-22T00:15:00Z"),
+                    utc("2026-04-22T00:20:00Z"),
+                    "wrong-day",
+                ),
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Closed,
+                    utc("2026-04-21T10:00:00Z"),
+                    utc("2026-04-21T10:15:00Z"),
+                    utc("2026-04-21T10:20:00Z"),
+                    "same-day",
+                ),
+            ],
+            instrument_id,
+            "UTC",
+            trading_date,
+            8,
+        )
+        .expect("same-day rows should be selected");
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].output_json["tag"], "same-day");
+
+        let rejected = collect_recent_shared_pa_states_for_trading_date_from_results(
+            vec![shared_pa_state_result(
+                instrument_id,
+                Timeframe::M15,
+                AnalysisBarState::Closed,
+                utc("2026-04-22T00:00:00Z"),
+                utc("2026-04-22T00:15:00Z"),
+                utc("2026-04-22T00:20:00Z"),
+                "wrong-day",
+            )],
+            instrument_id,
+            "UTC",
+            trading_date,
+            8,
+        );
+        assert!(rejected.is_err());
+    }
+
+    #[test]
+    fn exact_match_helpers_prefer_latest_rerun_for_open_bars() {
+        let instrument_id = Uuid::new_v4();
+        let bar_open_time = utc("2026-04-21T10:00:00Z");
+        let bar_close_time = utc("2026-04-21T10:15:00Z");
+
+        let latest_pa_state = latest_matching_shared_pa_state_from_results(
+            vec![
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Open,
+                    bar_open_time,
+                    bar_close_time,
+                    utc("2026-04-21T10:16:00Z"),
+                    "older-open-rerun",
+                ),
+                shared_pa_state_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Open,
+                    bar_open_time,
+                    bar_close_time,
+                    utc("2026-04-21T10:18:00Z"),
+                    "newest-open-rerun",
+                ),
+            ],
+            instrument_id,
+            Timeframe::M15,
+            AnalysisBarState::Open,
+            bar_open_time,
+            bar_close_time,
+        )
+        .expect("latest PA-state rerun should resolve");
+        assert_eq!(latest_pa_state.output_json["tag"], "newest-open-rerun");
+
+        let latest_shared_bar = latest_matching_shared_bar_result_from_results(
+            vec![
+                shared_bar_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Open,
+                    bar_open_time,
+                    bar_close_time,
+                    utc("2026-04-21T10:17:00Z"),
+                    "older-shared-bar-rerun",
+                ),
+                shared_bar_result(
+                    instrument_id,
+                    Timeframe::M15,
+                    AnalysisBarState::Open,
+                    bar_open_time,
+                    bar_close_time,
+                    utc("2026-04-21T10:19:00Z"),
+                    "newest-shared-bar-rerun",
+                ),
+            ],
+            instrument_id,
+            Timeframe::M15,
+            AnalysisBarState::Open,
+            bar_open_time,
+            bar_close_time,
+        )
+        .expect("latest shared-bar rerun should resolve");
+        assert_eq!(
+            latest_shared_bar.output_json["tag"],
+            "newest-shared-bar-rerun"
+        );
+    }
+
+    fn shared_pa_state_result(
+        instrument_id: Uuid,
+        timeframe: Timeframe,
+        bar_state: AnalysisBarState,
+        bar_open_time: DateTime<Utc>,
+        bar_close_time: DateTime<Utc>,
+        created_at: DateTime<Utc>,
+        tag: &str,
+    ) -> AnalysisResult {
+        let step = shared_pa_state_bar_v1();
+        AnalysisResult {
+            id: Uuid::new_v4(),
+            task_id: Uuid::new_v4(),
+            task_type: step.task_type,
+            instrument_id,
+            user_id: None,
+            timeframe: Some(timeframe),
+            bar_state,
+            bar_open_time: Some(bar_open_time),
+            bar_close_time: Some(bar_close_time),
+            trading_date: None,
+            prompt_key: step.step_key,
+            prompt_version: step.step_version,
+            output_json: json!({ "tag": tag }),
+            created_at,
+        }
+    }
+
+    fn shared_bar_result(
+        instrument_id: Uuid,
+        timeframe: Timeframe,
+        bar_state: AnalysisBarState,
+        bar_open_time: DateTime<Utc>,
+        bar_close_time: DateTime<Utc>,
+        created_at: DateTime<Utc>,
+        tag: &str,
+    ) -> AnalysisResult {
+        let step = shared_bar_analysis_v2();
+        AnalysisResult {
+            id: Uuid::new_v4(),
+            task_id: Uuid::new_v4(),
+            task_type: step.task_type,
+            instrument_id,
+            user_id: None,
+            timeframe: Some(timeframe),
+            bar_state,
+            bar_open_time: Some(bar_open_time),
+            bar_close_time: Some(bar_close_time),
+            trading_date: None,
+            prompt_key: step.step_key,
+            prompt_version: step.step_version,
+            output_json: json!({ "tag": tag }),
+            created_at,
+        }
+    }
+
+    fn utc(value: &str) -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(value)
+            .expect("timestamp should be RFC3339")
+            .with_timezone(&Utc)
     }
 }
