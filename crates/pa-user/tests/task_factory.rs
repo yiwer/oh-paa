@@ -4,7 +4,7 @@ use pa_core::Timeframe;
 use pa_orchestrator::{AnalysisBarState, sha256_json};
 use pa_user::{
     ManualUserAnalysisInput, ScheduledUserAnalysisInput, build_manual_user_analysis_task,
-    build_scheduled_user_analysis_task, user_position_advice_v1,
+    build_scheduled_user_analysis_task, user_position_advice_prompt_v2, user_position_advice_v2,
 };
 use rust_decimal::Decimal;
 use serde_json::Value;
@@ -64,7 +64,7 @@ fn closed_manual_user_task_dedupe_reflects_task_defining_context_and_open_task_d
             .task
             .dedupe_key
             .as_deref()
-            .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version))
+            .is_some_and(|key| key.contains(&user_position_advice_v2().step_version))
     );
     assert!(
         closed
@@ -122,7 +122,7 @@ fn manual_user_task_snapshot_serializes_positions_and_shared_outputs() {
     let envelope = build_manual_user_analysis_task(input.clone()).unwrap();
     assert_eq!(envelope.task.task_type, "user_position_advice");
     assert_eq!(envelope.task.prompt_key, "user_position_advice");
-    assert_eq!(envelope.task.prompt_version, "v1");
+    assert_eq!(envelope.task.prompt_version, "v2");
     assert_eq!(
         envelope.snapshot.input_json,
         serde_json::to_value(&input).unwrap()
@@ -242,7 +242,7 @@ fn scheduled_user_task_uses_supported_bar_state_and_dedupe_reflects_schedule_con
             .task
             .dedupe_key
             .as_deref()
-            .is_some_and(|key| key.contains(&user_position_advice_v1().prompt_version))
+            .is_some_and(|key| key.contains(&user_position_advice_v2().step_version))
     );
     assert_ne!(envelope.task.dedupe_key, changed_shared_bar.task.dedupe_key);
     assert_ne!(
@@ -310,7 +310,8 @@ fn scheduled_user_task_rejects_none_bar_state() {
 
 #[test]
 fn user_prompt_spec_includes_required_pa_contract_fields() {
-    let spec = user_position_advice_v1();
+    let spec = user_position_advice_v2();
+    let prompt = user_position_advice_prompt_v2();
     let required = required_fields(&spec.output_json_schema);
 
     for field in [
@@ -330,9 +331,11 @@ fn user_prompt_spec_includes_required_pa_contract_fields() {
         spec.bar_state_support,
         vec![AnalysisBarState::Open, AnalysisBarState::Closed]
     );
-    assert!(spec.system_prompt.contains("shared_daily_context_json"));
-    assert!(spec.system_prompt.contains("shared_bar_analysis_json"));
-    assert!(spec.system_prompt.contains("shared_pa_state_json"));
+    assert_eq!(prompt.step_key, spec.step_key);
+    assert_eq!(prompt.step_version, spec.step_version);
+    assert!(prompt.system_prompt.contains("shared_daily_context_json"));
+    assert!(prompt.system_prompt.contains("shared_bar_analysis_json"));
+    assert!(prompt.system_prompt.contains("shared_pa_state_json"));
 }
 
 fn required_fields(schema: &Value) -> Vec<String> {

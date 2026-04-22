@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     ManualUserAnalysisInput, ScheduledUserAnalysisInput,
-    prompt_specs::USER_POSITION_ADVICE_PROMPT_METADATA,
+    prompt_specs::USER_POSITION_ADVICE_V2_PROMPT_METADATA,
 };
 
 const DEFAULT_MAX_ATTEMPTS: u32 = 3;
@@ -45,7 +45,7 @@ pub fn build_manual_user_analysis_task(
     let dedupe_key = match bar_state {
         AnalysisBarState::Closed => Some(format!(
             "{task_type}:{user_id}:{instrument_id}:{timeframe}:{identity}:{prompt_key}:{prompt_version}:{context_hash}",
-            task_type = USER_POSITION_ADVICE_PROMPT_METADATA.task_type,
+            task_type = USER_POSITION_ADVICE_V2_PROMPT_METADATA.task_type,
             timeframe = timeframe.as_str(),
             identity = user_analysis_identity(
                 timeframe,
@@ -54,8 +54,8 @@ pub fn build_manual_user_analysis_task(
                 bar_close_time,
                 trading_date,
             )?,
-            prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
-            prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
+            prompt_key = USER_POSITION_ADVICE_V2_PROMPT_METADATA.prompt_key,
+            prompt_version = USER_POSITION_ADVICE_V2_PROMPT_METADATA.prompt_version,
         )),
         AnalysisBarState::Open => None,
         AnalysisBarState::None => unreachable!("validated above"),
@@ -64,7 +64,9 @@ pub fn build_manual_user_analysis_task(
     Ok(TaskEnvelope {
         task: AnalysisTask {
             id: task_id,
-            task_type: USER_POSITION_ADVICE_PROMPT_METADATA.task_type.to_string(),
+            task_type: USER_POSITION_ADVICE_V2_PROMPT_METADATA
+                .task_type
+                .to_string(),
             status: AnalysisTaskStatus::Pending,
             instrument_id,
             user_id: Some(user_id),
@@ -74,8 +76,10 @@ pub fn build_manual_user_analysis_task(
             bar_close_time,
             trading_date,
             trigger_type: "manual".to_string(),
-            prompt_key: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA
+            prompt_key: USER_POSITION_ADVICE_V2_PROMPT_METADATA
+                .prompt_key
+                .to_string(),
+            prompt_version: USER_POSITION_ADVICE_V2_PROMPT_METADATA
                 .prompt_version
                 .to_string(),
             snapshot_id,
@@ -93,7 +97,7 @@ pub fn build_manual_user_analysis_task(
             task_id,
             input_json,
             input_hash,
-            schema_version: USER_POSITION_ADVICE_PROMPT_METADATA
+            schema_version: USER_POSITION_ADVICE_V2_PROMPT_METADATA
                 .input_schema_version
                 .to_string(),
             created_at: scheduled_at,
@@ -139,14 +143,16 @@ pub fn build_scheduled_user_analysis_task(
             bar_close_time,
             trading_date,
         )?,
-        prompt_key = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key,
-        prompt_version = USER_POSITION_ADVICE_PROMPT_METADATA.prompt_version,
+        prompt_key = USER_POSITION_ADVICE_V2_PROMPT_METADATA.prompt_key,
+        prompt_version = USER_POSITION_ADVICE_V2_PROMPT_METADATA.prompt_version,
     ));
 
     Ok(TaskEnvelope {
         task: AnalysisTask {
             id: task_id,
-            task_type: USER_POSITION_ADVICE_PROMPT_METADATA.task_type.to_string(),
+            task_type: USER_POSITION_ADVICE_V2_PROMPT_METADATA
+                .task_type
+                .to_string(),
             status: AnalysisTaskStatus::Pending,
             instrument_id,
             user_id: Some(user_id),
@@ -156,8 +162,10 @@ pub fn build_scheduled_user_analysis_task(
             bar_close_time,
             trading_date,
             trigger_type: "schedule".to_string(),
-            prompt_key: USER_POSITION_ADVICE_PROMPT_METADATA.prompt_key.to_string(),
-            prompt_version: USER_POSITION_ADVICE_PROMPT_METADATA
+            prompt_key: USER_POSITION_ADVICE_V2_PROMPT_METADATA
+                .prompt_key
+                .to_string(),
+            prompt_version: USER_POSITION_ADVICE_V2_PROMPT_METADATA
                 .prompt_version
                 .to_string(),
             snapshot_id,
@@ -175,7 +183,7 @@ pub fn build_scheduled_user_analysis_task(
             task_id,
             input_json,
             input_hash,
-            schema_version: USER_POSITION_ADVICE_PROMPT_METADATA
+            schema_version: USER_POSITION_ADVICE_V2_PROMPT_METADATA
                 .input_schema_version
                 .to_string(),
             created_at: scheduled_at,

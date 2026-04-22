@@ -8,7 +8,9 @@ pub use models::{
     ManualUserAnalysisInput, ManualUserAnalysisRequest, PositionSide, PositionSnapshot,
     ScheduledUserAnalysisInput, UserAnalysisReport, UserPositionAdviceOutput, UserSubscription,
 };
-pub use prompt_specs::user_position_advice_v1;
+pub use prompt_specs::{
+    user_position_advice_prompt_v2, user_position_advice_v1, user_position_advice_v2,
+};
 pub use repository::{
     InMemorySharedAnalysisLookup, InMemoryUserRepository, SharedAnalysisLookup, UserRepository,
 };

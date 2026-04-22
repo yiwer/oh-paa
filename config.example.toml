@@ -24,5 +24,34 @@ retry_initial_backoff_ms = 1000
 supports_json_schema = false
 supports_reasoning = false
 
+[llm.execution_profiles.shared_bar_reasoner]
+provider = "deepseek"
+model = "deepseek-reasoner"
+max_tokens = 32768
+max_retries = 2
+per_call_timeout_secs = 600
+retry_initial_backoff_ms = 1000
+supports_json_schema = false
+supports_reasoning = true
+
+[llm.execution_profiles.user_position_reasoner]
+provider = "deepseek"
+model = "deepseek-chat"
+max_tokens = 16384
+max_retries = 2
+per_call_timeout_secs = 300
+retry_initial_backoff_ms = 1000
+supports_json_schema = false
+supports_reasoning = false
+
 [llm.step_bindings.shared_pa_state_bar_v1]
 execution_profile = "pa_state_extract_fast"
+
+[llm.step_bindings.shared_bar_analysis_v2]
+execution_profile = "shared_bar_reasoner"
+
+[llm.step_bindings.shared_daily_context_v2]
+execution_profile = "shared_bar_reasoner"
+
+[llm.step_bindings.user_position_advice_v2]
+execution_profile = "user_position_reasoner"
