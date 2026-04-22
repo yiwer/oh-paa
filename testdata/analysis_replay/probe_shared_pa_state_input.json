@@ -2,18 +2,77 @@
   "instrument_id": "22222222-2222-2222-2222-222222222202",
   "timeframe": "15m",
   "bar_state": "closed",
-  "bar_open_time": "2026-04-18T08:00:00Z",
-  "bar_close_time": "2026-04-18T08:15:00Z",
+  "bar_open_time": "2026-04-18T06:15:00Z",
+  "bar_close_time": "2026-04-18T06:30:00Z",
   "bar_json": {
-    "open": 84250.0,
-    "high": 84680.0,
-    "low": 84180.0,
-    "close": 84620.0,
-    "volume": 1280.4
+    "kind": "canonical_closed_bar",
+    "instrument_id": "22222222-2222-2222-2222-222222222202",
+    "timeframe": "15m",
+    "open_time": "2026-04-18T06:15:00Z",
+    "close_time": "2026-04-18T06:30:00Z",
+    "open": "77201.26",
+    "high": "77215.3",
+    "low": "77091",
+    "close": "77121.26",
+    "volume": null,
+    "source_provider": "twelvedata"
   },
   "market_context_json": {
-    "session": "always_open",
-    "open_bar": false,
-    "higher_timeframe_bias": "uptrend"
+    "display_symbol": "BTC/USD",
+    "provider": "twelvedata",
+    "provider_symbol": "BTC/USD",
+    "target_bar": {
+      "kind": "canonical_closed_bar",
+      "instrument_id": "22222222-2222-2222-2222-222222222202",
+      "timeframe": "15m",
+      "open_time": "2026-04-18T06:15:00Z",
+      "close_time": "2026-04-18T06:30:00Z",
+      "open": "77201.26",
+      "high": "77215.3",
+      "low": "77091",
+      "close": "77121.26",
+      "volume": null,
+      "source_provider": "twelvedata"
+    },
+    "multi_timeframe_structure": {
+      "1h": [
+        {
+          "kind": "aggregated_closed_bar",
+          "instrument_id": "22222222-2222-2222-2222-222222222202",
+          "source_timeframe": "15m",
+          "timeframe": "1h",
+          "open_time": "2026-04-18T06:00:00Z",
+          "close_time": "2026-04-18T07:00:00Z",
+          "open": "77201.26",
+          "high": "77215.3",
+          "low": "77091",
+          "close": "77121.26",
+          "volume": null,
+          "source_provider": "twelvedata",
+          "child_bar_count": 1,
+          "expected_child_bar_count": 4,
+          "complete": false
+        }
+      ],
+      "1d": [
+        {
+          "kind": "aggregated_closed_bar",
+          "instrument_id": "22222222-2222-2222-2222-222222222202",
+          "source_timeframe": "15m",
+          "timeframe": "1d",
+          "open_time": "2026-04-18T00:00:00Z",
+          "close_time": "2026-04-19T00:00:00Z",
+          "open": "77201.26",
+          "high": "77215.3",
+          "low": "77091",
+          "close": "77121.26",
+          "volume": null,
+          "source_provider": "twelvedata",
+          "child_bar_count": 1,
+          "expected_child_bar_count": 96,
+          "complete": false
+        }
+      ]
+    }
   }
 }

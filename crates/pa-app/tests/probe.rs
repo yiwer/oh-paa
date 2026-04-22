@@ -1,4 +1,6 @@
 use pa_app::replay_probe::{ProbeResult, parse_probe_cli_args};
+use pa_core::Timeframe;
+use pa_orchestrator::AnalysisBarState;
 use serde_json::json;
 
 #[test]
@@ -68,4 +70,17 @@ fn probe_result_serializes_expected_fields() {
     assert_eq!(encoded["outbound_error_message"], serde_json::Value::Null);
     assert_eq!(encoded["output_json"]["signal"], "hold");
     assert_eq!(encoded["raw_response_json"]["raw"], "payload");
+}
+
+#[test]
+fn probe_fixture_matches_shared_pa_state_input_shape() {
+    let path = pa_app::workspace_root().join("testdata/analysis_replay/probe_shared_pa_state_input.json");
+    let raw = std::fs::read_to_string(path).expect("probe fixture should exist");
+    let input: pa_analysis::SharedPaStateBarInput =
+        serde_json::from_str(&raw).expect("probe fixture should deserialize");
+
+    assert_eq!(input.timeframe, Timeframe::M15);
+    assert_eq!(input.bar_state, AnalysisBarState::Closed);
+    assert!(input.bar_json.is_object());
+    assert!(input.market_context_json.is_object());
 }
