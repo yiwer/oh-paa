@@ -66,12 +66,17 @@ and serves the Axum router.
 
 ## Quality Optimization Funnel
 
+- Config source for funnel runs:
+  - Use `config.live-replay-quality.example.toml` as the template for a local uncommitted config file passed with `--config`.
+  - Do not run the funnel with `config.example.toml`.
 - Stage 1 single-step probe:
   - `cargo run -p pa-app --bin replay_probe -- --config <config.toml> --step shared_pa_state_bar:v1 --input testdata/analysis_replay/probe_shared_pa_state_input.json`
+  - Gate rule: run repeated checks on the same step and input; only advance when outputs remain structurally stable (valid JSON with required object skeleton preserved across runs).
 - Stage 2 single-sample chain:
   - `cargo run -p pa-app --bin replay_analysis -- --mode live --dataset <single-sample.json> --config <config.toml> --variant baseline_a`
 - Stage 3 five-sample gate:
   - `cargo run -p pa-app --bin replay_analysis -- --mode live --dataset testdata/analysis_replay/live_crypto_15m.json --config <config.toml> --variant baseline_a`
+  - Final success rule: the same candidate must pass two consecutive Stage 3 `live_crypto_15m.json` runs.
 - Archive conventions:
   - `docs/superpowers/archives/<date>-<candidate>-report.json`
   - `docs/superpowers/archives/<date>-<candidate>-findings.md`

@@ -1,3 +1,8 @@
+# Live replay quality template.
+# For replay quality work, copy this file to a local uncommitted config and pass it via:
+#   --config <local-live-replay-quality.toml>
+# Do not use config.example.toml for funnel runs.
+
 database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
 server_addr = "127.0.0.1:3000"
 eastmoney_base_url = "https://push2his.eastmoney.com/"
