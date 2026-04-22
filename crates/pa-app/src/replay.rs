@@ -33,7 +33,7 @@ pub struct ReplayExperimentReport {
     pub config_source_path: Option<String>,
     pub step_runs: Vec<ReplayStepRun>,
     pub programmatic_scores: Map<String, Value>,
-    #[serde(default)]
+    #[serde(default = "default_replay_summary")]
     pub summary: Map<String, Value>,
 }
 
@@ -387,6 +387,10 @@ pub(crate) fn score_step_runs(step_runs: &[ReplayStepRun]) -> Map<String, Value>
     replay_score::score_step_runs(step_runs)
 }
 
+fn default_replay_summary() -> Map<String, Value> {
+    build_replay_summary(&[])
+}
+
 pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
     let mut summary = Map::new();
     summary.insert(
@@ -394,18 +398,13 @@ pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, V
         Value::from(step_runs.len() as u64),
     );
 
-    let first_failing_step = step_runs.iter().find(|run| {
-        !run.schema_valid
-            || run.failure_category.is_some()
-            || run.schema_validation_error.is_some()
-            || run.outbound_error_message.is_some()
-    });
+    let first_failing_step = step_runs.iter().find(|run| replay_failure_category(run).is_some());
     let first_failing_step = match first_failing_step {
         Some(run) => serde_json::json!({
             "sample_id": run.sample_id,
             "step_key": run.step_key,
             "step_version": run.step_version,
-            "failure_category": run.failure_category,
+            "failure_category": replay_failure_category(run),
             "schema_validation_error": run.schema_validation_error,
             "outbound_error_message": run.outbound_error_message,
         }),
@@ -415,18 +414,7 @@ pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, V
 
     let mut failure_counts_by_category: BTreeMap<String, u64> = BTreeMap::new();
     for run in step_runs {
-        let category = run
-            .failure_category
-            .clone()
-            .or_else(|| {
-                if run.schema_validation_error.is_some() || !run.schema_valid {
-                    Some("schema_validation_failure".to_string())
-                } else if run.outbound_error_message.is_some() {
-                    Some("outbound_failure".to_string())
-                } else {
-                    None
-                }
-            });
+        let category = replay_failure_category(run);
         if let Some(category) = category {
             *failure_counts_by_category.entry(category).or_insert(0) += 1;
         }
@@ -437,6 +425,18 @@ pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, V
     );
 
     summary
+}
+
+fn replay_failure_category(run: &ReplayStepRun) -> Option<String> {
+    run.failure_category.clone().or_else(|| {
+        if run.outbound_error_message.is_some() {
+            Some("outbound_failure".to_string())
+        } else if run.schema_validation_error.is_some() || !run.schema_valid {
+            Some("schema_validation_failure".to_string())
+        } else {
+            None
+        }
+    })
 }
 
 #[cfg(test)]

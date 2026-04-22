@@ -21,7 +21,7 @@ use sqlx::types::{
     Uuid,
     chrono::{DateTime, Utc},
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     build_step_registry_from_config, build_worker_executor_from_config,
@@ -362,7 +362,7 @@ async fn execute_warmup_step<E>(
 where
     E: LiveReplayExecutor,
 {
-    info!(
+    debug!(
         sample_id = %sample_id,
         step_key = step.step_key,
         step_version = step.step_version,

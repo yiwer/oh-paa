@@ -188,7 +188,12 @@ fn replay_report_deserializes_legacy_fixture_report_without_execution_mode() {
     assert_eq!(report.execution_mode, ReplayExecutionMode::Fixture);
     assert_eq!(report.config_source_path, None);
     assert_eq!(report.candidate_id, None);
-    assert!(report.summary.is_empty());
+    assert_eq!(report.summary["total_step_runs"].as_u64(), Some(0));
+    assert!(report.summary["first_failing_step"].is_null());
+    assert_eq!(
+        report.summary["failure_counts_by_category"].as_object(),
+        Some(&serde_json::Map::new())
+    );
 }
 
 #[test]
