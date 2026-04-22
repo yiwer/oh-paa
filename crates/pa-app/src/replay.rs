@@ -20,7 +20,7 @@ pub enum ReplayExecutionMode {
     LiveHistorical,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ReplayExperimentReport {
     pub experiment_id: String,
     pub dataset_id: String,
@@ -33,8 +33,48 @@ pub struct ReplayExperimentReport {
     pub config_source_path: Option<String>,
     pub step_runs: Vec<ReplayStepRun>,
     pub programmatic_scores: Map<String, Value>,
-    #[serde(default = "default_replay_summary")]
     pub summary: Map<String, Value>,
+}
+
+impl<'de> Deserialize<'de> for ReplayExperimentReport {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct ReplayExperimentReportWire {
+            experiment_id: String,
+            dataset_id: String,
+            pipeline_variant: String,
+            #[serde(default)]
+            candidate_id: Option<String>,
+            #[serde(default)]
+            execution_mode: ReplayExecutionMode,
+            #[serde(default)]
+            config_source_path: Option<String>,
+            step_runs: Vec<ReplayStepRun>,
+            programmatic_scores: Map<String, Value>,
+            #[serde(default)]
+            summary: Option<Map<String, Value>>,
+        }
+
+        let wire = ReplayExperimentReportWire::deserialize(deserializer)?;
+        let summary = wire
+            .summary
+            .unwrap_or_else(|| build_replay_summary(&wire.step_runs));
+
+        Ok(Self {
+            experiment_id: wire.experiment_id,
+            dataset_id: wire.dataset_id,
+            pipeline_variant: wire.pipeline_variant,
+            candidate_id: wire.candidate_id,
+            execution_mode: wire.execution_mode,
+            config_source_path: wire.config_source_path,
+            step_runs: wire.step_runs,
+            programmatic_scores: wire.programmatic_scores,
+            summary,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -387,10 +427,6 @@ pub(crate) fn score_step_runs(step_runs: &[ReplayStepRun]) -> Map<String, Value>
     replay_score::score_step_runs(step_runs)
 }
 
-fn default_replay_summary() -> Map<String, Value> {
-    build_replay_summary(&[])
-}
-
 pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, Value> {
     let mut summary = Map::new();
     summary.insert(
@@ -429,10 +465,10 @@ pub(crate) fn build_replay_summary(step_runs: &[ReplayStepRun]) -> Map<String, V
 
 fn replay_failure_category(run: &ReplayStepRun) -> Option<String> {
     run.failure_category.clone().or_else(|| {
-        if run.outbound_error_message.is_some() {
-            Some("outbound_failure".to_string())
-        } else if run.schema_validation_error.is_some() || !run.schema_valid {
+        if run.schema_validation_error.is_some() || !run.schema_valid {
             Some("schema_validation_failure".to_string())
+        } else if run.outbound_error_message.is_some() {
+            Some("outbound_failure".to_string())
         } else {
             None
         }
@@ -443,7 +479,7 @@ fn replay_failure_category(run: &ReplayStepRun) -> Option<String> {
 mod tests {
     use serde_json::json;
 
-    use super::{ReplayExecutionMode, ReplayStepRun, build_experiment_id};
+    use super::{ReplayExecutionMode, ReplayStepRun, build_experiment_id, build_replay_summary};
 
     #[test]
     fn build_experiment_id_changes_when_execution_context_changes() {
@@ -495,5 +531,39 @@ mod tests {
 
         assert_ne!(fixture_id, live_id);
         assert_ne!(live_id, live_with_other_config_id);
+    }
+
+    #[test]
+    fn replay_summary_prefers_schema_failure_category_when_schema_and_outbound_signals_coexist() {
+        let step_runs = vec![ReplayStepRun {
+            sample_id: "sample-1".to_string(),
+            market: "crypto".to_string(),
+            timeframe: "15m".to_string(),
+            step_key: "shared_pa_state_bar".to_string(),
+            step_version: "v1".to_string(),
+            prompt_version: "v1".to_string(),
+            llm_provider: "fixture".to_string(),
+            model: "fixture-live".to_string(),
+            input_json: json!({}),
+            output_json: json!({}),
+            raw_response_json: None,
+            schema_valid: false,
+            schema_validation_error: Some("invalid schema".to_string()),
+            failure_category: None,
+            outbound_error_message: Some("timeout".to_string()),
+            latency_ms: Some(10),
+            judge_score: None,
+            human_notes: None,
+        }];
+
+        let summary = build_replay_summary(&step_runs);
+        assert_eq!(
+            summary["failure_counts_by_category"]["schema_validation_failure"].as_u64(),
+            Some(1)
+        );
+        assert_eq!(
+            summary["first_failing_step"]["failure_category"].as_str(),
+            Some("schema_validation_failure")
+        );
     }
 }

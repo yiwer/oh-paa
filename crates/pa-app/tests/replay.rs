@@ -197,6 +197,55 @@ fn replay_report_deserializes_legacy_fixture_report_without_execution_mode() {
 }
 
 #[test]
+fn replay_report_deserializes_legacy_non_empty_step_runs_with_derived_summary() {
+    let legacy_report_json = serde_json::json!({
+        "experiment_id": "legacy-id",
+        "dataset_id": "sample_set",
+        "pipeline_variant": "baseline_a",
+        "step_runs": [
+            {
+                "sample_id": "sample-1",
+                "market": "crypto",
+                "timeframe": "15m",
+                "step_key": "shared_pa_state_bar",
+                "step_version": "v1",
+                "prompt_version": "v1",
+                "llm_provider": "fixture",
+                "model": "fixture-live",
+                "input_json": {},
+                "output_json": {},
+                "raw_response_json": null,
+                "schema_valid": false,
+                "schema_validation_error": "missing required field",
+                "failure_category": null,
+                "outbound_error_message": null,
+                "latency_ms": 25,
+                "judge_score": null,
+                "human_notes": null
+            }
+        ],
+        "programmatic_scores": {}
+    });
+
+    let report: ReplayExperimentReport =
+        serde_json::from_value(legacy_report_json).expect("legacy report JSON should deserialize");
+
+    assert_eq!(report.summary["total_step_runs"].as_u64(), Some(1));
+    assert_eq!(
+        report.summary["failure_counts_by_category"]["schema_validation_failure"].as_u64(),
+        Some(1)
+    );
+    assert_eq!(
+        report.summary["first_failing_step"]["step_key"].as_str(),
+        Some("shared_pa_state_bar")
+    );
+    assert_eq!(
+        report.summary["first_failing_step"]["failure_category"].as_str(),
+        Some("schema_validation_failure")
+    );
+}
+
+#[test]
 fn replay_cli_parser_defaults_to_fixture_mode_without_config() {
     let args = parse_replay_cli_args([
         "replay_analysis",
