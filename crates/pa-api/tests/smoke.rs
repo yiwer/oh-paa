@@ -170,7 +170,7 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
     let tick_json = response_json(tick).await;
     assert_eq!(tick_json["provider"], "fallback");
     assert_eq!(tick_json["market_open"], true);
-    assert_eq!(tick_json["tick"]["price"], "11.0");
+    assert_json_decimal_eq(&tick_json["tick"]["price"], "11.0");
 
     let open_bar = request(
         &app,
@@ -191,8 +191,8 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
         open_bar_json["row"]["close_time"],
         "2024-01-02T11:00:00+00:00"
     );
-    assert_eq!(open_bar_json["row"]["open"], "10.8");
-    assert_eq!(open_bar_json["row"]["close"], "11.0");
+    assert_json_decimal_eq(&open_bar_json["row"]["open"], "10.8");
+    assert_json_decimal_eq(&open_bar_json["row"]["close"], "11.0");
     assert_eq!(open_bar_json["row"]["child_bar_count"], 0);
 
     cleanup_runtime_fixture(&pool, &fixture).await;
@@ -616,6 +616,20 @@ async fn response_text(response: axum::response::Response) -> String {
 
 async fn response_json(response: axum::response::Response) -> Value {
     serde_json::from_str(&response_text(response).await).expect("body should be valid json")
+}
+
+fn assert_json_decimal_eq(value: &Value, expected: &str) {
+    let actual = value
+        .as_str()
+        .expect("json decimal value should be encoded as string")
+        .parse::<f64>()
+        .expect("actual decimal should parse");
+    let expected = expected.parse::<f64>().expect("expected decimal should parse");
+
+    assert!(
+        (actual - expected).abs() < f64::EPSILON,
+        "expected decimal {expected}, got {actual}"
+    );
 }
 
 async fn test_pool() -> Option<PgPool> {
