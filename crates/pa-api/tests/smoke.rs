@@ -159,7 +159,7 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
     assert_eq!(session_profile.status(), StatusCode::OK);
     let session_profile_json = response_json(session_profile).await;
     assert_eq!(session_profile_json["session_kind"], "continuous_utc");
-    assert_eq!(session_profile_json["market_code"], "crypto");
+    assert_eq!(session_profile_json["market_code"], fixture.market_code);
 
     let tick = request(
         &app,
@@ -259,11 +259,11 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     assert_eq!(shared_pa_state_snapshot.input_json["bar_state"], "open");
     assert_eq!(
         shared_pa_state_snapshot.input_json["bar_open_time"],
-        "2024-01-02T10:00:00+00:00"
+        "2024-01-02T10:00:00Z"
     );
     assert_eq!(
         shared_pa_state_snapshot.input_json["bar_close_time"],
-        "2024-01-02T11:00:00+00:00"
+        "2024-01-02T11:00:00Z"
     );
     assert_eq!(
         shared_pa_state_snapshot.input_json["bar_json"]["close"],
@@ -271,7 +271,7 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     );
     assert_eq!(
         shared_pa_state_snapshot.input_json["market_context_json"]["market"]["market_code"],
-        "crypto"
+        fixture.market_code
     );
 
     orchestration_repository
@@ -332,11 +332,11 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     assert_eq!(shared_bar_snapshot.input_json["bar_state"], "open");
     assert_eq!(
         shared_bar_snapshot.input_json["bar_open_time"],
-        "2024-01-02T10:00:00+00:00"
+        "2024-01-02T10:00:00Z"
     );
     assert_eq!(
         shared_bar_snapshot.input_json["bar_close_time"],
-        "2024-01-02T11:00:00+00:00"
+        "2024-01-02T11:00:00Z"
     );
     assert_eq!(
         shared_bar_snapshot.input_json["shared_pa_state_json"]["bar_identity"]["tag"],
@@ -404,7 +404,7 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     );
     assert_eq!(
         shared_daily_snapshot.input_json["market_background_json"]["market"]["market_code"],
-        "crypto"
+        fixture.market_code
     );
     assert_eq!(
         shared_daily_snapshot.input_json["multi_timeframe_structure_json"]["15m"]["timeframe"],
@@ -484,7 +484,7 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
     assert_eq!(manual_user_snapshot.input_json["bar_state"], "open");
     assert_eq!(
         manual_user_snapshot.input_json["bar_open_time"],
-        "2024-01-02T10:00:00+00:00"
+        "2024-01-02T10:00:00Z"
     );
     assert_eq!(
         manual_user_snapshot.input_json["shared_bar_analysis_json"]["bar_summary"]["tag"],
@@ -640,11 +640,13 @@ async fn test_pool() -> Option<PgPool> {
 
 struct RuntimeFixture {
     market_id: Uuid,
+    market_code: String,
     instrument_id: Uuid,
 }
 
 async fn seed_runtime_fixture(pool: &PgPool) -> RuntimeFixture {
     let market_id = Uuid::new_v4();
+    let market_code = format!("crypto-{}", market_id.simple());
     let instrument_id = Uuid::new_v4();
 
     sqlx::query(
@@ -654,7 +656,7 @@ async fn seed_runtime_fixture(pool: &PgPool) -> RuntimeFixture {
         "#,
     )
     .bind(market_id)
-    .bind(format!("MKT-{}", market_id.simple()))
+    .bind(&market_code)
     .bind("Test Market")
     .bind("UTC")
     .execute(pool)
@@ -711,6 +713,7 @@ async fn seed_runtime_fixture(pool: &PgPool) -> RuntimeFixture {
 
     RuntimeFixture {
         market_id,
+        market_code,
         instrument_id,
     }
 }
