@@ -1099,7 +1099,7 @@ git commit -m "feat: bootstrap step-bound llm execution"
 - Create: `E:\rust-app\oh-paa\testdata\analysis_replay\sample_set.json`
 - Modify: `E:\rust-app\oh-paa\docs\architecture\phase1-runtime.md`
 
-- [ ] **Step 1: Write the failing replay test for variant execution and experiment logging**
+- [x] **Step 1: Write the failing replay test for variant execution and experiment logging**
 
 ```rust
 #[tokio::test]
@@ -1116,13 +1116,13 @@ async fn replay_runner_records_variant_step_outputs_and_scores() {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails because replay tooling does not exist**
+- [x] **Step 2: Run the test to verify it fails because replay tooling does not exist**
 
 Run: `cargo test -p pa-app replay_runner_records_variant_step_outputs_and_scores -- --exact`
 
 Expected: FAIL with missing module or missing function errors for `pa_app::replay`
 
-- [ ] **Step 3: Add replay models and a runner that executes named variants against historical samples**
+- [x] **Step 3: Add replay models and a runner that executes named variants against historical samples**
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1152,7 +1152,7 @@ pub async fn run_replay_variant_from_path(
 }
 ```
 
-- [ ] **Step 4: Add a sample replay dataset with A-share, crypto, and forex cases**
+- [x] **Step 4: Add a sample replay dataset with A-share, crypto, and forex cases**
 
 ```json
 {
@@ -1180,7 +1180,7 @@ pub async fn run_replay_variant_from_path(
 }
 ```
 
-- [ ] **Step 5: Add a CLI entry point that writes the replay report to stdout as JSON**
+- [x] **Step 5: Add a CLI entry point that writes the replay report to stdout as JSON**
 
 ```rust
 #[tokio::main]
@@ -1193,7 +1193,7 @@ async fn main() -> Result<(), anyhow::Error> {
 }
 ```
 
-- [ ] **Step 6: Run the replay tests and the CLI against the sample dataset**
+- [x] **Step 6: Run the replay tests and the CLI against the sample dataset**
 
 Run: `cargo test -p pa-app --test replay && cargo run -p pa-app --bin replay_analysis -- testdata/analysis_replay/sample_set.json baseline_a`
 
@@ -1211,25 +1211,25 @@ git commit -m "feat: add analysis replay evaluation tooling"
 **Files:**
 - Modify: `E:\rust-app\oh-paa\docs\superpowers\plans\2026-04-22-analysis-pipeline-optimization.md`
 
-- [ ] **Step 1: Run the full workspace test suite**
+- [x] **Step 1: Run the full workspace test suite**
 
 Run: `cargo test --workspace`
 
 Expected: PASS with shared analysis, user analysis, orchestrator, market runtime, and replay coverage all green
 
-- [ ] **Step 2: Run the workspace linter**
+- [x] **Step 2: Run the workspace linter**
 
 Run: `cargo clippy --workspace --all-targets -- -D warnings`
 
 Expected: PASS with zero warnings
 
-- [ ] **Step 3: Run a real replay smoke using the configured historical dataset**
+- [x] **Step 3: Run a real replay smoke using the configured historical dataset**
 
 Run: `cargo run -p pa-app --bin replay_analysis -- testdata/analysis_replay/sample_set.json baseline_a`
 
 Expected: PASS with a JSON report that includes `schema_hit_rate`, `pipeline_variant`, and per-step outputs
 
-- [ ] **Step 4: Update this plan file to mark completed checkboxes only after verification passes**
+- [x] **Step 4: Update this plan file to mark completed checkboxes only after verification passes**
 
 ```markdown
 - [x] **Step 1: Run the full workspace test suite**

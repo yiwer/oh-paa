@@ -37,5 +37,16 @@ and serves the Axum router.
   dead letters back to orchestration storage.
 - Closed-bar tasks deduplicate by task identity while open-bar tasks remain repeatable by
   design.
-- Prompt registration is code-defined at startup, and the current runtime uses a fixture LLM
-  transport so the orchestration loop can be exercised before a production model client lands.
+- Prompt registration is code-defined at startup, and the app runtime now binds each analysis
+  step to real OpenAI-compatible provider/model profiles from configuration.
+
+## Replay Evaluation Notes
+
+- `cargo run -p pa-app --bin replay_analysis -- testdata/analysis_replay/sample_set.json baseline_a`
+  replays historical A-share, crypto, and forex fixtures through the layered analysis pipeline.
+- Replay reports log a deterministic experiment id, dataset id, pipeline variant, per-step
+  provider/model metadata, step outputs, schema validation status, and aggregate programmatic
+  scores such as `schema_hit_rate` and `latency_coverage`.
+- The first replay implementation is intentionally offline and deterministic: it validates
+  pre-baked variant outputs against the real registered step schemas so prompt/flow experiments
+  can be compared without requiring live LLM calls.

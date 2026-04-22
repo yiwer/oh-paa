@@ -1,0 +1,915 @@
+{
+  "dataset_id": "sample_set",
+  "samples": [
+    {
+      "sample_id": "crypto-btc-15m-breakout",
+      "market": "crypto",
+      "timeframe": "15m",
+      "shared_pa_state_input": {
+        "instrument_id": "22222222-2222-2222-2222-222222222202",
+        "timeframe": "15m",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-18T08:00:00Z",
+        "bar_close_time": "2026-04-18T08:15:00Z",
+        "bar_json": {
+          "open": 84250.0,
+          "high": 84680.0,
+          "low": 84180.0,
+          "close": 84620.0,
+          "volume": 1280.4
+        },
+        "market_context_json": {
+          "session": "always_open",
+          "open_bar": false,
+          "higher_timeframe_bias": "uptrend"
+        }
+      },
+      "shared_bar_analysis_input": {
+        "instrument_id": "22222222-2222-2222-2222-222222222202",
+        "timeframe": "15m",
+        "bar_open_time": "2026-04-18T08:00:00Z",
+        "bar_close_time": "2026-04-18T08:15:00Z",
+        "bar_state": "closed",
+        "shared_pa_state_json": {
+          "bias": "bullish"
+        },
+        "recent_pa_states_json": [
+          {
+            "bar_close_time": "2026-04-18T07:45:00Z",
+            "bias": "bullish"
+          }
+        ]
+      },
+      "shared_daily_context_input": {
+        "instrument_id": "22222222-2222-2222-2222-222222222202",
+        "trading_date": "2026-04-18",
+        "recent_pa_states_json": [
+          {
+            "bias": "bullish"
+          }
+        ],
+        "recent_shared_bar_analyses_json": [
+          {
+            "market_story": "breakout continuation"
+          }
+        ],
+        "multi_timeframe_structure_json": {
+          "daily": "uptrend",
+          "hourly": "compression then breakout"
+        },
+        "market_background_json": {
+          "macro": "risk_on",
+          "session": "weekend_crypto"
+        }
+      },
+      "user_position_advice_input": {
+        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+        "instrument_id": "22222222-2222-2222-2222-222222222202",
+        "timeframe": "15m",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-18T08:00:00Z",
+        "bar_close_time": "2026-04-18T08:15:00Z",
+        "trading_date": "2026-04-18",
+        "positions_json": {
+          "side": "long",
+          "size": 0.35,
+          "avg_price": 83820.0
+        },
+        "subscriptions_json": {
+          "risk_mode": "standard"
+        },
+        "shared_bar_analysis_json": {
+          "market_story": "bullish breakout"
+        },
+        "shared_daily_context_json": {
+          "market_background": "uptrend day"
+        },
+        "shared_pa_state_json": {
+          "decision_tree_state": {
+            "confirmation_state": "confirmed_break"
+          }
+        }
+      },
+      "variants": {
+        "baseline_a": {
+          "steps": [
+            {
+              "step_key": "shared_pa_state_bar",
+              "step_version": "v1",
+              "latency_ms": 210,
+              "judge_score": 0.91,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "BTC/USDT",
+                  "timeframe": "15m"
+                },
+                "market_session_context": {
+                  "session_type": "continuous"
+                },
+                "bar_observation": {
+                  "summary": "wide bull body closing near high"
+                },
+                "bar_shape": {
+                  "classification": "expansion_breakout"
+                },
+                "location_context": {
+                  "area": "range_high_break"
+                },
+                "multi_timeframe_alignment": {
+                  "alignment": "15m_with_1h_up"
+                },
+                "support_resistance_map": {
+                  "support": 84320.0,
+                  "resistance": 84750.0
+                },
+                "signal_assessment": {
+                  "signal_quality": "good"
+                },
+                "decision_tree_state": {
+                  "trend_context": {
+                    "state": "bullish"
+                  },
+                  "location_context": {
+                    "state": "breakout_zone"
+                  },
+                  "signal_quality": {
+                    "state": "good"
+                  },
+                  "confirmation_state": {
+                    "state": "confirmed"
+                  },
+                  "invalidation_conditions": {
+                    "state": "fall_back_below_breakout"
+                  },
+                  "bias_balance": {
+                    "state": "bulls_in_control"
+                  }
+                },
+                "evidence_log": {
+                  "items": [
+                    "range high broken on expanding spread"
+                  ]
+                }
+              }
+            },
+            {
+              "step_key": "shared_bar_analysis",
+              "step_version": "v2",
+              "latency_ms": 360,
+              "judge_score": 0.88,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "BTC/USDT"
+                },
+                "bar_summary": {
+                  "summary": "bull trend bar after compression"
+                },
+                "market_story": {
+                  "story": "buyers forced acceptance above range high"
+                },
+                "bullish_case": {
+                  "path": "follow through if pullback stays shallow"
+                },
+                "bearish_case": {
+                  "path": "failed breakout if price snaps back inside range"
+                },
+                "two_sided_balance": {
+                  "state": "bullish_but_extended"
+                },
+                "key_levels": {
+                  "breakout_level": 84500.0
+                },
+                "signal_bar_verdict": {
+                  "verdict": "bullish_signal_bar"
+                },
+                "continuation_path": {
+                  "trigger": "hold_above_84500"
+                },
+                "reversal_path": {
+                  "trigger": "close_back_below_84320"
+                },
+                "invalidation_map": {
+                  "bullish_invalidation": 84320.0
+                },
+                "follow_through_checkpoints": {
+                  "next_objective": 84950.0
+                }
+              }
+            },
+            {
+              "step_key": "shared_daily_context",
+              "step_version": "v2",
+              "latency_ms": 415,
+              "judge_score": 0.9,
+              "output_json": {
+                "context_identity": {
+                  "ticker": "BTC/USDT",
+                  "trading_date": "2026-04-18"
+                },
+                "market_background": {
+                  "state": "risk_on_with_crypto_strength"
+                },
+                "dominant_structure": {
+                  "state": "daily_uptrend"
+                },
+                "intraday_vs_higher_timeframe_state": {
+                  "state": "intraday_supports_daily"
+                },
+                "key_support_levels": {
+                  "levels": [
+                    84320.0
+                  ]
+                },
+                "key_resistance_levels": {
+                  "levels": [
+                    84950.0
+                  ]
+                },
+                "signal_bars": {
+                  "primary": "15m_breakout_bar"
+                },
+                "candle_pattern_map": {
+                  "pattern": "range_expansion"
+                },
+                "decision_tree_nodes": {
+                  "trend_context": {
+                    "state": "up"
+                  },
+                  "location_context": {
+                    "state": "at_breakout_zone"
+                  },
+                  "signal_quality": {
+                    "state": "credible"
+                  },
+                  "confirmation_state": {
+                    "state": "accepted_above_break"
+                  },
+                  "invalidation_conditions": {
+                    "state": "lose_84320"
+                  },
+                  "path_of_least_resistance": {
+                    "state": "higher"
+                  }
+                },
+                "liquidity_context": {
+                  "state": "thin_above_range"
+                },
+                "scenario_map": {
+                  "base_case": "continuation_then_pause"
+                },
+                "risk_notes": {
+                  "note": "watch late breakout fatigue"
+                },
+                "session_playbook": {
+                  "playbook": "buy_dips_above_breakout"
+                }
+              }
+            },
+            {
+              "step_key": "user_position_advice",
+              "step_version": "v2",
+              "latency_ms": 330,
+              "judge_score": 0.86,
+              "human_notes": "baseline advice favors holding winner with trailing invalidation",
+              "output_json": {
+                "position_state": {
+                  "state": "in_profit_long"
+                },
+                "market_read_through": {
+                  "summary": "shared context remains supportive for longs"
+                },
+                "bullish_path_for_user": {
+                  "action": "hold_core_and_let_it_work"
+                },
+                "bearish_path_for_user": {
+                  "action": "trim_if_price_accepts_back_inside_range"
+                },
+                "hold_reduce_exit_conditions": {
+                  "hold_if": "price_stays_above_84500"
+                },
+                "risk_control_levels": {
+                  "stop_reference": 84320.0
+                },
+                "invalidations": {
+                  "primary": "15m_close_below_84320"
+                },
+                "action_candidates": {
+                  "next_step": "trail_stop_under_breakout"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sample_id": "cn-a-1h-rejection",
+      "market": "cn_a",
+      "timeframe": "1h",
+      "shared_pa_state_input": {
+        "instrument_id": "11111111-1111-1111-1111-111111111101",
+        "timeframe": "1h",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-17T05:30:00Z",
+        "bar_close_time": "2026-04-17T06:30:00Z",
+        "bar_json": {
+          "open": 16.24,
+          "high": 16.48,
+          "low": 16.12,
+          "close": 16.15,
+          "volume": 6523000
+        },
+        "market_context_json": {
+          "session": "cn_a_afternoon",
+          "open_bar": false,
+          "higher_timeframe_bias": "range"
+        }
+      },
+      "shared_bar_analysis_input": {
+        "instrument_id": "11111111-1111-1111-1111-111111111101",
+        "timeframe": "1h",
+        "bar_open_time": "2026-04-17T05:30:00Z",
+        "bar_close_time": "2026-04-17T06:30:00Z",
+        "bar_state": "closed",
+        "shared_pa_state_json": {
+          "bias": "bearish"
+        },
+        "recent_pa_states_json": [
+          {
+            "bar_close_time": "2026-04-17T04:30:00Z",
+            "bias": "neutral"
+          }
+        ]
+      },
+      "shared_daily_context_input": {
+        "instrument_id": "11111111-1111-1111-1111-111111111101",
+        "trading_date": "2026-04-17",
+        "recent_pa_states_json": [
+          {
+            "bias": "bearish"
+          }
+        ],
+        "recent_shared_bar_analyses_json": [
+          {
+            "market_story": "failed push through resistance"
+          }
+        ],
+        "multi_timeframe_structure_json": {
+          "daily": "range",
+          "hourly": "rejection_from_upper_boundary"
+        },
+        "market_background_json": {
+          "macro": "mixed",
+          "session": "normal_cn_a_day"
+        }
+      },
+      "user_position_advice_input": {
+        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+        "instrument_id": "11111111-1111-1111-1111-111111111101",
+        "timeframe": "1h",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-17T05:30:00Z",
+        "bar_close_time": "2026-04-17T06:30:00Z",
+        "trading_date": "2026-04-17",
+        "positions_json": {
+          "side": "long",
+          "size": 12000,
+          "avg_price": 16.02
+        },
+        "subscriptions_json": {
+          "risk_mode": "conservative"
+        },
+        "shared_bar_analysis_json": {
+          "market_story": "upper range rejection"
+        },
+        "shared_daily_context_json": {
+          "market_background": "range day"
+        },
+        "shared_pa_state_json": {
+          "decision_tree_state": {
+            "confirmation_state": "rejected"
+          }
+        }
+      },
+      "variants": {
+        "baseline_a": {
+          "steps": [
+            {
+              "step_key": "shared_pa_state_bar",
+              "step_version": "v1",
+              "latency_ms": 185,
+              "judge_score": 0.83,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "SZ000001",
+                  "timeframe": "1h"
+                },
+                "market_session_context": {
+                  "session_type": "cash_market"
+                },
+                "bar_observation": {
+                  "summary": "upper wick rejection into close"
+                },
+                "bar_shape": {
+                  "classification": "bearish_rejection_bar"
+                },
+                "location_context": {
+                  "area": "upper_range_boundary"
+                },
+                "multi_timeframe_alignment": {
+                  "alignment": "1h_against_daily_range_ceiling"
+                },
+                "support_resistance_map": {
+                  "support": 16.05,
+                  "resistance": 16.45
+                },
+                "signal_assessment": {
+                  "signal_quality": "decent"
+                },
+                "decision_tree_state": {
+                  "trend_context": {
+                    "state": "range"
+                  },
+                  "location_context": {
+                    "state": "resistance"
+                  },
+                  "signal_quality": {
+                    "state": "decent"
+                  },
+                  "confirmation_state": {
+                    "state": "rejected"
+                  },
+                  "invalidation_conditions": {
+                    "state": "reclaim_16_45"
+                  },
+                  "bias_balance": {
+                    "state": "bears_gain_short_term_edge"
+                  }
+                },
+                "evidence_log": {
+                  "items": [
+                    "long upper shadow at known resistance"
+                  ]
+                }
+              }
+            },
+            {
+              "step_key": "shared_bar_analysis",
+              "step_version": "v2",
+              "latency_ms": 295,
+              "judge_score": 0.82,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "SZ000001"
+                },
+                "bar_summary": {
+                  "summary": "rejection bar after failed upside test"
+                },
+                "market_story": {
+                  "story": "buyers could not hold above range ceiling"
+                },
+                "bullish_case": {
+                  "path": "sideways repair if price stabilizes above 16.05"
+                },
+                "bearish_case": {
+                  "path": "rotation toward mid-range if weakness follows through"
+                },
+                "two_sided_balance": {
+                  "state": "slightly_bearish"
+                },
+                "key_levels": {
+                  "range_ceiling": 16.45
+                },
+                "signal_bar_verdict": {
+                  "verdict": "bearish_signal_bar"
+                },
+                "continuation_path": {
+                  "trigger": "hourly_close_below_16_05"
+                },
+                "reversal_path": {
+                  "trigger": "reclaim_and_hold_16_45"
+                },
+                "invalidation_map": {
+                  "bearish_invalidation": 16.45
+                },
+                "follow_through_checkpoints": {
+                  "next_objective": 15.92
+                }
+              }
+            },
+            {
+              "step_key": "shared_daily_context",
+              "step_version": "v2",
+              "latency_ms": 350,
+              "judge_score": 0.84,
+              "output_json": {
+                "context_identity": {
+                  "ticker": "SZ000001",
+                  "trading_date": "2026-04-17"
+                },
+                "market_background": {
+                  "state": "range_market_with_weak_close"
+                },
+                "dominant_structure": {
+                  "state": "daily_range"
+                },
+                "intraday_vs_higher_timeframe_state": {
+                  "state": "intraday_rejection_inside_daily_range"
+                },
+                "key_support_levels": {
+                  "levels": [
+                    16.05,
+                    15.92
+                  ]
+                },
+                "key_resistance_levels": {
+                  "levels": [
+                    16.45
+                  ]
+                },
+                "signal_bars": {
+                  "primary": "1h_rejection_bar"
+                },
+                "candle_pattern_map": {
+                  "pattern": "failed_breakout"
+                },
+                "decision_tree_nodes": {
+                  "trend_context": {
+                    "state": "range"
+                  },
+                  "location_context": {
+                    "state": "range_high"
+                  },
+                  "signal_quality": {
+                    "state": "acceptable"
+                  },
+                  "confirmation_state": {
+                    "state": "needs_next_bar_follow_through"
+                  },
+                  "invalidation_conditions": {
+                    "state": "recover_above_16_45"
+                  },
+                  "path_of_least_resistance": {
+                    "state": "slightly_lower"
+                  }
+                },
+                "liquidity_context": {
+                  "state": "offer_stack_near_range_top"
+                },
+                "scenario_map": {
+                  "base_case": "fade_to_mid_range"
+                },
+                "risk_notes": {
+                  "note": "range regime can whipsaw late shorts"
+                },
+                "session_playbook": {
+                  "playbook": "wait_for_follow_through_before_pressing"
+                }
+              }
+            },
+            {
+              "step_key": "user_position_advice",
+              "step_version": "v2",
+              "latency_ms": 290,
+              "judge_score": 0.8,
+              "human_notes": "conservative holder should protect gains into range rejection",
+              "output_json": {
+                "position_state": {
+                  "state": "profitable_long_near_resistance"
+                },
+                "market_read_through": {
+                  "summary": "shared context warns of short-term downside rotation"
+                },
+                "bullish_path_for_user": {
+                  "action": "keep_reduced_core_only_if_16_45_is_reclaimed"
+                },
+                "bearish_path_for_user": {
+                  "action": "reduce_exposure_on_follow_through_weakness"
+                },
+                "hold_reduce_exit_conditions": {
+                  "hold_if": "next_hour_recovers_16_24_and_volume_contracts"
+                },
+                "risk_control_levels": {
+                  "stop_reference": 16.05
+                },
+                "invalidations": {
+                  "primary": "hourly_close_below_16_05"
+                },
+                "action_candidates": {
+                  "next_step": "trim_into_failed_breakout_risk"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sample_id": "forex-eurusd-1d-range-compression",
+      "market": "forex",
+      "timeframe": "1d",
+      "shared_pa_state_input": {
+        "instrument_id": "33333333-3333-3333-3333-333333333303",
+        "timeframe": "1d",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-16T00:00:00Z",
+        "bar_close_time": "2026-04-17T00:00:00Z",
+        "bar_json": {
+          "open": 1.0892,
+          "high": 1.0914,
+          "low": 1.0879,
+          "close": 1.0898,
+          "volume": 0
+        },
+        "market_context_json": {
+          "session": "fx_24_5",
+          "open_bar": false,
+          "higher_timeframe_bias": "range_compression"
+        }
+      },
+      "shared_bar_analysis_input": {
+        "instrument_id": "33333333-3333-3333-3333-333333333303",
+        "timeframe": "1d",
+        "bar_open_time": "2026-04-16T00:00:00Z",
+        "bar_close_time": "2026-04-17T00:00:00Z",
+        "bar_state": "closed",
+        "shared_pa_state_json": {
+          "bias": "neutral"
+        },
+        "recent_pa_states_json": [
+          {
+            "bar_close_time": "2026-04-16T00:00:00Z",
+            "bias": "neutral"
+          }
+        ]
+      },
+      "shared_daily_context_input": {
+        "instrument_id": "33333333-3333-3333-3333-333333333303",
+        "trading_date": "2026-04-17",
+        "recent_pa_states_json": [
+          {
+            "bias": "neutral"
+          }
+        ],
+        "recent_shared_bar_analyses_json": [
+          {
+            "market_story": "compression inside larger range"
+          }
+        ],
+        "multi_timeframe_structure_json": {
+          "weekly": "range",
+          "daily": "inside_cluster"
+        },
+        "market_background_json": {
+          "macro": "central_bank_wait_mode",
+          "session": "forex_london_newyork_overlap_receding"
+        }
+      },
+      "user_position_advice_input": {
+        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+        "instrument_id": "33333333-3333-3333-3333-333333333303",
+        "timeframe": "1d",
+        "bar_state": "closed",
+        "bar_open_time": "2026-04-16T00:00:00Z",
+        "bar_close_time": "2026-04-17T00:00:00Z",
+        "trading_date": "2026-04-17",
+        "positions_json": {
+          "side": "flat",
+          "size": 0,
+          "avg_price": null
+        },
+        "subscriptions_json": {
+          "risk_mode": "patient"
+        },
+        "shared_bar_analysis_json": {
+          "market_story": "range compression"
+        },
+        "shared_daily_context_json": {
+          "market_background": "macro wait-and-see"
+        },
+        "shared_pa_state_json": {
+          "decision_tree_state": {
+            "confirmation_state": "no_resolution"
+          }
+        }
+      },
+      "variants": {
+        "baseline_a": {
+          "steps": [
+            {
+              "step_key": "shared_pa_state_bar",
+              "step_version": "v1",
+              "latency_ms": 175,
+              "judge_score": 0.79,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "EUR/USD",
+                  "timeframe": "1d"
+                },
+                "market_session_context": {
+                  "session_type": "continuous_weekday"
+                },
+                "bar_observation": {
+                  "summary": "inside-style day with narrow spread"
+                },
+                "bar_shape": {
+                  "classification": "compression_bar"
+                },
+                "location_context": {
+                  "area": "mid_range"
+                },
+                "multi_timeframe_alignment": {
+                  "alignment": "daily_inside_weekly_range"
+                },
+                "support_resistance_map": {
+                  "support": 1.0875,
+                  "resistance": 1.0922
+                },
+                "signal_assessment": {
+                  "signal_quality": "low"
+                },
+                "decision_tree_state": {
+                  "trend_context": {
+                    "state": "range"
+                  },
+                  "location_context": {
+                    "state": "center_of_range"
+                  },
+                  "signal_quality": {
+                    "state": "low"
+                  },
+                  "confirmation_state": {
+                    "state": "unconfirmed"
+                  },
+                  "invalidation_conditions": {
+                    "state": "break_outside_1_0875_or_1_0922"
+                  },
+                  "bias_balance": {
+                    "state": "balanced"
+                  }
+                },
+                "evidence_log": {
+                  "items": [
+                    "compressed bar after several overlapping sessions"
+                  ]
+                }
+              }
+            },
+            {
+              "step_key": "shared_bar_analysis",
+              "step_version": "v2",
+              "latency_ms": 255,
+              "judge_score": 0.77,
+              "output_json": {
+                "bar_identity": {
+                  "ticker": "EUR/USD"
+                },
+                "bar_summary": {
+                  "summary": "neutral compression, no directional resolution"
+                },
+                "market_story": {
+                  "story": "market is coiling inside established boundaries"
+                },
+                "bullish_case": {
+                  "path": "bull case requires clean break above 1.0922"
+                },
+                "bearish_case": {
+                  "path": "bear case requires decisive loss of 1.0875"
+                },
+                "two_sided_balance": {
+                  "state": "balanced_waiting"
+                },
+                "key_levels": {
+                  "compression_bounds": [
+                    1.0875,
+                    1.0922
+                  ]
+                },
+                "signal_bar_verdict": {
+                  "verdict": "non_signal_bar"
+                },
+                "continuation_path": {
+                  "trigger": "acceptance_above_1_0922"
+                },
+                "reversal_path": {
+                  "trigger": "acceptance_below_1_0875"
+                },
+                "invalidation_map": {
+                  "neutral_invalidation": "close_outside_compression_bounds"
+                },
+                "follow_through_checkpoints": {
+                  "next_objective": "watch_next_two_daily_closes"
+                }
+              }
+            },
+            {
+              "step_key": "shared_daily_context",
+              "step_version": "v2",
+              "latency_ms": 305,
+              "judge_score": 0.81,
+              "output_json": {
+                "context_identity": {
+                  "ticker": "EUR/USD",
+                  "trading_date": "2026-04-17"
+                },
+                "market_background": {
+                  "state": "macro_waiting_range"
+                },
+                "dominant_structure": {
+                  "state": "weekly_range_daily_compression"
+                },
+                "intraday_vs_higher_timeframe_state": {
+                  "state": "no_conflict_no_resolution"
+                },
+                "key_support_levels": {
+                  "levels": [
+                    1.0875
+                  ]
+                },
+                "key_resistance_levels": {
+                  "levels": [
+                    1.0922
+                  ]
+                },
+                "signal_bars": {
+                  "primary": "none"
+                },
+                "candle_pattern_map": {
+                  "pattern": "compression_cluster"
+                },
+                "decision_tree_nodes": {
+                  "trend_context": {
+                    "state": "range"
+                  },
+                  "location_context": {
+                    "state": "mid_range"
+                  },
+                  "signal_quality": {
+                    "state": "weak"
+                  },
+                  "confirmation_state": {
+                    "state": "await_break"
+                  },
+                  "invalidation_conditions": {
+                    "state": "sustained_break_from_cluster"
+                  },
+                  "path_of_least_resistance": {
+                    "state": "undetermined"
+                  }
+                },
+                "liquidity_context": {
+                  "state": "resting_liquidity_both_sides"
+                },
+                "scenario_map": {
+                  "base_case": "continue_chop_until_macro_catalyst"
+                },
+                "risk_notes": {
+                  "note": "false breaks common from compressed center"
+                },
+                "session_playbook": {
+                  "playbook": "stay_patient_until_range_edge_engagement"
+                }
+              }
+            },
+            {
+              "step_key": "user_position_advice",
+              "step_version": "v2",
+              "latency_ms": 220,
+              "judge_score": 0.78,
+              "human_notes": "flat user gets wait-for-break guidance instead of forced trade idea",
+              "output_json": {
+                "position_state": {
+                  "state": "flat_observer"
+                },
+                "market_read_through": {
+                  "summary": "shared context favors patience over anticipation"
+                },
+                "bullish_path_for_user": {
+                  "action": "prepare_buy_plan_only_after_break_above_1_0922"
+                },
+                "bearish_path_for_user": {
+                  "action": "prepare_sell_plan_only_after_break_below_1_0875"
+                },
+                "hold_reduce_exit_conditions": {
+                  "hold_if": "no_position_keep_waiting"
+                },
+                "risk_control_levels": {
+                  "activation_bounds": [
+                    1.0875,
+                    1.0922
+                  ]
+                },
+                "invalidations": {
+                  "primary": "do_not_trade_center_of_range"
+                },
+                "action_candidates": {
+                  "next_step": "set_alerts_at_range_edges"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

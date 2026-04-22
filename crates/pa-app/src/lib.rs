@@ -8,6 +8,8 @@ use pa_orchestrator::{
     StepExecutionBinding, StepRegistry,
 };
 
+pub mod replay;
+
 pub fn build_openai_provider_runtimes(
     config: &AppConfig,
 ) -> BTreeMap<String, OpenAiProviderRuntime> {
@@ -112,6 +114,12 @@ fn missing_step_binding_error(binding_name: &str, step_key: &str, step_version: 
         ),
         source: None,
     }
+}
+
+pub fn workspace_root() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
 }
 
 #[cfg(test)]

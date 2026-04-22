@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+jsonschema.workspace = true
 pa-analysis = { path = "../pa-analysis" }
 pa-api = { path = "../pa-api" }
 pa-core = { path = "../pa-core" }
@@ -13,6 +14,7 @@ pa-instrument = { path = "../pa-instrument" }
 pa-market = { path = "../pa-market" }
 pa-orchestrator = { path = "../pa-orchestrator" }
 pa-user = { path = "../pa-user" }
+serde.workspace = true
 serde_json.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
