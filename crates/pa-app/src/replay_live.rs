@@ -21,7 +21,7 @@ use sqlx::types::{
     Uuid,
     chrono::{DateTime, Utc},
 };
-use tracing::{debug, info};
+use tracing::{info, warn};
 
 use crate::{
     build_step_registry_from_config, build_worker_executor_from_config,
@@ -147,6 +147,12 @@ where
 
     let step_registry = build_step_registry_from_config(&resolved_config.app_config)?;
     let mut step_runs = Vec::new();
+    info!(
+        dataset_id = %dataset.dataset_id,
+        sample_count = dataset.samples.len(),
+        pipeline_variant = %dataset.pipeline_variant,
+        "live replay experiment start"
+    );
 
     for sample in &dataset.samples {
         info!(
@@ -160,6 +166,11 @@ where
         let sample_runs =
             run_sample_target_chain(sample, dataset, &fetched_rows, &step_registry, executor)
                 .await?;
+        info!(
+            sample_id = %sample.sample_id,
+            target_step_runs = sample_runs.len(),
+            "live replay sample finish"
+        );
         step_runs.extend(sample_runs);
     }
 
@@ -174,6 +185,12 @@ where
         execution_mode.clone(),
         config_source_path.as_deref(),
     )?;
+    info!(
+        dataset_id = %dataset.dataset_id,
+        total_step_runs = step_runs.len(),
+        valid_step_runs = programmatic_scores["valid_step_runs"].as_u64().unwrap_or_default(),
+        "live replay experiment finish"
+    );
 
     Ok(ReplayExperimentReport {
         experiment_id,
@@ -253,6 +270,8 @@ where
             &TARGET_STEPS[0],
             &pa_state_input,
             &sample.sample_id,
+            warmup_offset + 1,
+            warmup_rows.len(),
         )
         .await?;
         let shared_bar_input = build_shared_bar_analysis_input(
@@ -266,6 +285,8 @@ where
             &TARGET_STEPS[1],
             &shared_bar_input,
             &sample.sample_id,
+            warmup_offset + 1,
+            warmup_rows.len(),
         )
         .await?;
 
@@ -358,12 +379,16 @@ async fn execute_warmup_step<E>(
     step: &ReplayStepSpec,
     input_json: &Value,
     sample_id: &str,
+    warmup_bar_index: usize,
+    warmup_bar_count: usize,
 ) -> Result<Value, AppError>
 where
     E: LiveReplayExecutor,
 {
-    debug!(
+    info!(
         sample_id = %sample_id,
+        warmup_bar_index,
+        warmup_bar_count,
         step_key = step.step_key,
         step_version = step.step_version,
         "live replay warmup step start"
@@ -372,44 +397,75 @@ where
     let outcome = executor
         .execute_json(step.step_key, step.step_version, input_json)
         .await?;
-    let _latency_ms = started_at.elapsed().as_millis() as u64;
+    let latency_ms = started_at.elapsed().as_millis() as u64;
 
     match outcome {
-        ExecutionOutcome::Success(attempt) => attempt.parsed_output_json.ok_or_else(|| {
-            AppError::Analysis {
+        ExecutionOutcome::Success(attempt) => {
+            info!(
+                sample_id = %sample_id,
+                warmup_bar_index,
+                warmup_bar_count,
+                step_key = step.step_key,
+                step_version = step.step_version,
+                latency_ms,
+                "live replay warmup step finish"
+            );
+            attempt.parsed_output_json.ok_or_else(|| AppError::Analysis {
                 message: format!(
                     "warmup step {}:{} for sample {} returned success without parsed_output_json",
                     step.step_key, step.step_version, sample_id
                 ),
                 source: None,
-            }
-        }),
-        ExecutionOutcome::SchemaValidationFailed(attempt) => Err(AppError::Analysis {
-            message: format!(
-                "warmup step {}:{} for sample {} failed schema validation: {}; parsed_output_preview={}",
-                step.step_key,
-                step.step_version,
-                sample_id,
-                attempt
-                    .schema_validation_error
-                    .unwrap_or_else(|| "unknown schema validation error".to_string()),
-                json_preview(attempt.parsed_output_json.as_ref())
-            ),
-            source: None,
-        }),
-        ExecutionOutcome::OutboundCallFailed { attempt, error } => Err(AppError::Analysis {
-            message: format!(
-                "warmup step {}:{} for sample {} failed outbound call: {}; raw_response_preview={}",
-                step.step_key,
-                step.step_version,
-                sample_id,
-                attempt
-                    .outbound_error_message
-                    .unwrap_or_else(|| error.to_string()),
-                json_preview(attempt.raw_response_json.as_ref())
-            ),
-            source: Some(Box::new(error)),
-        }),
+            })
+        }
+        ExecutionOutcome::SchemaValidationFailed(attempt) => {
+            warn!(
+                sample_id = %sample_id,
+                warmup_bar_index,
+                warmup_bar_count,
+                step_key = step.step_key,
+                step_version = step.step_version,
+                latency_ms,
+                "live replay warmup step schema validation failure"
+            );
+            Err(AppError::Analysis {
+                message: format!(
+                    "warmup step {}:{} for sample {} failed schema validation: {}; parsed_output_preview={}",
+                    step.step_key,
+                    step.step_version,
+                    sample_id,
+                    attempt
+                        .schema_validation_error
+                        .unwrap_or_else(|| "unknown schema validation error".to_string()),
+                    json_preview(attempt.parsed_output_json.as_ref())
+                ),
+                source: None,
+            })
+        }
+        ExecutionOutcome::OutboundCallFailed { attempt, error } => {
+            warn!(
+                sample_id = %sample_id,
+                warmup_bar_index,
+                warmup_bar_count,
+                step_key = step.step_key,
+                step_version = step.step_version,
+                latency_ms,
+                "live replay warmup step outbound failure"
+            );
+            Err(AppError::Analysis {
+                message: format!(
+                    "warmup step {}:{} for sample {} failed outbound call: {}; raw_response_preview={}",
+                    step.step_key,
+                    step.step_version,
+                    sample_id,
+                    attempt
+                        .outbound_error_message
+                        .unwrap_or_else(|| error.to_string()),
+                    json_preview(attempt.raw_response_json.as_ref())
+                ),
+                source: Some(Box::new(error)),
+            })
+        }
     }
 }
 
@@ -433,6 +489,12 @@ where
             ),
             source: None,
         })?;
+    info!(
+        sample_id = %sample.sample_id,
+        step_key = step.step_key,
+        step_version = step.step_version,
+        "live replay target step start"
+    );
     let started_at = Instant::now();
     let outcome = executor
         .execute_json(step.step_key, step.step_version, input_json)

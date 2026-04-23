@@ -182,8 +182,9 @@ fn has_flag(values: &[String], flag: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use pa_core::AppError;
     use pa_orchestrator::ExecutionAttempt;
-    use serde_json::json;
+    use serde_json::{Value, json};
 
     use super::probe_result_from_outcome;
 

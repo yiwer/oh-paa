@@ -1,0 +1,1628 @@
+{
+    "bar_close_time":  "2026-04-18T08:30:00Z",
+    "bar_open_time":  "2026-04-18T08:15:00Z",
+    "bar_state":  "closed",
+    "instrument_id":  "22222222-2222-2222-2222-222222222202",
+    "recent_pa_states_json":  [
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T06:30:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "kind":  "canonical_closed_bar",
+                                                           "open_time":  "2026-04-18T06:15:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  79.99999999999994,
+                                                              "close":  77121.26,
+                                                              "close_vs_high":  "bearish (77121.26 \u003c 77215.3)",
+                                                              "close_vs_low":  "bullish (77121.26 \u003e 77091)",
+                                                              "close_vs_open":  "bearish",
+                                                              "high":  77215.3,
+                                                              "intra_bar_sequence":  "Opened near prior 1h open (77164.46), rejected above 77215, then sold off to test 77091 before recovering modestly to close above low",
+                                                              "low":  77091,
+                                                              "lower_wick":  30.26,
+                                                              "open":  77201.26,
+                                                              "range":  124.3,
+                                                              "upper_wick":  14.04,
+                                                              "volume_availability":  false
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_position":  "lower third of range (close = 77121.26, range = 77091鈫?7215.3 鈫?24.2% up from low)",
+                                                        "momentum_signature":  "exhaustion at top, selling pressure accelerating into close",
+                                                        "rejection_evidence":  "strong 鈥?price tested 77215.3 (just below intraday high 77253.75) and failed, then probed 77091 鈥?a level aligned with 1d low",
+                                                        "type":  "bearish engulfing candle variant 鈥?not full engulfing (prior bar open/close unknown), but strong rejection at high + close near low third",
+                                                        "wick_dominance":  "lower wick longest (30.26), upper wick short (14.04), body medium (鈮?5% of range)"
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "bias_shift_threshold":  "77164.46 (1h open) 鈥?break above shifts bias neutral; 77201.26 confirms shift bullish",
+                                                                                       "long_bias_strength":  "low",
+                                                                                       "neutral_zone":  "77091鈥?7121.26 (range between daily low and current bar close)",
+                                                                                       "short_bias_strength":  "medium_high"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "absence_of_confirmation":  "none yet 鈥?single bar insufficient for entry without follow-up",
+                                                                                             "confirmation_delay_tolerance":  "1鈥? bars (i.e., up to 07:00 UTC)",
+                                                                                             "required_confirmation":  [
+                                                                                                                           "next bar closes above 77164.46",
+                                                                                                                           "or next bar rejects 77091 with bullish reversal pattern"
+                                                                                                                       ]
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "hard_invalid":  "close above 77215.3 (bar high) invalidates rejection thesis",
+                                                                                                  "soft_invalid":  "close above 77201.26 without wick retest suggests false breakdown",
+                                                                                                  "structural_invalid":  "violation of 77091 with weekly context breach (not available, but 1d low breach would escalate risk)"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "position_in_daily_range":  "lower half (30.26 pts above 1d low, 132.49 pts below 1d high)",
+                                                                                           "position_relative_to_key_levels":  "below all opens and closes of higher TFs; above only 1d low",
+                                                                                           "risk_of_breakdown":  "elevated if 77091 fails",
+                                                                                           "risk_of_reversal":  "requires sustained bid above 77164.46 + 77201.26"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "body_wick_ratio":  0.65,
+                                                                                         "contextual_rarity":  "medium 鈥?common in range-bound exhaustion phases",
+                                                                                         "noise_factor":  "low (no volume spike or outlier wick; clean rejection pattern)",
+                                                                                         "rejection_clarity":  "high"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_tf_trend":  "neutral-to-bearish (1d), bearish (1h)",
+                                                                                        "lower_tf_momentum":  "bearish (15m bar shows rejection \u0026 failure to hold gains)",
+                                                                                        "trend_continuation_probability":  "65%",
+                                                                                        "trend_reversal_trigger_needed":  "break above 77201.26 with follow-through"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "data_gaps":  [
+                                                                             "no volume data",
+                                                                             "no prior bar values for full engulfing assessment",
+                                                                             "no weekly or monthly context"
+                                                                         ],
+                                                           "momentum_decay_evidence":  "Open 77201.26 鈫?high 77215.3 (+14.04) 鈫?close 77121.26 (鈭?4.04 from high): net -94.04 move from peak despite 124.3 pt range",
+                                                           "primary_bearish_anchor":  "77215.3 rejection 鈥?occurred just 38.45 pts below 1d high (77253.75), indicating proximity to structural resistance",
+                                                           "primary_bullish_anchor":  "77091 held as intraday low 鈥?validated by bar low and 1d low",
+                                                           "structural_confluence":  "1d low (77091), 1h low (77091), and current bar low all coincide 鈥?creates high-probability support cluster"
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  {
+                                                                                           "1d_low":  77091,
+                                                                                           "1d_open":  77190,
+                                                                                           "distance_to_1d_low":  30.26,
+                                                                                           "distance_to_1d_open":  -68.74,
+                                                                                           "distance_to_pivot":  -50.99,
+                                                                                           "distance_to_prior_1h_close":  -45.87,
+                                                                                           "intraday_pivot_approx":  77172.25,
+                                                                                           "prior_1h_close":  77167.13
+                                                                                       },
+                                                               "vs_1d_structure":  "Within current incomplete 1d bar (open: 77190, high: 77253.75, low: 77091, close so far: 77121.26); bar closed below 1d open and below prior 1h close (77167.13), reinforcing bearish intraday bias",
+                                                               "vs_1h_structure":  "Second bar in incomplete 1h bar (06:00鈥?7:00); this 15m bar is the second child 鈥?opened at 77201.26 (above prior 1h bar鈥檚 close 77167.13), peaked, then closed below prior 1h close 鈥?suggesting failed breakout attempt"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_profile":  "Moderate 鈥?post-Asian close, pre-London open; volume not reported but 15m bar occurs during typical liquidity transition zone",
+                                                                     "session_volatility_tendency":  "Low-to-moderate 鈥?recent 1h and 1d highs/lows show tight range compression (1d high: 77253.75, low: 77091 鈫?162.75 pt range; 15m bar range: 124.3 pts)",
+                                                                     "utc_session_phase":  "Asian session overlap with early European open (06:15鈥?6:30 UTC 鈮?07:15鈥?7:30 CET, 14:15鈥?4:30 JST)"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1d_trend_bias":  "neutral-to-slightly-bearish 鈥?1d bar incomplete but trading below open and failing to sustain above 77200 resistance cluster",
+                                                                        "1h_trend_bias":  "bearish 鈥?current 1h bar (06:00鈥?7:00) opened at 77164.46 and has so far printed lower high (77253.75 vs prior 1h high 77228.23) and lower low (77091 vs prior 1h low 77150); this 15m bar confirms downward momentum within hour",
+                                                                        "confluence":  "bearish alignment across 1h and 1d 鈥?both timeframes showing rejection of higher prices and expansion of downside range"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "Closed below 1d open (77190), 1h open (77164.46), and prior 1h close (77167.13)",
+                                                                                         "Failed test of 77215.3 鈥?proximity to 1d high suggests exhaustion",
+                                                                                         "Bearish intra-bar sequence: open 鈫?reject high 鈫?sell-off 鈫?weak recovery",
+                                                                                         "Two consecutive lower lows in 1h structure (77150 鈫?77091)"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "Closed above daily low (77091), avoiding breakdown",
+                                                                                         "Lower wick shows buyer presence at 77091 鈥?potential demand zone",
+                                                                                         "No volume collapse confirmed, so rejection may be selective rather than broad"
+                                                                                     ],
+                                                                "conviction_level":  "medium_high",
+                                                                "evidence_balance":  "bearish",
+                                                                "pressure_direction":  "downside dominant"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_support_1":  {
+                                                                                                 "confidence":  "high",
+                                                                                                 "level":  77091,
+                                                                                                 "source":  "1d aggregated bar low",
+                                                                                                 "type":  "daily_low"
+                                                                                             },
+                                                                     "immediate_support_2":  {
+                                                                                                 "confidence":  "medium_low",
+                                                                                                 "level":  77030,
+                                                                                                 "source":  "Estimated from prior swing low (not provided) 鈥?inferred from 1d range (162.75) 脳 0.618 鈮?100.6 鈫?77121.26 鈭?100.6 鈮?77020; rounded to 77030",
+                                                                                                 "type":  "approximate_0.618_extension_from_recent_swing"
+                                                                                             },
+                                                                     "near_term_resistance_1":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  77164.46,
+                                                                                                    "source":  "1h aggregated bar open time",
+                                                                                                    "type":  "current_1h_open"
+                                                                                                },
+                                                                     "near_term_resistance_2":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  77201.26,
+                                                                                                    "source":  "Bar open",
+                                                                                                    "type":  "current_bar_open"
+                                                                                                },
+                                                                     "strong_resistance":  {
+                                                                                               "confidence":  "high",
+                                                                                               "level":  77253.75,
+                                                                                               "source":  "1d aggregated bar high",
+                                                                                               "type":  "daily_high"
+                                                                                           }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T06:45:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "is_last_incomplete_daily_bar":  true,
+                                                           "open_time":  "2026-04-18T06:30:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_to_range_ratio":  0.952,
+                                                              "price_movement":  "bullish 鈥?closed near high (77174.99 vs high 77175), +53.73 net change from open (77121.26 鈫?77174.99)",
+                                                              "range":  "56.48 鈥?high-low spread (77175 鈭?77118.52)",
+                                                              "volume_context":  "unavailable 鈥?volume field is null; no volume-based confirmation or divergence possible",
+                                                              "wick_analysis":  {
+                                                                                    "lower_wick":  2.74,
+                                                                                    "lower_wick_significance":  "minor 鈥?small tail below open suggests brief dip and recovery, not strong selling pressure",
+                                                                                    "upper_wick":  0.01,
+                                                                                    "upper_wick_significance":  "negligible 鈥?effectively no rejection at top"
+                                                                                }
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_direction":  "bullish",
+                                                        "engulfing_relationship":  "not applicable 鈥?prior bar not provided, so engulfing status cannot be confirmed",
+                                                        "internal_structure":  "open near low, rally sustained to new high, close at extreme high 鈥?indicative of persistent buying pressure within the bar",
+                                                        "type":  "strong bullish engulfing precursor / near-perfect bullish marubozu",
+                                                        "wick_dominance":  "none 鈥?upper wick absent for practical purposes; lower wick minimal"
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "bearish_bias_strength":  0.29,
+                                                                                       "bullish_bias_strength":  0.71,
+                                                                                       "net_bias":  "bullish",
+                                                                                       "neutral_floor":  0.4
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "confirmation_status":  "unconfirmed",
+                                                                                             "pending_events":  [
+                                                                                                                    "06:45鈥?7:00 UTC bar close",
+                                                                                                                    "07:00 UTC 1h bar close"
+                                                                                                                ],
+                                                                                             "required_confirmation":  [
+                                                                                                                           "next bar closes above 77175",
+                                                                                                                           "or 1h bar closes above 77190"
+                                                                                                                       ]
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "primary_invalidations":  [
+                                                                                                                                "Close below 77118.52 (bar low) invalidates bullish structure",
+                                                                                                                                "Close below 77121.26 (bar open) signals failure of intrabar momentum"
+                                                                                                                            ],
+                                                                                                  "secondary_invalidations":  [
+                                                                                                                                  "Next bar fails to make higher high AND closes below 77160 鈥?suggests exhaustion"
+                                                                                                                              ]
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "position_relative_to_key_levels":  "above all intraday lows/open, below daily open \u0026 daily high",
+                                                                                           "position_within_daily_range":  "lower-mid (15.7% up from daily low)",
+                                                                                           "supply_demand_imbalance_indicators":  "demand dominant within bar; supply only visible as untested resistance above"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "clarity":  "high 鈥?clean price action, minimal noise",
+                                                                                         "reliability_rating":  0.68,
+                                                                                         "robustness":  "medium 鈥?lacks volume and follow-through confirmation"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_timeframe_trend":  "indeterminate 鈥?daily bar incomplete, 1h shows expansion but no decisive break; neutral bias pending 07:00 UTC close",
+                                                                                        "lower_timeframe_momentum":  "bullish 鈥?strong 15m bar with high close and minimal rejection"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "assumptions_stated":  [
+                                                                                      "UTC time alignment with session conventions is accurate",
+                                                                                      "Twelvedata source integrity assumed (no known gaps or errors)",
+                                                                                      "Instrument behavior follows typical BTC/USD PA norms (no flash crash or exchange-specific anomaly signaled)"
+                                                                                  ],
+                                                           "inferred_properties":  [
+                                                                                       "Buyers controlled price for 99.9% of bar duration",
+                                                                                       "No meaningful rejection at top implies limited seller presence at current levels",
+                                                                                       "Lower wick absorbed without follow-through 鈥?likely stop-run or liquidity grab, not distribution"
+                                                                                   ],
+                                                           "missing_data_impact":  [
+                                                                                       "Volume null 鈥?prevents conviction assessment and outlier filtering",
+                                                                                       "Prior bar data missing 鈥?prevents pattern classification (e.g., engulfing, hammer, reversal)",
+                                                                                       "No order book or bid/ask depth 鈥?microstructure context unavailable"
+                                                                                   ],
+                                                           "observed_facts":  [
+                                                                                  "Bar opened at 77121.26, low 77118.52 (鈭?.74), high 77175 (+53.74 from open), closed at 77174.99",
+                                                                                  "Bar occurs during 06:30鈥?6:45 UTC 鈥?transitional liquidity window",
+                                                                                  "Part of incomplete 1h bar (06:00鈥?7:00) with open 77164.46, current 1h high 77253.75",
+                                                                                  "Within daily bar (00:00鈥?4:00) open 77190, low 77091, high 77253.75"
+                                                                              ]
+                                                       },
+                                      "location_context":  {
+                                                               "price_level_position":  "mid-range within daily range 鈥?77174.99 is ~15.7% above daily low (77091), ~10.3% below daily high (77253.75), ~0.2% below daily open (77190)",
+                                                               "relative_to_daily_bar":  "within daily bar open 00:00鈥?4:00 UTC (2026-04-18); current bar lies ~6.5 hrs into daily cycle, below daily open (77190) and daily high (77253.75), above daily low (77091)",
+                                                               "relative_to_hourly_bar":  "second sub-bar of incomplete 1h bar (06:00鈥?7:00 UTC); current bar spans 06:30鈥?6:45, preceding final 15m segment (06:45鈥?7:00)",
+                                                               "trend_alignment_hint":  "slightly counter-trend short-term (below daily open) but bullish intrabar action suggests absorption of early sell-off"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_profile":  "moderate 鈥?volume not reported but bar occurs during typical inter-session transition; no volume spike or vacuum indicated",
+                                                                     "session_relevance":  "medium 鈥?precedes first full hourly bar closing at 07:00 UTC (next bar in 1h aggregation), may reflect early European participation",
+                                                                     "utc_session_phase":  "Asian session late overlap with early European open (06:30鈥?6:45 UTC 鈮?07:30鈥?7:45 CET, 15:30鈥?5:45 JST)"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1d_context":  {
+                                                                                           "alignment":  "mildly bearish relative to daily open but bullish relative to daily low; neutral-to-bullish bias given strong close near daily high despite opening below open",
+                                                                                           "daily_close_so_far":  77174.99,
+                                                                                           "daily_open":  77190
+                                                                                       },
+                                                                        "1h_context":  {
+                                                                                           "alignment":  "bullish 鈥?this 15m bar contributes upward momentum within an already higher-high 1h bar; strengthens intrahour bullish structure",
+                                                                                           "current_1h_bar":  "06:00鈥?7:00 UTC, open 77164.46, high 77253.75, low 77091, incomplete (only 3 of 4 sub-bars closed)"
+                                                                                       },
+                                                                        "confluence_commentary":  "Bullish intrabar action aligns with expanding 1h range and proximity to daily resistance zone; minor conflict with daily open level creates mild overhead supply context",
+                                                                        "confluence_score":  0.72
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "Fails to breach daily open (77190), remaining ~15 pts below",
+                                                                                         "No volume confirmation 鈥?inability to validate conviction",
+                                                                                         "Still inside daily range with room to run both ways"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "Close at/near high (77174.99 vs 77175)",
+                                                                                         "Strong positive delta (+53.73) with tight upper wick",
+                                                                                         "Recovery from lower wick (77118.52 鈫?77174.99) suggests demand absorption",
+                                                                                         "Occurs within expanding 1h range (77091鈥?7253.75)"
+                                                                                     ],
+                                                                "confidence_in_balance":  "medium 鈥?structural evidence favors buyers, but absence of volume and untested key resistance limit strength rating",
+                                                                "net_pressure_balance":  "bullish-leaning-neutral"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_support":  {
+                                                                                               "confidence":  "high 鈥?exact open price, tested and held as floor during bar",
+                                                                                               "level":  77121.26,
+                                                                                               "type":  "intraday open"
+                                                                                           },
+                                                                     "key_resistance":  {
+                                                                                            "confidence":  "medium 鈥?relevant structural level; price approached within 15 pts but did not test it directly in this bar",
+                                                                                            "level":  77190,
+                                                                                            "type":  "daily open"
+                                                                                        },
+                                                                     "major_resistance":  {
+                                                                                              "confidence":  "medium-high 鈥?strongest nearby swing high; 78.76 pts above bar close",
+                                                                                              "level":  77253.75,
+                                                                                              "type":  "daily high"
+                                                                                          },
+                                                                     "minor_resistance":  {
+                                                                                              "confidence":  "high 鈥?exact high, untouched after formation",
+                                                                                              "level":  77175,
+                                                                                              "type":  "intraday high / psychological round number"
+                                                                                          },
+                                                                     "strong_support":  {
+                                                                                            "confidence":  "high 鈥?absolute low of bar, unbroken",
+                                                                                            "level":  77118.52,
+                                                                                            "type":  "intraday low"
+                                                                                        }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T07:00:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "is_last_bar_of_day":  false,
+                                                           "is_last_bar_of_hour":  true,
+                                                           "open_time":  "2026-04-18T06:45:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  14.98,
+                                                              "close":  77160.01,
+                                                              "close_vs_daily_open":  "bearish (鈭?9.99)",
+                                                              "close_vs_open":  "bearish (鈭?4.98)",
+                                                              "close_vs_prev_hour_close":  "bearish (鈭?.12)",
+                                                              "high":  77190.0,
+                                                              "intra_bar_rejection":  "lower wick \u003e upper wick + body 鈫?rejection of lows, but not decisive reversal signal",
+                                                              "low":  77130.69,
+                                                              "lower_wick":  29.32,
+                                                              "momentum_signature":  "weak bearish follow-through, no acceleration into close",
+                                                              "open":  77174.99,
+                                                              "range":  59.31,
+                                                              "upper_wick":  15.01
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_position_in_range":  "lower third (close at 49.5% of range from low)",
+                                                        "classification":  "indeterminate reversal candle (not classic hammer due to bearish close; not hanging man due to location)",
+                                                        "confidence_in_shape_signal":  "low 鈥?lacks strong bullish confirmation (e.g., bullish close or follow-up bar)",
+                                                        "pattern":  "hammer-like but bearish close (long lower wick, small real body, close near open 鈥?not near high)",
+                                                        "wick_ratio":  {
+                                                                           "lower_to_body":  1.96,
+                                                                           "lower_to_upper":  1.95,
+                                                                           "upper_to_body":  1.0
+                                                                       }
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "bearish_bias_score":  5.8,
+                                                                                       "bias_confidence":  "medium",
+                                                                                       "bullish_bias_score":  4.2,
+                                                                                       "dominant_bias":  "bearish-leaning-neutral",
+                                                                                       "neutral_bias_score":  3.0
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "neutral_zone":  "77130.69鈥?7175.00 (consolidation pending direction)",
+                                                                                             "requires_bearish_confirmation":  [
+                                                                                                                                   "next bar closes \u003c 77130.69",
+                                                                                                                                   "break below 77110.00 with expansion"
+                                                                                                                               ],
+                                                                                             "requires_bullish_confirmation":  [
+                                                                                                                                   "next bar closes \u003e 77175.00",
+                                                                                                                                   "next bar high \u003e 77190.00 with follow-through"
+                                                                                                                               ]
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "ambiguity_continues_if":  "next bar closes inside 77145鈥?7175 range with small range (\u003c30 pts)",
+                                                                                                  "bearish_setup_invalidated_if":  "price closes above 77190.00 with 鈮?0% of range as bullish body",
+                                                                                                  "bullish_setup_invalidated_if":  "price closes below 77130.69"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "position_in_daily_range":  "mid-range, above daily low by ~70 pts",
+                                                                                           "position_relative_to_key_levels":  "sandwiched between tested support (77130.69) and untested resistance (77190)",
+                                                                                           "risk_reward_profile":  "asymmetric 鈥?tight stop below 77130, measured move target near 77190 (~60 pt reward)"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "candlestick_reliability":  "low-moderate (shape suggestive but close undermines bullish interpretation)",
+                                                                                         "timing_context":  "late Asian/early European 鈥?historically lower conviction breaks",
+                                                                                         "volume_context_absence":  "unknown (volume=null), limits confirmation strength"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_tf_trend":  "inconclusive (1d neutral, 1h bearish)",
+                                                                                        "lower_tf_momentum":  "fading bearish (reduced range vs prior 15m bars)",
+                                                                                        "trend_consistency":  "low"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "primary_evidence":  [
+                                                                                    "Bar closed bearish after testing 77130.69 鈥?lower wick confirms demand but close negates reversal implication",
+                                                                                    "77190.00 acted as ceiling 鈥?coincides with daily open and prior intraday high",
+                                                                                    "Hourly aggregation shows declining highs/lows since 05:00 UTC",
+                                                                                    "No volume data 鈥?limits conviction on absorption or distribution claims"
+                                                                                ],
+                                                           "secondary_evidence":  [
+                                                                                      "Daily bar remains incomplete 鈥?final directional weight deferred until 00:00 UTC close",
+                                                                                      "Time-of-day aligns with typical liquidity lull before London open",
+                                                                                      "15m volatility contraction vs prior bars (range 鈫?~25% from avg of prior 3 bars)"
+                                                                                  ],
+                                                           "uncertainty_flags":  [
+                                                                                     "Volume missing 鈥?critical gap for assessing institutional participation",
+                                                                                     "Lack of higher-timeframe trend clarity (1d neutral vs 1h bearish)",
+                                                                                     "Ambiguous candle shape 鈥?neither canonical hammer nor shooting star"
+                                                                                 ]
+                                                       },
+                                      "location_context":  {
+                                                               "structural_level_alignment":  "bar straddles 77145鈥?7165 confluence (prior 15m swing low cluster + 1h VWAP proxy)",
+                                                               "support_resistance_proximity":  "77130.69 tests prior intraday swing low (~77130鈥?7135 zone seen in recent context), 77190 coincides with daily open \u0026 recent minor resistance",
+                                                               "trend_location":  "counter-trend pullback within broader hourly downtrend (hourly close \u003c hourly open \u003c prior hourly close)",
+                                                               "vs_daily_range":  "within middle third (77091鈥?7253.75); specifically 41.4% up from daily low, 24.4% down from daily high",
+                                                               "vs_hourly_range":  "within current hourly bar (77164.46鈥?7253.75); close is 4.45 pts below hourly open, 93.74 pts below hourly high"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "daily_close_in_progress":  false,
+                                                                     "daily_high":  77253.75,
+                                                                     "daily_low":  77091.0,
+                                                                     "daily_open":  77190.0,
+                                                                     "hourly_open":  77164.46,
+                                                                     "liquidity_profile":  "moderate_volume (inferred from absence of volume spike and intra-hour consolidation)",
+                                                                     "prev_hour_close":  77167.13,
+                                                                     "session_trend_bias":  "slightly bearish intra-day (price down from daily open and prior hourly close)",
+                                                                     "session_volatility":  "low-to-moderate (15m range = 59.32 pts, ~0.077% of close)",
+                                                                     "utc_session_phase":  "Asian session late overlap with early European"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1d_trend":  "neutral-bearish 鈥?price trading below daily open but above daily low; no confirmed daily bearish close yet",
+                                                                        "1h_trend":  "bearish 鈥?current hour closed below its open and prior hour鈥檚 close",
+                                                                        "alignment_status":  "mixed 鈥?1h bearish, 1d indecisive; no strong confluence for directional bias",
+                                                                        "confluence_strength":  "low-to-moderate",
+                                                                        "higher_tf_conflict":  "yes 鈥?daily structure remains intact (no break of daily low), while hourly shows distribution"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "Bearish close below open and prior hourly close",
+                                                                                         "Failure to hold above 77175 (open) or retest 77190 (daily open)",
+                                                                                         "Hourly structure deteriorating 鈥?two lower highs and lower lows since 05:00 UTC"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "Long lower wick suggests buying interest near 77130鈥?7135",
+                                                                                         "Rejection of sub-77130 levels without follow-through breakdown",
+                                                                                         "Close above 77130.69 implies short-term demand absorption"
+                                                                                     ],
+                                                                "confidence_in_balance":  "medium",
+                                                                "net_pressure_balance":  "slightly bearish 鈥?rejection evident but insufficient bullish follow-through; supply still dominant near session highs",
+                                                                "signal_type":  "failed breakout / failed reversal attempt"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "dynamic_support":  {
+                                                                                             "confidence":  "medium-high",
+                                                                                             "level":  77145.0,
+                                                                                             "proximity_ticks":  15.69,
+                                                                                             "type":  "recent_swing_low_cluster"
+                                                                                         },
+                                                                     "immediate_resistance_1":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  77190.0,
+                                                                                                    "proximity_ticks":  29.99,
+                                                                                                    "type":  "daily_open_and_intraday_high"
+                                                                                                },
+                                                                     "immediate_resistance_2":  {
+                                                                                                    "confidence":  "low-medium",
+                                                                                                    "level":  77220.0,
+                                                                                                    "proximity_ticks":  59.99,
+                                                                                                    "type":  "prior_1h_high_proxy"
+                                                                                                },
+                                                                     "immediate_support_1":  {
+                                                                                                 "confidence":  "high (tested and held on this bar)",
+                                                                                                 "level":  77130.69,
+                                                                                                 "proximity_ticks":  0,
+                                                                                                 "type":  "intraday_low"
+                                                                                             },
+                                                                     "immediate_support_2":  {
+                                                                                                 "confidence":  "medium",
+                                                                                                 "level":  77100.0,
+                                                                                                 "proximity_ticks":  30.69,
+                                                                                                 "type":  "round_number"
+                                                                                             },
+                                                                     "key_confluence_zone":  {
+                                                                                                 "confidence":  "medium-high",
+                                                                                                 "high":  77165.0,
+                                                                                                 "low":  77130.69,
+                                                                                                 "type":  "liquidity \u0026 structural node"
+                                                                                             }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T07:15:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "open_time":  "2026-04-18T07:00:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  56.25,
+                                                              "close":  77103.75,
+                                                              "close_vs_high":  "58.27 below high",
+                                                              "close_vs_low":  "30.27 above low",
+                                                              "close_vs_open":  "bearish (鈭?6.25)",
+                                                              "high":  77162.02,
+                                                              "intra_bar_rejection":  "Lower wick indicates rejection near low; upper wick minimal 鈥?limited resistance testing at top.",
+                                                              "low":  77083.48,
+                                                              "open":  77160.0,
+                                                              "range":  78.54,
+                                                              "wick_lower":  20.27,
+                                                              "wick_upper":  2.02
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_to_range_ratio":  0.716,
+                                                        "close_location_within_range":  "38.5% up from low (i.e., closer to low than mid-point)",
+                                                        "confidence_in_shape_interpretation":  "high 鈥?clean price rejection at lows, failed recovery toward open/high",
+                                                        "pattern":  "bearish marubozu variant with extended lower wick (not full marubozu due to small upper wick)",
+                                                        "wick_dominance":  "lower wick dominant (26% of range), upper wick negligible (3% of range)"
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "dominant_bias":  "bearish bias with long opportunity conditional on support confirmation",
+                                                                                       "long_bias_strength":  "low-to-moderate (contingent on support hold + reversal signal)",
+                                                                                       "neutral_zone":  "77103.75鈥?7160.0 鈥?consolidation range pending resolution",
+                                                                                       "short_bias_strength":  "moderate"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "confirmation_failure_condition":  "Next bar closes below 77083.48",
+                                                                                             "confirmation_time_horizon":  "1鈥? bars (30鈥?5 mins)",
+                                                                                             "required_confirmation":  [
+                                                                                                                           "Next bar closes above 77160.0",
+                                                                                                                           "OR next bar forms bullish reversal pattern (e.g., hammer + engulfing) with volume"
+                                                                                                                       ]
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "primary_invalidation":  "Close below 77083.48",
+                                                                                                  "secondary_invalidation":  "Two consecutive closes below 77103.75 (this bar鈥檚 close)",
+                                                                                                  "structural_invalidation":  "Daily bar closes below 77083.48 鈥?invalidates intraday support thesis"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "key_level_tested":  "support at 77083.48 (intraday low)",
+                                                                                           "location_risk_profile":  "high-probability support zone, but untested on higher timeframes beyond today",
+                                                                                           "next_key_level_downside":  "77083.48 (tested low), then 77000.0 (psychological, not in data)",
+                                                                                           "next_key_level_upside":  "77160.0 (open/resistance)",
+                                                                                           "test_outcome_so_far":  "held 鈥?no break below"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "clarity":  "high 鈥?defined wicks, clear body, tight range relative to prior",
+                                                                                         "false_signal_risk":  "medium 鈥?wick-based support requires confirmation; single-bar signals inherently fragile",
+                                                                                         "noise_factor":  "low (no volume noise; clean rejection pattern)"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_tf_bias":  "neutral-to-bearish (1h \u0026 daily both trading below opens)",
+                                                                                        "lower_tf_momentum":  "bearish (current bar closes lower with rejection of highs)",
+                                                                                        "trend_continuation_probability":  "moderate (60%)",
+                                                                                        "trend_reversal_triggers":  [
+                                                                                                                        "Close \u003e 77162.02 (bar high) with follow-through",
+                                                                                                                        "Strong bullish engulfing on next bar"
+                                                                                                                    ]
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "assumptions_stated":  [
+                                                                                      "77083.48 is treated as hard support until broken 鈥?though no historical test history provided beyond current day.",
+                                                                                      "77160.0 is assumed relevant resistance due to open/confluence with prior close 鈥?validated by lack of retest above it in this bar."
+                                                                                  ],
+                                                           "missing_evidence":  [
+                                                                                    "Volume 鈥?critical for validating wick-based demand.",
+                                                                                    "Preceding multi-bar context beyond last 1h (e.g., trend slope, moving averages).",
+                                                                                    "Order book depth or spread data 鈥?unavailable in input."
+                                                                                ],
+                                                           "primary_evidence":  [
+                                                                                    "Bar low = 77083.48 matches daily \u0026 1h bar low 鈥?objective support level established.",
+                                                                                    "Close at 77103.75 is 56.25 below open 鈥?bearish body confirms rejection of opening price.",
+                                                                                    "Upper wick only 2.02 鈥?minimal overhead supply encountered.",
+                                                                                    "Lower wick 20.27 鈥?shows aggressive bid response near low, but insufficient to lift price back to open."
+                                                                                ],
+                                                           "secondary_evidence":  [
+                                                                                      "No volume provided 鈥?limits conviction assessment.",
+                                                                                      "Time of day (07:00鈥?7:15 UTC) aligns with typical liquidity lull between Asian close and European ramp-up.",
+                                                                                      "Prior 1h bar (06:00鈥?7:00) showed narrowing range and lower close 鈥?sets stage for continuation."
+                                                                                  ]
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  "Low (77083.48) is 106.52 pts below prior 1h open (77190); also 26.52 pts above prior swing low (unobserved in supplied context, so marked as \u0027not derivable from input\u0027).",
+                                                               "position_within_1h_structure":  "First bar of incomplete 1h candle (07:00鈥?8:00 UTC); that 1h bar has open=77160, current low=77083.48, so bar establishes early 1h support test.",
+                                                               "position_within_daily_structure":  "Within incomplete daily bar (00:00鈥?4:00 UTC Apr 18) which opened at 77190 and has so far traded 77083.48鈥?7253.75 鈥?this bar tests the intraday low, now the strongest tested support level of the day.",
+                                                               "relative_to_prior_bar":  "Follows a 15m bar opening at 77160 and closing at 77160.01 鈥?near-flat; this bar breaks downward with bearish momentum."
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_profile":  "Moderate 鈥?post-Asian close, pre-European full liquidity; volume data unavailable but 1h bar preceding this shows declining child-bar count (last 1h bar only 1 of 4 completed), suggesting thinning participation.",
+                                                                     "session_volatility_trend":  "Declining 鈥?prior 1h bar (06:00鈥?7:00 UTC) had range 163.75; this 15m bar range = 78.54 鈥?~52% contraction.",
+                                                                     "utc_session_phase":  "Asian session overlap with early European open (07:00鈥?7:15 UTC 鈮?08:00鈥?8:15 CET, 15:00鈥?5:15 SGT)"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1h_trend":  "Neutral-to-bearish 鈥?prior completed 1h bar (06:00鈥?7:00) closed at 77160.01, slightly below its open (77164.46); current 1h bar (07:00鈥?8:00) opens at same level and immediately sells off.",
+                                                                        "alignment_assessment":  "Mildly bearish alignment 鈥?all timeframes show price below respective opens; no higher-timeframe bullish structure (e.g., higher highs/lows) confirmed in supplied context.",
+                                                                        "conflict_indicators":  "None detected 鈥?no divergence between 1h and daily directional bias in available data.",
+                                                                        "daily_trend":  "Slightly bearish 鈥?daily bar opened at 77190, currently trading below open; low tested and holding so far."
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "Bearish body with close near low 鈥?implies selling pressure dominated final 15m.",
+                                                                                         "Failure to recover past open (77160) or prior 15m close (77160.01) 鈥?rejection of prior equilibrium.",
+                                                                                         "Position within 1h candle: first bar down on an incomplete hourly candle 鈥?increases probability of continuation unless reversed quickly."
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "Lower wick shows buying interest emerged near 77083.48 鈥?potential demand zone formation.",
+                                                                                         "Close holds above low 鈥?no tail-close failure; suggests sellers did not sustain control to new lows."
+                                                                                     ],
+                                                                "caveats":  "Volume absent 鈥?cannot confirm conviction behind move; Asian session liquidity constraints may inflate wick significance.",
+                                                                "confidence_in_balance":  "medium-high",
+                                                                "net_pressure_balance":  "bearish"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_resistance":  {
+                                                                                                  "confidence":  "high",
+                                                                                                  "derivation":  "Exact open of this bar and prior bar 鈥?confluence with prior 15m close (77160.01).",
+                                                                                                  "level":  77160.0,
+                                                                                                  "type":  "current bar open / prior 15m open"
+                                                                                              },
+                                                                     "immediate_support":  {
+                                                                                               "confidence":  "high",
+                                                                                               "derivation":  "Current bar low 鈥?also matches low of incomplete 1h bar and lowest print of daily bar so far.",
+                                                                                               "level":  77083.48,
+                                                                                               "type":  "intraday swing low"
+                                                                                           },
+                                                                     "minor_resistance":  {
+                                                                                              "confidence":  "high",
+                                                                                              "derivation":  "Open of active daily bar 鈥?untested so far, strong structural reference.",
+                                                                                              "level":  77190.0,
+                                                                                              "type":  "daily open"
+                                                                                          },
+                                                                     "minor_support":  {
+                                                                                           "confidence":  "medium",
+                                                                                           "derivation":  "Close (77103.75) sits just above; prior 15m close was 77160.01 鈥?no dense clustering, but 77100 is nearest round number under close.",
+                                                                                           "level":  77100.0,
+                                                                                           "type":  "psychological round number + recent close cluster"
+                                                                                       }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "instrument":  "BTC/USD",
+                                                           "is_final_incomplete_daily_bar":  false,
+                                                           "status":  "closed",
+                                                           "timeframe":  "15m",
+                                                           "timestamp":  "2026-04-18T07:30:00Z"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  7.52,
+                                                              "close":  77111.26,
+                                                              "close_vs_high":  "weak rejection (15.93 below high)",
+                                                              "close_vs_low":  "strong rebound (41.14 above low)",
+                                                              "close_vs_open":  "bullish but minimal (up 7.52)",
+                                                              "high":  77127.19,
+                                                              "intra_bar_dynamics":  "early selling pressure tested 77070.12, followed by recovery to close near open 鈥?suggests absorption of sell-side liquidity and modest bullish follow-through",
+                                                              "low":  77070.12,
+                                                              "lower_wick":  41.14,
+                                                              "open":  77103.74,
+                                                              "range":  57.07,
+                                                              "upper_wick":  15.93
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_position":  "near top third of range",
+                                                        "body_ratio_to_range":  0.132,
+                                                        "confirmation_requirement":  "bullish follow-up bar closing above 77127.19 (prior bar high) or above 77160 (prior 1h close)",
+                                                        "pattern_name":  "hammer-like (long lower wick, small real body, upper wick present but not dominant)",
+                                                        "wick_ratio_lower_to_upper":  2.58
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "bearish_bias":  0.65,
+                                                                                       "bias_stability":  "stable 鈥?reinforced by multi-timeframe alignment",
+                                                                                       "bullish_bias":  0.35,
+                                                                                       "neutral_bias":  0.0,
+                                                                                       "primary_bias":  "bearish"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "current_confirmation_status":  "unconfirmed",
+                                                                                             "required_confirmation":  "bullish close \u003e 77127.19 or \u003e 77160.01 within next 1鈥? bars",
+                                                                                             "time_remaining_for_confirmation":  "15鈥?0 mins (next 1鈥? bars)"
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "hard_invalidators":  [
+                                                                                                                            "close below 77070.12"
+                                                                                                                        ],
+                                                                                                  "invalidation_imminence":  "high 鈥?proximity to 77070.12 increases breakdown risk",
+                                                                                                  "soft_invalidators":  [
+                                                                                                                            "close below 77091 without immediate recovery",
+                                                                                                                            "next bar forms bearish engulfing or lower low"
+                                                                                                                        ]
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "position_in_cycle":  "late-stage bearish move testing intraday support",
+                                                                                           "risk_of_breakdown":  "elevated if next bar closes below 77070.12",
+                                                                                           "support_test_status":  "active 鈥?low achieved and held, but no strong rebound yet"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "contextual_fit":  "poor 鈥?occurs in strong bearish trend without confluence (e.g., no oversold RSI, no divergence, no volume spike)",
+                                                                                         "quality_rating":  "B- (structurally sound but contextually weak)",
+                                                                                         "shape_validity":  "valid hammer morphology"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_tf_bias":  "bearish (1h \u0026 daily aligned down)",
+                                                                                        "local_momentum":  "downward 鈥?accelerating lower wick followed by weak recovery",
+                                                                                        "trend_strength":  "moderate (consistent lower highs/lows over last 3鈥? hours)"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "confidence_summary":  "Medium-low confidence in reversal; medium-high confidence in continuation of short-term bearish structure",
+                                                           "key_bearish_inputs":  [
+                                                                                      "77070.12 \u003c 77091 (lower low)",
+                                                                                      "77127.19 \u003c 77162 \u0026 77253 (lower high)",
+                                                                                      "close \u003c prior 1h close (77160.01)",
+                                                                                      "daily bar open 77190 remains unchallenged"
+                                                                                  ],
+                                                           "key_bullish_inputs":  [
+                                                                                      "77070.12 low held",
+                                                                                      "41-pt recovery from low",
+                                                                                      "small positive close"
+                                                                                  ],
+                                                           "missing_data_impact":  [
+                                                                                       "volume null 鈥?unable to assess conviction behind support test or rejection",
+                                                                                       "no oscillator/divergence data 鈥?limits oversold assessment"
+                                                                                   ],
+                                                           "temporal_uncertainty":  [
+                                                                                        "bar is second of two in current 1h window; final 1h bar not yet formed 鈥?structural completeness pending"
+                                                                                    ]
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  "testing multi-session support near 77070鈥?7090 zone (matches prior 1h low and current bar low)",
+                                                               "trend_direction_local":  "short-term bearish (lower highs: 77253.75 鈫?77127.19; lower lows: 77091 鈫?77070.12)",
+                                                               "vs_daily_structure":  "within incomplete daily bar (open 77190, current low 77070.12 = 119.88 below daily open; current close 77111.26 = 78.74 below daily open); price remains inside daily range but trending downward from daily open",
+                                                               "vs_prior_1h_bar":  "current bar closes below prior 1h close (77160.01) and below prior 1h low (77091), but above prior 1h open (77164.46) 鈥?ambiguous relative strength"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_indicators":  "volume unavailable 鈥?neutral assumption; no volume spike inferred",
+                                                                     "session_volatility_profile":  "moderate (based on 1h bar range: ~160 pts, prior 1h range ~60 pts)",
+                                                                     "utc_session_phase":  "Asian session late overlap with early European"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1h_trend":  "bearish 鈥?two consecutive lower highs/lows; most recent 1h bar closed at 77160.01, current bar breaks below that 1h low (77091) and tests new swing low",
+                                                                        "alignment_summary":  "confluence of bearish pressure across 1h and daily 鈥?no higher-timeframe bullish alignment supporting reversal",
+                                                                        "daily_trend":  "bearish bias 鈥?daily bar open 77190, price has declined ~120 pts without reclaiming open; incomplete daily bar shows rejection at resistance near 77253"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "failure to reclaim prior 1h close (77160.01) or daily open (77190)",
+                                                                                         "lower high (77127 \u003c 77162 \u0026 77253), lower low (77070 \u003c 77091)",
+                                                                                         "current bar closes below both prior 1h close and prior 1h low 鈥?bearish structure confirmation",
+                                                                                         "daily bar remains deeply negative relative to open"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "hammer-like shape suggests potential exhaustion of sellers at 77070.12",
+                                                                                         "close well above low (+41.14) indicates buying interest near support",
+                                                                                         "no follow-through selling after low test 鈥?price held above 77070 for remainder of bar"
+                                                                                     ],
+                                                                "net_pressure_balance":  "bearish 鈥?structural evidence outweighs single-bar reversal signal",
+                                                                "reversal_confidence":  "low-to-medium 鈥?requires confirmation above 77127.19 or 77160.01 to upgrade"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_resistance_1":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  77127.19,
+                                                                                                    "source":  "current bar",
+                                                                                                    "type":  "current_bar_high"
+                                                                                                },
+                                                                     "immediate_support_1":  {
+                                                                                                 "confidence":  "high",
+                                                                                                 "level":  77070.12,
+                                                                                                 "source":  "current bar low",
+                                                                                                 "type":  "intraday_swinglevel"
+                                                                                             },
+                                                                     "immediate_support_2":  {
+                                                                                                 "confidence":  "medium_high",
+                                                                                                 "level":  77091,
+                                                                                                 "source":  "prior 1h bar low",
+                                                                                                 "type":  "1h_low"
+                                                                                             },
+                                                                     "intermediate_resistance_2":  {
+                                                                                                       "confidence":  "medium_high",
+                                                                                                       "level":  77160.01,
+                                                                                                       "source":  "prior 1h aggregated bar",
+                                                                                                       "type":  "prior_1h_close"
+                                                                                                   },
+                                                                     "intermediate_support":  {
+                                                                                                  "confidence":  "medium",
+                                                                                                  "level":  77000,
+                                                                                                  "source":  "structural round number, untested but historically relevant",
+                                                                                                  "type":  "psychological_round_number"
+                                                                                              },
+                                                                     "key_resistance":  {
+                                                                                            "confidence":  "high",
+                                                                                            "level":  77190,
+                                                                                            "source":  "daily bar open",
+                                                                                            "type":  "daily_open"
+                                                                                        }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T07:45:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "kind":  "canonical_closed_bar",
+                                                           "open_time":  "2026-04-18T07:30:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  44.66,
+                                                              "close":  77066.6,
+                                                              "close_vs_high":  "鈭?8.4",
+                                                              "close_vs_low":  "+66.6",
+                                                              "close_vs_open":  "bearish (鈭?4.66)",
+                                                              "high":  77115.0,
+                                                              "intra_bar_sequence":  "Opened near prior 15m high 鈫?rejected upward slightly 鈫?sold off sharply to low 鈫?recovered modestly to close above midpoint but below open",
+                                                              "low":  77000.0,
+                                                              "open":  77111.26,
+                                                              "range":  115.0,
+                                                              "wick_lower":  66.6,
+                                                              "wick_upper":  3.74
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_position":  "upper third of range",
+                                                        "confidence_in_shape_interpretation":  "high 鈥?clear rejection at top, strong sweep of liquidity below 77091 (prior 1h low), recovery into upper half but failure to hold gains",
+                                                        "engulfment_status":  "none 鈥?no engulfment of prior bar (prior bar: open=77111.26? No 鈥?need prior bar; insufficient data to confirm engulfment)",
+                                                        "pattern_name":  "bearish pin bar (lower wick dominant, small body near high, long lower tail)",
+                                                        "wick_ratio_lower_to_range":  0.579,
+                                                        "wick_ratio_upper_to_lower":  0.056
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "long_bias":  "conditional 鈥?only upon confirmed break above 77130 with volume",
+                                                                                       "neutral_threshold":  "77030鈥?7115 鈥?consolidation range pending resolution",
+                                                                                       "short_bias":  "active 鈥?favored until confirmed reversal"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "absence_of_confirmation":  "not yet observed",
+                                                                                             "pending":  true,
+                                                                                             "required_confirmation":  "Next 15m bar must close above 77115 (current bar high) *and* above 77130 (midpoint between 77115 and 77160) to invalidate bearish pin interpretation"
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "primary":  "Close below 76999.0 (1 tick under daily low) 鈥?invalidates support thesis and triggers breakdown mode",
+                                                                                                  "secondary":  "Two consecutive closes below 77030 鈥?suggests demand zone failure",
+                                                                                                  "structural":  "1h close below 77000 鈥?would confirm daily low breach"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "description":  "At confluence of daily and hourly swing low (77000), with first test occurring now",
+                                                                                           "risk_level":  "elevated near 77000 due to stop-run potential",
+                                                                                           "strategic_implication":  "High-probability demand zone 鈥?but requires bullish confirmation to shift bias"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "contextual_fit":  "high",
+                                                                                         "overall_rating":  "7/10",
+                                                                                         "shape_validity":  "high",
+                                                                                         "temporal_timing":  "medium 鈥?occurs late in Asian session, lower liquidity may exaggerate wick"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "direction":  "bearish",
+                                                                                        "evidence_basis":  "1d and 1h closes below opens; price trading below key intraday opens and near swing lows",
+                                                                                        "strength":  "moderate"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "confidence_qualifiers":  [
+                                                                                         "Shape and location evidence strong, but confirmation-dependent",
+                                                                                         "Multi-timeframe alignment increases reliability of 77000 as decision-level",
+                                                                                         "UTC timing implies lower liquidity 鈥?wick may be exaggerated"
+                                                                                     ],
+                                                           "data_gaps":  [
+                                                                             "No volume 鈥?cannot verify absorption or exhaustion",
+                                                                             "No prior 15m bar 鈥?prevents engulfment, inside/outside bar, or trend continuity analysis",
+                                                                             "No oscillator or order flow data 鈥?purely price-action grounded"
+                                                                         ],
+                                                           "inferred_dynamics":  [
+                                                                                     "Liquidity sweep below 77091 (prior 1h low) to trigger stops before bounce",
+                                                                                     "Limited follow-through on recovery 鈥?inability to retake 77111 suggests weak bids above",
+                                                                                     "Absence of volume data limits conviction on absorption strength"
+                                                                                 ],
+                                                           "observed_facts":  [
+                                                                                  "Bar low = 77000.0 鈥?matches daily and 1h reported low",
+                                                                                  "Bar high = 77115.0 鈥?fails to exceed prior 15m open (77111.26) by meaningful margin",
+                                                                                  "Close = 77066.6 鈥?44.66 pts below open, 48.4 pts below high, 66.6 pts above low",
+                                                                                  "1h bar (07:00鈥?8:00) low = 77000.0, same as current bar low",
+                                                                                  "Daily bar low = 77000.0 鈥?identical level, reinforcing significance"
+                                                                              ]
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  "Touches daily \u0026 1h swing low (77000); closes 66.6 pts above 鈥?potential demand zone forming at 77000鈥?7030",
+                                                               "trend_alignment":  "Counter-trend pullback within broader daily bearish structure (daily open \u003e close, upper wick \u003e lower wick overall)",
+                                                               "vs_1h_structure":  "Bar occurs in third 15m sub-bar of incomplete 1h bar (07:00鈥?8:00 UTC), which opened at 77160, high 77162.02, low 77000, current close 77066.6 鈥?bar is testing the 1h low boundary",
+                                                               "vs_daily_structure":  "Within daily bar (00:00鈥?4:00 UTC) that opened at 77190, high 77253.75, low 77000, current close 77066.6 鈥?bar tests daily low (77000) and closes just above it"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_profile":  "Moderate 鈥?post-Asian close, pre-European full liquidity; volume not reported but intraday structure suggests consolidation phase",
+                                                                     "session_volatility_context":  "Low-to-moderate 鈥?15m range = 115.0 points (~0.15%), contained within prior 1h low (77091) and high (77162.02)",
+                                                                     "utc_session_phase":  "Asian session late overlap with early European open (07:30鈥?7:45 UTC 鈮?08:30鈥?8:45 CET, 15:30鈥?5:45 SGT)"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1d_trend":  "bearish 鈥?open 77190 \u003e close 77066.6, high 77253.75 untested recently, low 77000 tested and holding so far",
+                                                                        "1h_trend":  "bearish 鈥?current 1h bar (07:00鈥?8:00) open 77160 \u003e close 77066.6, low 77000 tested",
+                                                                        "confluence":  "Strong bearish alignment across 1d and 1h; 15m bar reinforces lower-timeframe selling pressure near multi-session support",
+                                                                        "divergence_risk":  "None detected 鈥?no bullish divergence in price vs any oscillator (no oscillator data provided); price action consistent across timeframes"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "Bearish close below open and prior 15m highs",
+                                                                                         "Failure to sustain rally above 77111 鈥?rejection at minor supply",
+                                                                                         "Position within bearish 1h and 1d context amplifies downside bias",
+                                                                                         "No follow-through above 77115 despite early strength"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "Close above daily low (77000), suggesting bid absorption",
+                                                                                         "Lower wick indicates sellers exhausted near 77000 鈥?possible liquidity grab",
+                                                                                         "Recovery from low (77000 鈫?77066.6) shows residual buying interest"
+                                                                                     ],
+                                                                "net_pressure_balance":  "bearish-leaning-neutral 鈥?structural bias down, but localized demand visible at 77000; no confirmation of reversal yet",
+                                                                "signal_strength":  "medium 鈥?shape + location compelling, but lacks confirmation (e.g., bullish follow-through bar or volume spike)"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "moderate_resistance":  [
+                                                                                                 {
+                                                                                                     "confidence":  "medium",
+                                                                                                     "level":  77190.0,
+                                                                                                     "retest_count":  0,
+                                                                                                     "status":  "untested_recently",
+                                                                                                     "timeframe_origin":  "1d_bar",
+                                                                                                     "type":  "daily_open"
+                                                                                                 }
+                                                                                             ],
+                                                                     "moderate_support":  [
+                                                                                              {
+                                                                                                  "confidence":  "medium",
+                                                                                                  "level":  77030.0,
+                                                                                                  "retest_count":  0,
+                                                                                                  "status":  "untested",
+                                                                                                  "timeframe_origin":  "15m_close_midpoint_to_low",
+                                                                                                  "type":  "mean_reversion_zone"
+                                                                                              }
+                                                                                          ],
+                                                                     "strong_resistance":  [
+                                                                                               {
+                                                                                                   "confidence":  "high",
+                                                                                                   "level":  77115.0,
+                                                                                                   "retest_count":  1,
+                                                                                                   "status":  "rejected",
+                                                                                                   "timeframe_origin":  "current_15m_bar",
+                                                                                                   "type":  "intraday_high"
+                                                                                               },
+                                                                                               {
+                                                                                                   "confidence":  "medium-high",
+                                                                                                   "level":  77160.0,
+                                                                                                   "retest_count":  0,
+                                                                                                   "status":  "untested_in_current_bar",
+                                                                                                   "timeframe_origin":  "1h_bar_07:00",
+                                                                                                   "type":  "1h_open"
+                                                                                               }
+                                                                                           ],
+                                                                     "strong_support":  [
+                                                                                            {
+                                                                                                "confidence":  "high",
+                                                                                                "level":  77000.0,
+                                                                                                "retest_count":  1,
+                                                                                                "status":  "actively tested",
+                                                                                                "timeframe_origin":  "1d_and_1h",
+                                                                                                "type":  "session_low"
+                                                                                            }
+                                                                                        ]
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_state":  "closed",
+                                                           "close_time":  "2026-04-18T08:00:00Z",
+                                                           "display_symbol":  "BTC/USD",
+                                                           "instrument_id":  "22222222-2222-2222-2222-222222222202",
+                                                           "is_first_bar_of_hour":  false,
+                                                           "is_last_bar_of_hour":  true,
+                                                           "open_time":  "2026-04-18T07:45:00Z",
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_to_range_ratio":  0.0,
+                                                              "close_below_open":  true,
+                                                              "close_position_relative_to_range":  "close at 0.31% above low, 0.60% below open/high",
+                                                              "intra_bar_sequence":  "opened at high 鈫?immediate rejection 鈫?decline to low 鈫?recovery to close near open (but below)",
+                                                              "low_represents_intraday_extreme":  true,
+                                                              "open_equals_high":  true,
+                                                              "range":  143.53,
+                                                              "wick_structure":  "long lower wick only (143.53), no upper wick"
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_size_classification":  "negligible",
+                                                        "confirmation_requirement":  "bullish follow-through (e.g., next bar closes above 77066.61) needed to validate hammer reversal; bearish follow-through (close below 76923.08) invalidates",
+                                                        "engulfing_status":  "none",
+                                                        "inside_bar_status":  "no 鈥?bar range exceeds prior 15m bar鈥檚 (inferred from 1h aggregation showing prior bar low 77091, current low 76923.08)",
+                                                        "pattern_name":  "hammer (bearish variant 鈥?open=high, long lower wick, small real body near open)",
+                                                        "wick_dominance":  "strongly lower-wick dominant"
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "bearish_weight":  0.65,
+                                                                                       "bias_confidence":  "medium_high",
+                                                                                       "bullish_weight":  0.35,
+                                                                                       "dominant_bias":  "bearish",
+                                                                                       "neutral_weight":  0.0
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "alternative_validating_pattern":  "bullish engulfing or strong inside-bar breakout on next bar",
+                                                                                             "confirmed":  false,
+                                                                                             "pending_confirmation_bar":  "next 15m bar (08:00鈥?8:15 UTC)",
+                                                                                             "required_condition":  "close \u003e 77066.61 AND preferably \u003e 77160.0"
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "primary_invalidates":  [
+                                                                                                                              "close \u003c 76923.08"
+                                                                                                                          ],
+                                                                                                  "secondary_invalidates":  [
+                                                                                                                                "next bar closes \u003c 76980.0 鈥?indicates failed bounce"
+                                                                                                                            ],
+                                                                                                  "structural_break":  "violation of current bar low invalidates hammer interpretation and confirms bearish continuation"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "position_relative_to_resistance":  "0.60% below nearest resistance (77066.61)",
+                                                                                           "position_relative_to_support":  "0.11% above strongest known support (76923.08)",
+                                                                                           "risk_exposure_zone":  "high 鈥?proximity to support increases stop-run risk; break below 76923.08 likely triggers acceleration"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "contextual_relevance":  "medium 鈥?valid pattern but appears in fatigue zone of trend, not initiation zone",
+                                                                                         "noise_filtering":  "medium 鈥?no volume confirmation, but multi-TF alignment adds weight",
+                                                                                         "structural_integrity":  "high 鈥?clean wick, defined open/high, measurable range"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "higher_tf_trend":  "bearish (1h confirmed, daily leaning bearish)",
+                                                                                        "intra_tf_momentum":  "downward 鈥?current bar extends lower low and fails to recover above open",
+                                                                                        "trend_continuation_probability":  "high"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "assumptions_stated":  [
+                                                                                      "Lower wick reflects genuine selling exhaustion unless invalidated by next bar",
+                                                                                      "76923.08 functions as hard support until broken 鈥?not merely psychological",
+                                                                                      "1h bearish structure is reliable proxy for short-term trend absent contradictory evidence"
+                                                                                  ],
+                                                           "inferred_context":  [
+                                                                                    "Rejection at 77066.61 aligns with prior 1h resistance (77091鈥?7160 zone)",
+                                                                                    "Sweep of 76923.08 likely targeted latent liquidity below prior swing low",
+                                                                                    "Failure to hold above 77066.61 suggests persistent seller control"
+                                                                                ],
+                                                           "observed_facts":  [
+                                                                                  "Open = High = 77066.61",
+                                                                                  "Low = 76923.08 (new 1h and intraday swing low)",
+                                                                                  "Close = 77020.01 (0.60% below open, 0.31% above low)",
+                                                                                  "Prior 1h bar closed at 77160.01, low 77091 鈥?current bar breaks both",
+                                                                                  "Daily bar open = 77190, high = 77253.75, current price 0.27% below daily high, 0.42% above daily low"
+                                                                              ],
+                                                           "uncertainties":  [
+                                                                                 "No volume data 鈥?cannot verify absorption vs. stop-run at low",
+                                                                                 "Daily bar incomplete 鈥?final daily bias remains unconfirmed",
+                                                                                 "Lack of microstructure (order flow/tape) limits precision on wick motivation"
+                                                                             ]
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  "0.11% above multi-session support cluster near 76940鈥?6920 (derived from prior swing low 76923.08 + confluence with 06:00鈥?7:00 1h low 77091 鈥?not adjacent, but directional extension)",
+                                                               "position_within_daily_range":  "within daily range (76923.08鈥?7253.75); specifically, 0.42% above daily low, 0.31% below daily open (77190), 0.27% below daily high (77253.75)",
+                                                               "relative_to_1h_structure":  "current bar is final bar of 1h candle that closed at 77020.01 鈥?the lowest 1h close since at least 06:00鈥?7:00 UTC window",
+                                                               "relative_to_prior_1h_bar":  "current bar opens below prior 1h bar close (77160.01) and low (77091), indicating continuation of downward pressure",
+                                                               "trend_direction_at_bar":  "short-term bearish (lower highs/lows over last two 1h candles: 77253.75 鈫?77162.02 鈫??; 77150 鈫?77091 鈫?76923.08)"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_environment":  "intermediate 鈥?volume absent but structural alignment across 1h and 1d suggests institutional presence in prior bars",
+                                                                     "session_alignment_note":  "Bar closes at top of 1h aggregation window (07:00鈥?8:00 UTC), coinciding with end-of-hour settlement behavior",
+                                                                     "session_volatility_profile":  "moderate 鈥?intraday range (143.53 pts) ~0.19% of close; consistent with post-Asian-range consolidation",
+                                                                     "utc_session_phase":  "Asian session late overlap with early European"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1h_trend":  "bearish 鈥?lower high (77162.02 \u003c 77228.23), lower low (76923.08 \u003c 77091), lower close (77020.01 \u003c 77160.01)",
+                                                                        "alignment_assessment":  "strong bearish alignment across 1h and intrabar 鈥?no countertrend signal on higher TFs; daily remains inconclusive due to incompleteness",
+                                                                        "conflict_detection":  "none 鈥?all aligned downward on 1h; daily lacks contradiction",
+                                                                        "daily_trend":  "neutral-to-slightly-bearish 鈥?daily bar incomplete but trading below open (77190) and trending toward negative close; high remains unchallenged"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "open = high confirms rejection of higher prices",
+                                                                                         "failure to reclaim prior 1h open (77160) or daily open (77190)",
+                                                                                         "two consecutive lower 1h closes with expanding range (77160.01 鈫?77020.01, low drop from 77091 鈫?76923.08)",
+                                                                                         "no bullish follow-through in current bar 鈥?instead, distribution at open"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "hammer-like structure with long lower wick suggests selling exhaustion",
+                                                                                         "recovery from low to close near open implies bid-side absorption",
+                                                                                         "occurs after sharp decline 鈥?potential oversold condition within short-term context"
+                                                                                     ],
+                                                                "confirmation_threshold":  "next bar must close \u003e 77066.61 with expansion to qualify as valid reversal signal",
+                                                                "net_pressure_balance":  "bearish bias dominant",
+                                                                "signal_quality_rating":  "moderate 鈥?structure suggestive but requires confirmation; wick meaningful, yet occurs in established downtrend without countertrend momentum"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "daily_high":  {
+                                                                                        "confidence":  "high",
+                                                                                        "level":  77253.75,
+                                                                                        "origin":  "daily bar high",
+                                                                                        "type":  "daily_high"
+                                                                                    },
+                                                                     "daily_resistance":  {
+                                                                                              "confidence":  "high",
+                                                                                              "level":  77190.0,
+                                                                                              "origin":  "daily bar open",
+                                                                                              "type":  "daily_open"
+                                                                                          },
+                                                                     "immediate_support_1":  {
+                                                                                                 "confidence":  "high",
+                                                                                                 "level":  76923.08,
+                                                                                                 "origin":  "current bar low",
+                                                                                                 "type":  "swing_low"
+                                                                                             },
+                                                                     "immediate_support_2":  {
+                                                                                                 "confidence":  "medium",
+                                                                                                 "level":  76940.0,
+                                                                                                 "origin":  "rounded zone near prior minor reaction \u0026 liquidity sweep target",
+                                                                                                 "type":  "approximate_cluster"
+                                                                                             },
+                                                                     "near_term_resistance_1":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  77066.61,
+                                                                                                    "origin":  "current bar open/high",
+                                                                                                    "type":  "recent_high"
+                                                                                                },
+                                                                     "near_term_resistance_2":  {
+                                                                                                    "confidence":  "medium_high",
+                                                                                                    "level":  77160.0,
+                                                                                                    "origin":  "07:00鈥?8:00 1h open",
+                                                                                                    "type":  "prior_1h_open"
+                                                                                                }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_index_in_session":  1,
+                                                           "close_time":  "2026-04-18T08:15:00Z",
+                                                           "is_closed":  true,
+                                                           "open_time":  "2026-04-18T08:00:00Z",
+                                                           "session_start_offset_minutes":  0,
+                                                           "timeframe":  "15m"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  185.98,
+                                                              "close_relative_to_range":  "close at extreme low of bar (98.3% down from high, 99.8% down from open)",
+                                                              "momentum_shift_evidence":  "strong 鈥?intrabar reversal with failure to sustain rally above prior 1h high (77162.02) or daily high (77253.75)",
+                                                              "price_action":  "bearish rejection: opened near prior 1h bar close (77020.02 vs 77020.01), rallied to 77070.98 (+50.96), then collapsed to close at 76834 鈥?a 186.02 net drop from open and 236.98 below high",
+                                                              "range":  240.96,
+                                                              "wick_structure":  "long upper wick (50.96), no lower wick (low = close = 76830/76834 鈫?4-pt spread, effectively pinbar-like low test)"
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_color":  "red",
+                                                        "confidence_in_shape_classification":  "high",
+                                                        "pattern":  "bearish pin bar / shooting star variant (upper wick \u003e 2脳 body, close near low)",
+                                                        "real_body_percentage_of_range":  77.2,
+                                                        "wick_ratio_lower_to_body":  0.022,
+                                                        "wick_ratio_upper_to_body":  0.275
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "default_bias":  "bearish",
+                                                                                       "long_bias_strength":  "weak (only supported by daily low test)",
+                                                                                       "neutral_zone":  "76830鈥?7020 (consolidation/conflict zone)",
+                                                                                       "short_bias_strength":  "strong"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "requires_bearish_confirmation":  "next 15m bar closing below 76830",
+                                                                                             "requires_bullish_invalidating_confirmation":  "two consecutive closes above 77070.98",
+                                                                                             "status":  "unconfirmed but high-probability setup"
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "primary":  "close above 77070.98 with follow-through (e.g., next bar closes \u003e77020)",
+                                                                                                  "secondary":  "strong bullish engulfing on next bar with volume surge (though volume unavailable)",
+                                                                                                  "structural":  "daily bar closes above 77190 (open) 鈥?negates daily bearish bias"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "liquidity_profile":  "high-probability liquidity grab below 76830 (daily low sweep implied)",
+                                                                                           "risk_of_reversal":  "low in near term 鈥?no bullish structural confirmation yet",
+                                                                                           "zone_type":  "supply zone (rejection near prior resistance + daily context)"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "clarity":  "high",
+                                                                                         "confluence":  "high (shape + location + multi-TF alignment)",
+                                                                                         "noise_level":  "low (no volume distortion; clean rejection pattern)"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "acceleration_signs":  "yes 鈥?range expansion + larger bearish bodies",
+                                                                                        "direction":  "bearish",
+                                                                                        "duration":  "multi-bar (at least 4h downtrend)",
+                                                                                        "strength":  "strong (confirmed across 15m, 1h, daily)"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "key_facts":  [
+                                                                             "Bar opens at prior 1h close (77020.02 鈮?77020.01)",
+                                                                             "High (77070.98) fails to breach prior 1h high (77162.02) or daily high (77253.75)",
+                                                                             "Close equals low within 4 pts 鈥?extreme bearish exhaustion signal",
+                                                                             "Daily bar is red, open \u003e close, lower high 鈥?confirms bearish daily structure",
+                                                                             "Three consecutive 1h bearish closes with expanding range and momentum"
+                                                                         ],
+                                                           "missing_data_impact":  "volume unknown 鈥?limits conviction on absorption vs distribution; mitigated by strong price-action confluence",
+                                                           "structural_certainties":  [
+                                                                                          "bearish multi-timeframe alignment",
+                                                                                          "pinbar-shaped rejection",
+                                                                                          "location at daily low"
+                                                                                      ],
+                                                           "structural_uncertainties":  [
+                                                                                            "lack of volume confirmation",
+                                                                                            "no clear break of daily low yet"
+                                                                                        ],
+                                                           "temporal_risk_factors":  "Asian session liquidity gap may delay follow-through; watch for London open (07:00鈥?8:00 UTC already passed, NY open pending at 13:00 UTC)"
+                                                       },
+                                      "location_context":  {
+                                                               "key_level_proximity":  "within 4 pts of daily low (76830), suggesting potential liquidity sweep or stop-run before reversal",
+                                                               "relative_to_daily_bar":  "trades within daily range (76830鈥?7253.75); closes near daily low (76830), ~235 pts above daily low, ~520 pts below daily high",
+                                                               "relative_to_prior_1h_bar":  "opens at prior 1h bar鈥檚 close (77020.02 鈮?77020.01), tests resistance just below prior 1h high (77162.02), fails",
+                                                               "trend_position":  "counter-trend move within established short-term downtrend (prior three 1h bars: 77167.13 鈫?77160.01 鈫?77020.01 鈫?now 76834)"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "current_session":  "Asian session (00:00鈥?9:00 UTC)",
+                                                                     "liquidity_context":  "low-to-moderate (no volume data; Asian session typically lower liquidity for BTC/USD vs NY/London)",
+                                                                     "session_phase":  "early Asian session 鈥?potential consolidation or reaction to prior NY close",
+                                                                     "session_volatility_profile":  "moderate (based on recent 1h bar range contraction: prior 1h bar range = 139.94, current 1h partial bar range = 240.96, but 15m bar range = 240.96 鈥?suggests intra-hour acceleration)"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "1h_trend":  "bearish 鈥?three consecutive lower highs and lower lows (77167.13 鈫?77160.01 鈫?77020.01 鈫?76834)",
+                                                                        "alignment_status":  "strongly aligned (15m bearish rejection occurs within broader 1h/daily bearish structure)",
+                                                                        "daily_trend":  "bearish 鈥?open 77190 \u003e close 76834, with lower high (77253.75) vs prior day, and price trading below open 鈥?bearish bias confirmed",
+                                                                        "higher_timeframe_confluence":  "yes 鈥?rejection occurs just below prior 1h high and near daily low, reinforcing supply zone"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "ambiguity_flags":  [
+
+                                                                                    ],
+                                                                "bearish_evidence":  [
+                                                                                         "strong rejection after failed breakout attempt above prior 1h high",
+                                                                                         "close at extreme low of bar with large real body",
+                                                                                         "three consecutive 1h bearish closes, accelerating magnitude",
+                                                                                         "occurs in early Asian session 鈥?historically lower follow-through for rallies"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "tested and held daily low (76830), suggesting potential demand zone",
+                                                                                         "tight spread between low and close (4 pts) implies absorption rather than panic"
+                                                                                     ],
+                                                                "confidence_in_balance":  "high",
+                                                                "net_pressure_balance":  "bearish-dominant"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_resistance":  {
+                                                                                                  "confidence":  "high",
+                                                                                                  "level":  77020,
+                                                                                                  "proximity_to_current_close":  186,
+                                                                                                  "type":  "recent swing high / prior bar close"
+                                                                                              },
+                                                                     "immediate_support":  {
+                                                                                               "confidence":  "high",
+                                                                                               "level":  76830,
+                                                                                               "proximity_to_current_close":  4,
+                                                                                               "type":  "current bar low / daily low"
+                                                                                           },
+                                                                     "major_resistance":  {
+                                                                                              "confidence":  "medium-high",
+                                                                                              "level":  77162.02,
+                                                                                              "proximity_to_current_close":  328.02,
+                                                                                              "type":  "prior 1h bar high"
+                                                                                          },
+                                                                     "minor_resistance":  {
+                                                                                              "confidence":  "high",
+                                                                                              "level":  77070.98,
+                                                                                              "proximity_to_current_close":  236.98,
+                                                                                              "type":  "current bar high / intrabar rejection point"
+                                                                                          },
+                                                                     "minor_support":  {
+                                                                                           "confidence":  "medium",
+                                                                                           "level":  76700,
+                                                                                           "proximity_to_current_close":  134,
+                                                                                           "type":  "approximate prior swing low (inferred from 1h low sequence: 77091 鈫?76923.08 鈫?76830)"
+                                                                                       }
+                                                                 }
+                                  },
+                                  {
+                                      "bar_identity":  {
+                                                           "bar_index_in_session":  2,
+                                                           "instrument":  "BTC/USD",
+                                                           "status":  "closed",
+                                                           "timeframe":  "15m",
+                                                           "timestamp_utc":  "2026-04-18T08:30:00Z"
+                                                       },
+                                      "bar_observation":  {
+                                                              "body_size":  116.49,
+                                                              "close":  76717.51,
+                                                              "close_vs_open":  "bearish",
+                                                              "close_vs_prior_close":  -302.5,
+                                                              "high":  76886.25,
+                                                              "intraday_position":  "third_bar_of_1h_bearish_sequence",
+                                                              "low":  76661.15,
+                                                              "lower_wick":  56.36,
+                                                              "open":  76834.0,
+                                                              "range":  225.1,
+                                                              "upper_wick":  52.25,
+                                                              "volume_available":  false,
+                                                              "volume_trend_implication":  "inconclusive"
+                                                          },
+                                      "bar_shape":  {
+                                                        "body_to_range_ratio":  0.517,
+                                                        "candle_type":  "indeterminate_doji_variant",
+                                                        "engulfment_status":  "none",
+                                                        "inside_bar_status":  "false",
+                                                        "pattern_name":  "small_body_with_balanced_wicks",
+                                                        "reversal_probability_estimate":  "low_to_medium",
+                                                        "trend_exhaustion_signal":  "weak_potential",
+                                                        "wick_balance_ratio":  0.93
+                                                    },
+                                      "decision_tree_state":  {
+                                                                  "bias_balance":  {
+                                                                                       "conflict_level":  "low",
+                                                                                       "long_term_bias":  "neutral_to_bearish",
+                                                                                       "medium_term_bias":  "bearish",
+                                                                                       "short_term_bias":  "bearish"
+                                                                                   },
+                                                                  "confirmation_state":  {
+                                                                                             "confirmed":  false,
+                                                                                             "minimum_confirmation_delay":  "1_bar",
+                                                                                             "pending_trigger":  "next_15m_bar_close_above_76834_(bullish)_or_below_76661_(bearish)"
+                                                                                         },
+                                                                  "invalidation_conditions":  {
+                                                                                                  "bearish_invalidation":  "close \u003e 76834.0_with_following_bullish_engulfing",
+                                                                                                  "bullish_invalidation":  "close \u003e 76886.25",
+                                                                                                  "structural_invalidation":  "1h_close_above_77020.01"
+                                                                                              },
+                                                                  "location_context":  {
+                                                                                           "breakout_or_retest_mode":  "retest_mode_of_recent_1h_breakdown_below_77020",
+                                                                                           "exhaustion_indicators_present":  true,
+                                                                                           "zone_classification":  "mid-range_pullback_within_daily_range"
+                                                                                       },
+                                                                  "signal_quality":  {
+                                                                                         "confirmation_requirement":  "strong_next_bar_close_above_76834_or_below_76661",
+                                                                                         "definition":  "low-to-medium_definition_candle",
+                                                                                         "noise_level":  "medium",
+                                                                                         "structural_integrity":  "intact"
+                                                                                     },
+                                                                  "trend_context":  {
+                                                                                        "continuation_probability":  0.62,
+                                                                                        "direction":  "bearish",
+                                                                                        "duration":  "established_over_last_3_hours",
+                                                                                        "strength":  "moderate"
+                                                                                    }
+                                                              },
+                                      "evidence_log":  {
+                                                           "assumptions_made":  [
+                                                                                    "prior_15m_bar closed bearishly given 1h sequence",
+                                                                                    "76661.15 acts as structural floor until violated",
+                                                                                    "76834.0 functions as immediate supply threshold"
+                                                                                ],
+                                                           "confidence_adjustments_applied":  "reduced_signal_quality_and_confirmation_weighting_due_to_volume_absence_and_partial_daily_bar_completion",
+                                                           "missing_data_flags":  [
+                                                                                      "volume_absent",
+                                                                                      "no_prior_15m_bar_details_for_full_sequence_validation",
+                                                                                      "incomplete_daily_bar_limits_conclusive_daily_trend_assessment"
+                                                                                  ],
+                                                           "primary_evidence_sources":  [
+                                                                                            "current_bar_metrics_(OHLCV)",
+                                                                                            "1h_aggregated_bar_sequence",
+                                                                                            "daily_bar_range_and_open",
+                                                                                            "15m_bar_position_within_1h_structure"
+                                                                                        ]
+                                                       },
+                                      "location_context":  {
+                                                               "distance_from_daily_high":  536.24,
+                                                               "distance_from_daily_low":  56.36,
+                                                               "key_level_proximity":  "near_4h_support_zone_approx_76680鈥?6700",
+                                                               "position_in_daily_bar":  "early_stage_of_incomplete_daily_bar",
+                                                               "relative_to_daily_range":  "within_daily_low_to_high_range_(76661.15鈥?7253.75)",
+                                                               "relative_to_hour_open":  "below_77020.02_by_302.51",
+                                                               "relative_to_prior_hour_close":  "below_77020.01_by_302.5"
+                                                           },
+                                      "market_session_context":  {
+                                                                     "liquidity_profile":  "moderate_to_high",
+                                                                     "session_phase":  "late_morning",
+                                                                     "session_start_utc":  "2026-04-18T00:00:00Z",
+                                                                     "session_type":  "regular_trading_session",
+                                                                     "utc_offset_hours":  0,
+                                                                     "volatility_regime":  "moderating_after_recent_range_expansion"
+                                                                 },
+                                      "multi_timeframe_alignment":  {
+                                                                        "15m_trend":  "bearish_two-bar_sequence_(prior_15m_close_unknown_but_inferred_downward_momentum)",
+                                                                        "1d_trend":  "slightly_bearish_bias_(open_77190,_current_close_76717.51)",
+                                                                        "1h_trend":  "bearish_three-bar_sequence_(77167鈫?7160鈫?7020鈫?6717)",
+                                                                        "alignment_consensus":  "bearish_across_1h_and_1d,_neutral_to_slightly_bearish_on_15m",
+                                                                        "confluence_strength":  "medium",
+                                                                        "higher_timeframe_conflict":  "none"
+                                                                    },
+                                      "signal_assessment":  {
+                                                                "bearish_evidence":  [
+                                                                                         "three consecutive 1h closes lower (77167 鈫?77160 鈫?77020 鈫?76717)",
+                                                                                         "current bar closes below prior 1h open (77020.02) and prior 1h close (77020.01)",
+                                                                                         "no volume confirmation, but price action shows persistent rejection of higher levels"
+                                                                                     ],
+                                                                "bullish_evidence":  [
+                                                                                         "balanced wicks suggest indecision rather than strong selling",
+                                                                                         "close near lower third but not at extreme low 鈥?retains marginal buyer presence",
+                                                                                         "low coincides with intraday and daily low 鈥?potential exhaustion zone"
+                                                                                     ],
+                                                                "contextual_reliability":  "moderated_by_lack_of_volume_data_and_incomplete_daily_bar",
+                                                                "net_pressure_balance":  "bearish_bias_with diminishing momentum",
+                                                                "signal_clarity":  "medium_low"
+                                                            },
+                                      "support_resistance_map":  {
+                                                                     "immediate_resistance_1":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  76834.0,
+                                                                                                    "source":  "current_bar_open",
+                                                                                                    "type":  "current_bar_open"
+                                                                                                },
+                                                                     "immediate_resistance_2":  {
+                                                                                                    "confidence":  "high",
+                                                                                                    "level":  76886.25,
+                                                                                                    "source":  "current_bar_high",
+                                                                                                    "type":  "current_bar_high"
+                                                                                                },
+                                                                     "immediate_support_1":  {
+                                                                                                 "confidence":  "high",
+                                                                                                 "level":  76661.15,
+                                                                                                 "source":  "current_bar_low",
+                                                                                                 "type":  "intraday_low"
+                                                                                             },
+                                                                     "immediate_support_2":  {
+                                                                                                 "confidence":  "medium",
+                                                                                                 "level":  76680.0,
+                                                                                                 "source":  "prior_4h_low_cluster",
+                                                                                                 "type":  "approximate_4h_structural_support"
+                                                                                             },
+                                                                     "intermediate_resistance":  {
+                                                                                                     "confidence":  "high",
+                                                                                                     "level":  77020.01,
+                                                                                                     "source":  "1h_aggregated_bar",
+                                                                                                     "type":  "prior_1h_close"
+                                                                                                 },
+                                                                     "intermediate_support":  {
+                                                                                                  "confidence":  "low",
+                                                                                                  "level":  76500.0,
+                                                                                                  "source":  "round_number",
+                                                                                                  "type":  "psychological_round_number"
+                                                                                              }
+                                                                 }
+                                  }
+                              ],
+    "shared_pa_state_json":  {
+                                 "bar_identity":  {
+                                                      "bar_index_in_session":  2,
+                                                      "instrument":  "BTC/USD",
+                                                      "status":  "closed",
+                                                      "timeframe":  "15m",
+                                                      "timestamp_utc":  "2026-04-18T08:30:00Z"
+                                                  },
+                                 "bar_observation":  {
+                                                         "body_size":  116.49,
+                                                         "close":  76717.51,
+                                                         "close_vs_open":  "bearish",
+                                                         "close_vs_prior_close":  -302.5,
+                                                         "high":  76886.25,
+                                                         "intraday_position":  "third_bar_of_1h_bearish_sequence",
+                                                         "low":  76661.15,
+                                                         "lower_wick":  56.36,
+                                                         "open":  76834.0,
+                                                         "range":  225.1,
+                                                         "upper_wick":  52.25,
+                                                         "volume_available":  false,
+                                                         "volume_trend_implication":  "inconclusive"
+                                                     },
+                                 "bar_shape":  {
+                                                   "body_to_range_ratio":  0.517,
+                                                   "candle_type":  "indeterminate_doji_variant",
+                                                   "engulfment_status":  "none",
+                                                   "inside_bar_status":  "false",
+                                                   "pattern_name":  "small_body_with_balanced_wicks",
+                                                   "reversal_probability_estimate":  "low_to_medium",
+                                                   "trend_exhaustion_signal":  "weak_potential",
+                                                   "wick_balance_ratio":  0.93
+                                               },
+                                 "decision_tree_state":  {
+                                                             "bias_balance":  {
+                                                                                  "conflict_level":  "low",
+                                                                                  "long_term_bias":  "neutral_to_bearish",
+                                                                                  "medium_term_bias":  "bearish",
+                                                                                  "short_term_bias":  "bearish"
+                                                                              },
+                                                             "confirmation_state":  {
+                                                                                        "confirmed":  false,
+                                                                                        "minimum_confirmation_delay":  "1_bar",
+                                                                                        "pending_trigger":  "next_15m_bar_close_above_76834_(bullish)_or_below_76661_(bearish)"
+                                                                                    },
+                                                             "invalidation_conditions":  {
+                                                                                             "bearish_invalidation":  "close \u003e 76834.0_with_following_bullish_engulfing",
+                                                                                             "bullish_invalidation":  "close \u003e 76886.25",
+                                                                                             "structural_invalidation":  "1h_close_above_77020.01"
+                                                                                         },
+                                                             "location_context":  {
+                                                                                      "breakout_or_retest_mode":  "retest_mode_of_recent_1h_breakdown_below_77020",
+                                                                                      "exhaustion_indicators_present":  true,
+                                                                                      "zone_classification":  "mid-range_pullback_within_daily_range"
+                                                                                  },
+                                                             "signal_quality":  {
+                                                                                    "confirmation_requirement":  "strong_next_bar_close_above_76834_or_below_76661",
+                                                                                    "definition":  "low-to-medium_definition_candle",
+                                                                                    "noise_level":  "medium",
+                                                                                    "structural_integrity":  "intact"
+                                                                                },
+                                                             "trend_context":  {
+                                                                                   "continuation_probability":  0.62,
+                                                                                   "direction":  "bearish",
+                                                                                   "duration":  "established_over_last_3_hours",
+                                                                                   "strength":  "moderate"
+                                                                               }
+                                                         },
+                                 "evidence_log":  {
+                                                      "assumptions_made":  [
+                                                                               "prior_15m_bar closed bearishly given 1h sequence",
+                                                                               "76661.15 acts as structural floor until violated",
+                                                                               "76834.0 functions as immediate supply threshold"
+                                                                           ],
+                                                      "confidence_adjustments_applied":  "reduced_signal_quality_and_confirmation_weighting_due_to_volume_absence_and_partial_daily_bar_completion",
+                                                      "missing_data_flags":  [
+                                                                                 "volume_absent",
+                                                                                 "no_prior_15m_bar_details_for_full_sequence_validation",
+                                                                                 "incomplete_daily_bar_limits_conclusive_daily_trend_assessment"
+                                                                             ],
+                                                      "primary_evidence_sources":  [
+                                                                                       "current_bar_metrics_(OHLCV)",
+                                                                                       "1h_aggregated_bar_sequence",
+                                                                                       "daily_bar_range_and_open",
+                                                                                       "15m_bar_position_within_1h_structure"
+                                                                                   ]
+                                                  },
+                                 "location_context":  {
+                                                          "distance_from_daily_high":  536.24,
+                                                          "distance_from_daily_low":  56.36,
+                                                          "key_level_proximity":  "near_4h_support_zone_approx_76680鈥?6700",
+                                                          "position_in_daily_bar":  "early_stage_of_incomplete_daily_bar",
+                                                          "relative_to_daily_range":  "within_daily_low_to_high_range_(76661.15鈥?7253.75)",
+                                                          "relative_to_hour_open":  "below_77020.02_by_302.51",
+                                                          "relative_to_prior_hour_close":  "below_77020.01_by_302.5"
+                                                      },
+                                 "market_session_context":  {
+                                                                "liquidity_profile":  "moderate_to_high",
+                                                                "session_phase":  "late_morning",
+                                                                "session_start_utc":  "2026-04-18T00:00:00Z",
+                                                                "session_type":  "regular_trading_session",
+                                                                "utc_offset_hours":  0,
+                                                                "volatility_regime":  "moderating_after_recent_range_expansion"
+                                                            },
+                                 "multi_timeframe_alignment":  {
+                                                                   "15m_trend":  "bearish_two-bar_sequence_(prior_15m_close_unknown_but_inferred_downward_momentum)",
+                                                                   "1d_trend":  "slightly_bearish_bias_(open_77190,_current_close_76717.51)",
+                                                                   "1h_trend":  "bearish_three-bar_sequence_(77167鈫?7160鈫?7020鈫?6717)",
+                                                                   "alignment_consensus":  "bearish_across_1h_and_1d,_neutral_to_slightly_bearish_on_15m",
+                                                                   "confluence_strength":  "medium",
+                                                                   "higher_timeframe_conflict":  "none"
+                                                               },
+                                 "signal_assessment":  {
+                                                           "bearish_evidence":  [
+                                                                                    "three consecutive 1h closes lower (77167 鈫?77160 鈫?77020 鈫?76717)",
+                                                                                    "current bar closes below prior 1h open (77020.02) and prior 1h close (77020.01)",
+                                                                                    "no volume confirmation, but price action shows persistent rejection of higher levels"
+                                                                                ],
+                                                           "bullish_evidence":  [
+                                                                                    "balanced wicks suggest indecision rather than strong selling",
+                                                                                    "close near lower third but not at extreme low 鈥?retains marginal buyer presence",
+                                                                                    "low coincides with intraday and daily low 鈥?potential exhaustion zone"
+                                                                                ],
+                                                           "contextual_reliability":  "moderated_by_lack_of_volume_data_and_incomplete_daily_bar",
+                                                           "net_pressure_balance":  "bearish_bias_with diminishing momentum",
+                                                           "signal_clarity":  "medium_low"
+                                                       },
+                                 "support_resistance_map":  {
+                                                                "immediate_resistance_1":  {
+                                                                                               "confidence":  "high",
+                                                                                               "level":  76834.0,
+                                                                                               "source":  "current_bar_open",
+                                                                                               "type":  "current_bar_open"
+                                                                                           },
+                                                                "immediate_resistance_2":  {
+                                                                                               "confidence":  "high",
+                                                                                               "level":  76886.25,
+                                                                                               "source":  "current_bar_high",
+                                                                                               "type":  "current_bar_high"
+                                                                                           },
+                                                                "immediate_support_1":  {
+                                                                                            "confidence":  "high",
+                                                                                            "level":  76661.15,
+                                                                                            "source":  "current_bar_low",
+                                                                                            "type":  "intraday_low"
+                                                                                        },
+                                                                "immediate_support_2":  {
+                                                                                            "confidence":  "medium",
+                                                                                            "level":  76680.0,
+                                                                                            "source":  "prior_4h_low_cluster",
+                                                                                            "type":  "approximate_4h_structural_support"
+                                                                                        },
+                                                                "intermediate_resistance":  {
+                                                                                                "confidence":  "high",
+                                                                                                "level":  77020.01,
+                                                                                                "source":  "1h_aggregated_bar",
+                                                                                                "type":  "prior_1h_close"
+                                                                                            },
+                                                                "intermediate_support":  {
+                                                                                             "confidence":  "low",
+                                                                                             "level":  76500.0,
+                                                                                             "source":  "round_number",
+                                                                                             "type":  "psychological_round_number"
+                                                                                         }
+                                                            }
+                             },
+    "timeframe":  "15m"
+}

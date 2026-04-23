@@ -1,0 +1,22 @@
+## Candidate qwenplus-dsreasoner-dschat
+
+- Config:
+  - `shared_pa_state_bar_v1 -> dashscope/qwen-plus`
+  - `shared_bar_analysis_v2 -> deepseek/deepseek-reasoner`
+  - `shared_daily_context_v2 -> deepseek/deepseek-reasoner`
+  - `user_position_advice_v2 -> deepseek/deepseek-chat`
+- Stage 3 result:
+  - `schema_hit_rate = 1.0`
+  - `cross_step_consistency_rate = 1.0`
+  - `decision_tree_completeness = 1.0`
+  - `key_level_completeness = 1.0`
+  - `signal_bar_completeness = 1.0`
+  - `bull_bear_dual_path_completeness = 1.0`
+  - `step_runs = 20`
+  - first failing step: none
+- Interpretation:
+  - this is the first observed full `5-sample` pass
+  - the candidate currently defines the production-quality frontier
+  - confirmation run failed in warmup on `shared_bar_analysis:v2` with transport timeout / response decode failure, so the final two-run gate is still unmet
+- Next single variable to change:
+  - step 2 transport robustness under the same overall binding set

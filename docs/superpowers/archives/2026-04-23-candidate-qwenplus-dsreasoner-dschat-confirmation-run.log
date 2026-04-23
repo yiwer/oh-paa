@@ -1,0 +1,10 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.02s
+     Running `target\debug\replay_analysis.exe --mode live --dataset G:\Rust\oh-paa\testdata\analysis_replay\live_crypto_15m.json --config C:\Users\16348\AppData\Local\Temp\oh-paa-live-replay-current.toml --variant baseline_a`
+Error: analysis error: warmup step shared_bar_analysis:v2 for sample crypto-btcusd-2026-04-18t08-30z failed outbound call: provider error: error decoding response body; raw_response_preview=null
+
+Caused by:
+    0: provider error: error decoding response body
+    1: error decoding response body
+    2: request or response body error
+    3: operation timed out
+error: process didn't exit successfully: `target\debug\replay_analysis.exe --mode live --dataset G:\Rust\oh-paa\testdata\analysis_replay\live_crypto_15m.json --config C:\Users\16348\AppData\Local\Temp\oh-paa-live-replay-current.toml --variant baseline_a` (exit code: 1)

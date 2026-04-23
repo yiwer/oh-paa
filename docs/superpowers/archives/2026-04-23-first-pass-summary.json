@@ -1,0 +1,16 @@
+{
+    "report_path":  "G:\\Rust\\oh-paa\\docs\\superpowers\\archives\\2026-04-23-live-crypto-15m-report.json",
+    "execution_mode":  "LiveHistorical",
+    "dataset_id":  "live_crypto_15m_v1",
+    "pipeline_variant":  "baseline_a",
+    "config_source_path":  "C:\\Users\\16348\\AppData\\Local\\Temp\\oh-paa-live-replay-current.toml",
+    "metrics":  {
+                    "schema_hit_rate":  1.0,
+                    "cross_step_consistency_rate":  1.0,
+                    "decision_tree_completeness":  1.0,
+                    "key_level_completeness":  1.0,
+                    "signal_bar_completeness":  1.0,
+                    "bull_bear_dual_path_completeness":  1.0
+                },
+    "passed_final_gate":  true
+}

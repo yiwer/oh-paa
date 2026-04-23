@@ -1,5 +1,6 @@
 use std::{
     fs,
+    process::Command,
     sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -242,6 +243,32 @@ fn replay_report_deserializes_legacy_non_empty_step_runs_with_derived_summary() 
     assert_eq!(
         report.summary["first_failing_step"]["failure_category"].as_str(),
         Some("schema_validation_failure")
+    );
+}
+
+#[test]
+fn replay_analysis_binary_emits_startup_log_to_stderr() {
+    let binary = env!("CARGO_BIN_EXE_replay_analysis");
+    let output = Command::new(binary)
+        .args([
+            "--dataset",
+            "testdata/analysis_replay/sample_set.json",
+            "--variant",
+            "baseline_a",
+        ])
+        .output()
+        .expect("replay_analysis binary should execute");
+
+    assert!(
+        output.status.success(),
+        "expected replay_analysis success, stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("replay_analysis starting"),
+        "expected startup log in stderr, got: {stderr}"
     );
 }
 

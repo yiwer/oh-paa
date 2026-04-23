@@ -2,6 +2,8 @@ use std::{
     collections::HashMap,
     fs,
     future::Future,
+    io,
+    io::Write,
     pin::Pin,
     sync::{
         Arc, Mutex,
@@ -34,6 +36,8 @@ use sqlx::types::{
     Decimal,
     chrono::{DateTime, Utc},
 };
+use tracing::subscriber::set_default;
+use tracing_subscriber::{EnvFilter, fmt::MakeWriter};
 
 static TEMP_DATASET_COUNTER: AtomicU64 = AtomicU64::new(0);
 static PROCESS_TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -383,6 +387,51 @@ async fn live_replay_runner_builds_warmup_context_and_executes_target_chain() {
         request.query_value("end_date"),
         Some("2026-04-18T08:15:00+00:00")
     );
+}
+
+#[tokio::test]
+async fn live_replay_runner_emits_progress_logs_for_warmup_and_target_steps() {
+    let _guard = process_test_lock();
+    let dataset = single_sample_dataset();
+    let resolved_config =
+        load_replay_config(pa_app::workspace_root().join("config.example.toml")).unwrap();
+    let sample = dataset.samples[0].clone();
+    let server = test_server_for_values(build_twelvedata_values_json(
+        utc("2026-04-18T05:15:00Z"),
+        12,
+    ))
+    .await;
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        server.base_url(),
+        "test-key",
+    )));
+    let executor = TestExecutor::new(build_success_outcomes(sample.warmup_bar_count));
+    let logs = Arc::new(Mutex::new(Vec::<u8>::new()));
+    let subscriber = tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_env_filter(EnvFilter::new("info"))
+        .with_writer(TestLogWriterFactory::new(Arc::clone(&logs)))
+        .finish();
+    let guard = set_default(subscriber);
+
+    let report =
+        run_live_replay_with_dependencies(&dataset, &resolved_config, &provider_router, &executor)
+            .await
+            .expect("live replay should succeed with observable logs");
+
+    drop(guard);
+    assert_eq!(report.step_runs.len(), 4);
+
+    let captured = String::from_utf8(logs.lock().unwrap().clone()).unwrap();
+    assert!(captured.contains("live replay experiment start"));
+    assert!(captured.contains("live replay sample start"));
+    assert!(captured.contains("live replay warmup step start"));
+    assert!(captured.contains("live replay warmup step finish"));
+    assert!(captured.contains("live replay target step start"));
+    assert!(captured.contains("live replay target step finish"));
+    assert!(captured.contains("live replay sample finish"));
+    assert!(captured.contains("live replay experiment finish"));
 }
 
 #[tokio::test]
@@ -946,6 +995,43 @@ struct TestServer {
 struct TestServerState {
     requests: Mutex<Vec<ObservedRequest>>,
     response_values: Vec<Value>,
+}
+
+#[derive(Debug, Clone)]
+struct TestLogWriterFactory {
+    buffer: Arc<Mutex<Vec<u8>>>,
+}
+
+impl TestLogWriterFactory {
+    fn new(buffer: Arc<Mutex<Vec<u8>>>) -> Self {
+        Self { buffer }
+    }
+}
+
+impl<'a> MakeWriter<'a> for TestLogWriterFactory {
+    type Writer = TestLogWriter;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        TestLogWriter {
+            buffer: Arc::clone(&self.buffer),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TestLogWriter {
+    buffer: Arc<Mutex<Vec<u8>>>,
+}
+
+impl Write for TestLogWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.buffer.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 impl TestServer {

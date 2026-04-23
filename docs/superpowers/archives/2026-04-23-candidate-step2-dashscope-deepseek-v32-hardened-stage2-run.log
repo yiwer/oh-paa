@@ -1,0 +1,3 @@
+   Compiling pa-app v0.1.0 (G:\Rust\oh-paa\.worktrees\live-replay-quality-opt\crates\pa-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.16s
+     Running `target\debug\replay_analysis.exe --mode live --dataset C:\Users\16348\AppData\Local\Temp\live_crypto_15m_single.json --config C:\Users\16348\AppData\Local\Temp\oh-paa-candidate-step2-dashscope-deepseek-v32.toml --variant baseline_a`

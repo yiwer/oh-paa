@@ -7,12 +7,24 @@ use pa_orchestrator::{
     Executor, ModelExecutionProfile, OpenAiCompatibleClient, OpenAiProviderRuntime,
     StepExecutionBinding, StepRegistry,
 };
+use tracing_subscriber::EnvFilter;
 
 pub mod replay;
 pub mod replay_config;
 pub mod replay_live;
 pub mod replay_probe;
 pub mod replay_score;
+
+pub fn init_cli_tracing() {
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_target(false)
+        .with_writer(std::io::stderr)
+        .compact()
+        .try_init();
+}
 
 pub fn build_openai_provider_runtimes(
     config: &AppConfig,

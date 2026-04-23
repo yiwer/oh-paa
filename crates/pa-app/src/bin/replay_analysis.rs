@@ -1,6 +1,8 @@
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    pa_app::init_cli_tracing();
     let args = pa_app::replay::parse_replay_cli_args(std::env::args())?;
+    tracing::info!(mode = ?args.mode, variant = %args.variant, "replay_analysis starting");
     let report = match args.mode {
         pa_app::replay::ReplayExecutionMode::Fixture => {
             pa_app::replay::run_fixture_replay_variant_from_path(args.dataset_path, &args.variant)

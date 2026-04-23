@@ -177,7 +177,22 @@
                   "state": "bullish_but_extended"
                 },
                 "key_levels": {
-                  "breakout_level": 84500.0
+                  "immediate_support": {
+                    "level": 84320.0,
+                    "evidence": "recent breakout hold level"
+                  },
+                  "immediate_resistance": {
+                    "level": 84500.0,
+                    "evidence": "fresh breakout pivot"
+                  },
+                  "next_support_below": {
+                    "level": 84180.0,
+                    "evidence": "bar low beneath breakout retest"
+                  },
+                  "next_resistance_above": {
+                    "level": 84750.0,
+                    "evidence": "next upside target above breakout"
+                  }
                 },
                 "signal_bar_verdict": {
                   "verdict": "bullish_signal_bar"
@@ -478,7 +493,22 @@
                   "state": "slightly_bearish"
                 },
                 "key_levels": {
-                  "range_ceiling": 16.45
+                  "immediate_support": {
+                    "level": 16.05,
+                    "evidence": "hourly support under rejection bar"
+                  },
+                  "immediate_resistance": {
+                    "level": 16.24,
+                    "evidence": "near-term reclaim threshold after rejection"
+                  },
+                  "next_support_below": {
+                    "level": 15.92,
+                    "evidence": "next downside objective inside range"
+                  },
+                  "next_resistance_above": {
+                    "level": 16.45,
+                    "evidence": "range ceiling that invalidates bearish read"
+                  }
                 },
                 "signal_bar_verdict": {
                   "verdict": "bearish_signal_bar"
@@ -780,10 +810,22 @@
                   "state": "balanced_waiting"
                 },
                 "key_levels": {
-                  "compression_bounds": [
-                    1.0875,
-                    1.0922
-                  ]
+                  "immediate_support": {
+                    "level": 1.0875,
+                    "evidence": "lower compression boundary"
+                  },
+                  "immediate_resistance": {
+                    "level": 1.0898,
+                    "evidence": "current close inside compression"
+                  },
+                  "next_support_below": {
+                    "level": 1.0868,
+                    "evidence": "next downside break target below range"
+                  },
+                  "next_resistance_above": {
+                    "level": 1.0922,
+                    "evidence": "upper compression boundary"
+                  }
                 },
                 "signal_bar_verdict": {
                   "verdict": "non_signal_bar"

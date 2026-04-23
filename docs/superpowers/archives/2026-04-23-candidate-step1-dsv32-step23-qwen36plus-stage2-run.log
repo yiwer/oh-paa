@@ -1,0 +1,8 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running `target\debug\replay_analysis.exe --mode live --dataset C:\Users\16348\AppData\Local\Temp\live_crypto_15m_single.json --config C:\Users\16348\AppData\Local\Temp\oh-paa-quality-step1-dsv32-step23-qwen36plus.toml --variant baseline_a`
+Error: analysis error: warmup step shared_bar_analysis:v2 for sample crypto-btcusd-2026-04-18t08-15z failed outbound call: provider error: HTTP status client error (403 Forbidden) for url (https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions); raw_response_preview=null
+
+Caused by:
+    0: provider error: HTTP status client error (403 Forbidden) for url (https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions)
+    1: HTTP status client error (403 Forbidden) for url (https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions)
+error: process didn't exit successfully: `target\debug\replay_analysis.exe --mode live --dataset C:\Users\16348\AppData\Local\Temp\live_crypto_15m_single.json --config C:\Users\16348\AppData\Local\Temp\oh-paa-quality-step1-dsv32-step23-qwen36plus.toml --variant baseline_a` (exit code: 1)

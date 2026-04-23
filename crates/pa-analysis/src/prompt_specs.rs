@@ -187,6 +187,7 @@ pub fn shared_bar_analysis_v2() -> AnalysisStepSpec {
                 "invalidation_map",
                 "follow_through_checkpoints"
             ],
+            "additionalProperties": false,
             "properties": {
                 "bar_identity": { "type": "object" },
                 "bar_summary": { "type": "object" },
@@ -194,7 +195,22 @@ pub fn shared_bar_analysis_v2() -> AnalysisStepSpec {
                 "bullish_case": { "type": "object" },
                 "bearish_case": { "type": "object" },
                 "two_sided_balance": { "type": "object" },
-                "key_levels": { "type": "object" },
+                "key_levels": {
+                    "type": "object",
+                    "required": [
+                        "immediate_support",
+                        "immediate_resistance",
+                        "next_support_below",
+                        "next_resistance_above"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "immediate_support": { "type": "object" },
+                        "immediate_resistance": { "type": "object" },
+                        "next_support_below": { "type": "object" },
+                        "next_resistance_above": { "type": "object" }
+                    }
+                },
                 "signal_bar_verdict": { "type": "object" },
                 "continuation_path": { "type": "object" },
                 "reversal_path": { "type": "object" },
@@ -227,7 +243,19 @@ pub fn shared_bar_analysis_prompt_v2() -> PromptTemplateSpec {
             "Keep both bullish and bearish paths explicit, actionable, and internally consistent.".to_string(),
             "Keep bar_identity and bar_summary as separate objects. Do not collapse the response into only directional paths or a single current_bar_analysis block."
                 .to_string(),
+            "Do not add extra top-level keys beyond the required schema sections."
+                .to_string(),
             "If evidence is mixed, still keep every required object and express uncertainty inside those objects instead of omitting fields."
+                .to_string(),
+            "Every required top-level section must stay a JSON object. Never replace a required section with a plain string, number, boolean, or array."
+                .to_string(),
+            "market_story must remain an object. Put the narrative inside object fields such as narrative, context, or evidence instead of collapsing market_story into a single string."
+                .to_string(),
+            "key_levels must be a single JSON object with exactly these child objects: immediate_support, immediate_resistance, next_support_below, next_resistance_above."
+                .to_string(),
+            "Each key_levels child must be a single JSON object, not an array. If multiple levels matter, choose the strongest single level for that slot and mention secondary levels inside the evidence text."
+                .to_string(),
+            "follow_through_checkpoints must stay a JSON object. Never replace it with an array of checkpoints or a bare list of levels."
                 .to_string(),
             "Use this minimum output skeleton and expand each object with evidence-driven content: {\"bar_identity\":{},\"bar_summary\":{},\"market_story\":{},\"bullish_case\":{},\"bearish_case\":{},\"two_sided_balance\":{},\"key_levels\":{},\"signal_bar_verdict\":{},\"continuation_path\":{},\"reversal_path\":{},\"invalidation_map\":{},\"follow_through_checkpoints\":{}}"
                 .to_string(),
