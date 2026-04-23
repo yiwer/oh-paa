@@ -82,6 +82,38 @@ and serves the Axum router.
   - `docs/superpowers/archives/<date>-<candidate>-findings.md`
   - `docs/superpowers/archives/<date>-<candidate>-run.log`
 
+### Final Confirmation Gate
+
+- Current winning candidate mapping:
+  - `shared_pa_state_bar_v1 -> dashscope/qwen-plus`
+  - `shared_bar_analysis_v2 -> deepseek/deepseek-reasoner`
+  - `shared_daily_context_v2 -> deepseek/deepseek-reasoner`
+  - `user_position_advice_v2 -> deepseek/deepseek-chat`
+- Confirmation rule:
+  - The same candidate mapping must pass two consecutive Stage 3 runs against `testdata/analysis_replay/live_crypto_15m.json` before it is treated as the winning live replay slice.
+- Archive guidance:
+  - Keep the temporary confirmation config local and uncommitted by copying from `config.live-replay-quality.example.toml`.
+  - Capture stdout and stderr separately for each confirmation run so schema failures, provider errors, and replay summaries can be reviewed independently.
+  - Archive the final pair of passing Stage 3 runs alongside the report and findings artifacts under `docs/superpowers/archives/`.
+
+```powershell
+$date = Get-Date -Format 'yyyy-MM-dd'
+$candidate = 'shared-pa-qwen-plus__bar-daily-deepseek-reasoner__user-deepseek-chat'
+$tempConfig = Join-Path $env:TEMP "live-replay-quality-confirm-$date.toml"
+$archiveDir = 'docs/superpowers/archives'
+
+Copy-Item 'config.live-replay-quality.example.toml' $tempConfig
+# Edit $tempConfig locally so the step bindings match the winning candidate mapping before running confirmation.
+
+$run1Stdout = Join-Path $archiveDir "$date-$candidate-stage3-run1.stdout.log"
+$run1Stderr = Join-Path $archiveDir "$date-$candidate-stage3-run1.stderr.log"
+$run2Stdout = Join-Path $archiveDir "$date-$candidate-stage3-run2.stdout.log"
+$run2Stderr = Join-Path $archiveDir "$date-$candidate-stage3-run2.stderr.log"
+
+cargo run -p pa-app --bin replay_analysis -- --mode live --dataset testdata/analysis_replay/live_crypto_15m.json --config $tempConfig --variant baseline_a 1> $run1Stdout 2> $run1Stderr
+cargo run -p pa-app --bin replay_analysis -- --mode live --dataset testdata/analysis_replay/live_crypto_15m.json --config $tempConfig --variant baseline_a 1> $run2Stdout 2> $run2Stderr
+```
+
 ## Prompt Iteration Findings (2026-04-22)
 
 - Shared pipeline prompt hardening:
