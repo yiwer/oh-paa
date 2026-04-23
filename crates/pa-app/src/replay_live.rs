@@ -13,7 +13,9 @@ use pa_market::{
     AggregatedKline, CanonicalKlineRow, HistoricalKlineQuery, ProviderRouter,
     aggregate_replay_window_rows, normalize_kline, provider::providers::TwelveDataProvider,
 };
-use pa_orchestrator::{AnalysisBarState, ExecutionOutcome, Executor, LlmClient};
+use pa_orchestrator::{
+    AnalysisBarState, ExecutionOutcome, Executor, INVALID_JSON_RESPONSE_CONTENT_ERROR, LlmClient,
+};
 use pa_user::ManualUserAnalysisInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -21,6 +23,7 @@ use sqlx::types::{
     Uuid,
     chrono::{DateTime, Utc},
 };
+use tokio::time::{Duration, sleep};
 use tracing::{info, warn};
 
 use crate::{
@@ -86,6 +89,12 @@ pub struct LiveReplaySample {
 struct ReplayStepSpec {
     step_key: &'static str,
     step_version: &'static str,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StructuredOutputRetryPolicy {
+    max_retries: u32,
+    retry_initial_backoff_ms: u64,
 }
 
 pub trait LiveReplayExecutor: Send + Sync {
@@ -164,8 +173,15 @@ where
         );
         let fetched_rows = fetch_sample_rows(sample, provider_router).await?;
         let sample_runs =
-            run_sample_target_chain(sample, dataset, &fetched_rows, &step_registry, executor)
-                .await?;
+            run_sample_target_chain(
+                sample,
+                dataset,
+                &fetched_rows,
+                resolved_config,
+                &step_registry,
+                executor,
+            )
+            .await?;
         info!(
             sample_id = %sample.sample_id,
             target_step_runs = sample_runs.len(),
@@ -233,6 +249,7 @@ async fn run_sample_target_chain<E>(
     sample: &LiveReplaySample,
     dataset: &LiveReplayDataset,
     rows: &[CanonicalKlineRow],
+    resolved_config: &ResolvedReplayConfig,
     step_registry: &pa_orchestrator::StepRegistry,
     executor: &E,
 ) -> Result<Vec<ReplayStepRun>, AppError>
@@ -267,6 +284,7 @@ where
         let pa_state_input = build_shared_pa_state_input(sample, warmup_row, visible_rows)?;
         let pa_state_output = execute_warmup_step(
             executor,
+            resolved_config,
             &TARGET_STEPS[0],
             &pa_state_input,
             &sample.sample_id,
@@ -282,6 +300,7 @@ where
         )?;
         let shared_bar_output = execute_warmup_step(
             executor,
+            resolved_config,
             &TARGET_STEPS[1],
             &shared_bar_input,
             &sample.sample_id,
@@ -298,6 +317,7 @@ where
     let target_pa_state_input = build_shared_pa_state_input(sample, &target_row, target_rows)?;
     let (target_pa_state_run, target_pa_state_output) = execute_reported_step(
         executor,
+        resolved_config,
         &TARGET_STEPS[0],
         sample,
         dataset,
@@ -318,6 +338,7 @@ where
     )?;
     let (target_shared_bar_run, target_shared_bar_output) = execute_reported_step(
         executor,
+        resolved_config,
         &TARGET_STEPS[1],
         sample,
         dataset,
@@ -341,6 +362,7 @@ where
     )?;
     let (target_daily_run, target_daily_output) = execute_reported_step(
         executor,
+        resolved_config,
         &TARGET_STEPS[2],
         sample,
         dataset,
@@ -362,6 +384,7 @@ where
     )?;
     let (target_user_run, _) = execute_reported_step(
         executor,
+        resolved_config,
         &TARGET_STEPS[3],
         sample,
         dataset,
@@ -376,6 +399,7 @@ where
 
 async fn execute_warmup_step<E>(
     executor: &E,
+    resolved_config: &ResolvedReplayConfig,
     step: &ReplayStepSpec,
     input_json: &Value,
     sample_id: &str,
@@ -394,8 +418,8 @@ where
         "live replay warmup step start"
     );
     let started_at = Instant::now();
-    let outcome = executor
-        .execute_json(step.step_key, step.step_version, input_json)
+    let retry_policy = structured_output_retry_policy(resolved_config, step)?;
+    let outcome = execute_json_with_structured_output_retry(executor, step, input_json, retry_policy)
         .await
         .map_err(|error| transport_step_error(sample_id, step, "warmup", error))?;
     let latency_ms = started_at.elapsed().as_millis() as u64;
@@ -472,6 +496,7 @@ where
 
 async fn execute_reported_step<E>(
     executor: &E,
+    resolved_config: &ResolvedReplayConfig,
     step: &ReplayStepSpec,
     sample: &LiveReplaySample,
     dataset: &LiveReplayDataset,
@@ -497,8 +522,8 @@ where
         "live replay target step start"
     );
     let started_at = Instant::now();
-    let outcome = executor
-        .execute_json(step.step_key, step.step_version, input_json)
+    let retry_policy = structured_output_retry_policy(resolved_config, step)?;
+    let outcome = execute_json_with_structured_output_retry(executor, step, input_json, retry_policy)
         .await
         .map_err(|error| transport_step_error(&sample.sample_id, step, "target", error))?;
     let latency_ms = started_at.elapsed().as_millis() as u64;
@@ -614,6 +639,80 @@ fn transport_step_error(
             step.step_key, step.step_version
         ),
         source: Some(Box::new(error)),
+    }
+}
+
+fn structured_output_retry_policy(
+    resolved_config: &ResolvedReplayConfig,
+    step: &ReplayStepSpec,
+) -> Result<StructuredOutputRetryPolicy, AppError> {
+    let binding_name = format!("{}_{}", step.step_key, step.step_version);
+    let binding = resolved_config
+        .app_config
+        .llm
+        .step_bindings
+        .get(&binding_name)
+        .ok_or_else(|| AppError::Validation {
+            message: format!(
+                "missing llm.step_bindings.{binding_name} for replay step {}:{}",
+                step.step_key, step.step_version
+            ),
+            source: None,
+        })?;
+    let profile = resolved_config
+        .app_config
+        .llm
+        .execution_profiles
+        .get(&binding.execution_profile)
+        .ok_or_else(|| AppError::Validation {
+            message: format!(
+                "llm.step_bindings.{binding_name} references unknown execution profile `{}`",
+                binding.execution_profile
+            ),
+            source: None,
+        })?;
+
+    Ok(StructuredOutputRetryPolicy {
+        max_retries: profile.max_retries,
+        retry_initial_backoff_ms: profile.retry_initial_backoff_ms,
+    })
+}
+
+async fn execute_json_with_structured_output_retry<E>(
+    executor: &E,
+    step: &ReplayStepSpec,
+    input_json: &Value,
+    retry_policy: StructuredOutputRetryPolicy,
+) -> Result<ExecutionOutcome, AppError>
+where
+    E: LiveReplayExecutor,
+{
+    let max_attempts = retry_policy.max_retries.saturating_add(1);
+    for attempt_index in 0..max_attempts {
+        let outcome = executor
+            .execute_json(step.step_key, step.step_version, input_json)
+            .await?;
+
+        if !should_retry_structured_output_outcome(&outcome) || attempt_index + 1 >= max_attempts {
+            return Ok(outcome);
+        }
+
+        if retry_policy.retry_initial_backoff_ms > 0 {
+            sleep(Duration::from_millis(retry_policy.retry_initial_backoff_ms)).await;
+        }
+    }
+
+    unreachable!("structured output retry loop should always return an outcome")
+}
+
+fn should_retry_structured_output_outcome(outcome: &ExecutionOutcome) -> bool {
+    match outcome {
+        ExecutionOutcome::Success(_) => false,
+        ExecutionOutcome::SchemaValidationFailed(_) => true,
+        ExecutionOutcome::OutboundCallFailed { error, .. } => matches!(
+            error,
+            AppError::Provider { message, .. } if message == INVALID_JSON_RESPONSE_CONTENT_ERROR
+        ),
     }
 }
 

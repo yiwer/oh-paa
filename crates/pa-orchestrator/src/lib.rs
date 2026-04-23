@@ -10,8 +10,9 @@ mod worker;
 pub use dedupe::{build_shared_bar_dedupe_key, sha256_json};
 pub use executor::{ExecutionAttempt, ExecutionOutcome, Executor};
 pub use llm::{
-    FixtureLlmClient, LlmCallEnvelope, LlmClient, LlmFailureEnvelope, LlmRequest,
-    LlmSuccessEnvelope, OpenAiCompatibleClient, OpenAiProviderRuntime, StructuredOutputMode,
+    FixtureLlmClient, INVALID_JSON_RESPONSE_CONTENT_ERROR, LlmCallEnvelope, LlmClient,
+    LlmFailureEnvelope, LlmRequest, LlmSuccessEnvelope, OpenAiCompatibleClient,
+    OpenAiProviderRuntime, StructuredOutputMode,
 };
 pub use models::{
     AnalysisAttempt, AnalysisBarState, AnalysisDeadLetter, AnalysisResult, AnalysisSnapshot,

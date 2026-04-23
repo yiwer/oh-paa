@@ -347,6 +347,22 @@ fn shared_bar_analysis_schema_v2_requires_single_object_key_level_slots() {
 }
 
 #[test]
+fn shared_bar_analysis_schema_v2_requires_named_follow_through_checkpoints() {
+    let bar_spec = shared_bar_analysis_v2();
+    let checkpoints = &bar_spec.output_json_schema["properties"]["follow_through_checkpoints"];
+
+    assert_eq!(
+        checkpoints["required"],
+        serde_json::json!(["checkpoint_1", "checkpoint_2", "checkpoint_3"])
+    );
+    assert_eq!(checkpoints["additionalProperties"], serde_json::json!(false));
+
+    for field in ["checkpoint_1", "checkpoint_2", "checkpoint_3"] {
+        assert_eq!(checkpoints["properties"][field]["type"], serde_json::json!("object"));
+    }
+}
+
+#[test]
 fn shared_bar_analysis_prompt_v2_requires_named_schema_sections() {
     let prompt = shared_bar_analysis_prompt_v2();
     let instructions = prompt.developer_instructions.join("\n");
@@ -378,6 +394,27 @@ fn shared_bar_analysis_prompt_v2_forbids_primitive_top_level_sections() {
     assert!(instructions.contains("Every required top-level section must stay a JSON object"));
     assert!(instructions.contains("market_story must remain an object"));
     assert!(instructions.contains("Never replace a required section with a plain string"));
+}
+
+#[test]
+fn shared_bar_analysis_prompt_v2_forbids_inline_annotations_after_numeric_literals() {
+    let prompt = shared_bar_analysis_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("numeric fields must stay bare JSON numbers"));
+    assert!(instructions.contains("Never append inline annotations after numeric values"));
+    assert!(instructions.contains("sibling string fields"));
+}
+
+#[test]
+fn shared_bar_analysis_prompt_v2_requires_named_follow_through_checkpoint_slots() {
+    let prompt = shared_bar_analysis_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("checkpoint_1"));
+    assert!(instructions.contains("checkpoint_2"));
+    assert!(instructions.contains("checkpoint_3"));
+    assert!(instructions.contains("never as an array"));
 }
 
 #[test]

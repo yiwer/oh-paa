@@ -215,7 +215,20 @@ pub fn shared_bar_analysis_v2() -> AnalysisStepSpec {
                 "continuation_path": { "type": "object" },
                 "reversal_path": { "type": "object" },
                 "invalidation_map": { "type": "object" },
-                "follow_through_checkpoints": { "type": "object" }
+                "follow_through_checkpoints": {
+                    "type": "object",
+                    "required": [
+                        "checkpoint_1",
+                        "checkpoint_2",
+                        "checkpoint_3"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "checkpoint_1": { "type": "object" },
+                        "checkpoint_2": { "type": "object" },
+                        "checkpoint_3": { "type": "object" }
+                    }
+                }
             }
         }),
         result_semantics: PromptResultSemantics::SharedAsset,
@@ -255,9 +268,11 @@ pub fn shared_bar_analysis_prompt_v2() -> PromptTemplateSpec {
                 .to_string(),
             "Each key_levels child must be a single JSON object, not an array. If multiple levels matter, choose the strongest single level for that slot and mention secondary levels inside the evidence text."
                 .to_string(),
-            "follow_through_checkpoints must stay a JSON object. Never replace it with an array of checkpoints or a bare list of levels."
+            "When a field is numeric, numeric fields must stay bare JSON numbers. Never append inline annotations after numeric values; put any label or explanation into sibling string fields such as type, note, or evidence."
                 .to_string(),
-            "Use this minimum output skeleton and expand each object with evidence-driven content: {\"bar_identity\":{},\"bar_summary\":{},\"market_story\":{},\"bullish_case\":{},\"bearish_case\":{},\"two_sided_balance\":{},\"key_levels\":{},\"signal_bar_verdict\":{},\"continuation_path\":{},\"reversal_path\":{},\"invalidation_map\":{},\"follow_through_checkpoints\":{}}"
+            "follow_through_checkpoints must stay a JSON object. Represent checkpoints with named child objects such as checkpoint_1, checkpoint_2, and checkpoint_3, never as an array of checkpoint entries or a bare list of levels."
+                .to_string(),
+            "Use this minimum output skeleton and expand each object with evidence-driven content: {\"bar_identity\":{},\"bar_summary\":{},\"market_story\":{},\"bullish_case\":{},\"bearish_case\":{},\"two_sided_balance\":{},\"key_levels\":{},\"signal_bar_verdict\":{},\"continuation_path\":{},\"reversal_path\":{},\"invalidation_map\":{},\"follow_through_checkpoints\":{\"checkpoint_1\":{},\"checkpoint_2\":{},\"checkpoint_3\":{}}}"
                 .to_string(),
             "Return JSON only and include every required top-level field.".to_string(),
         ],

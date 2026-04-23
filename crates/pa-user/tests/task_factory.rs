@@ -351,6 +351,44 @@ fn user_prompt_v2_requires_schema_named_top_level_sections() {
     assert!(instructions.contains("Return JSON only"));
 }
 
+#[test]
+fn user_position_advice_schema_v2_requires_named_action_candidate_slots() {
+    let spec = user_position_advice_v2();
+    let action_candidates = &spec.output_json_schema["properties"]["action_candidates"];
+
+    assert_eq!(
+        action_candidates["required"],
+        serde_json::json!([
+            "immediate_action",
+            "confirmation_action",
+            "fallback_action"
+        ])
+    );
+    assert_eq!(
+        action_candidates["additionalProperties"],
+        serde_json::json!(false)
+    );
+
+    for field in ["immediate_action", "confirmation_action", "fallback_action"] {
+        assert_eq!(
+            action_candidates["properties"][field]["type"],
+            serde_json::json!("object")
+        );
+    }
+}
+
+#[test]
+fn user_prompt_v2_forbids_array_wrappers_for_action_candidates() {
+    let prompt = user_position_advice_prompt_v2();
+    let instructions = prompt.developer_instructions.join("\n");
+
+    assert!(instructions.contains("action_candidates must stay a JSON object"));
+    assert!(instructions.contains("immediate_action"));
+    assert!(instructions.contains("confirmation_action"));
+    assert!(instructions.contains("fallback_action"));
+    assert!(instructions.contains("never as an array"));
+}
+
 fn required_fields(schema: &Value) -> Vec<String> {
     schema
         .get("required")

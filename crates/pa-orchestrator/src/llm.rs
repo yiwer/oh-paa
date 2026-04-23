@@ -8,6 +8,9 @@ use serde_json::Value;
 
 pub use openai_client::{OpenAiCompatibleClient, OpenAiProviderRuntime};
 
+pub const INVALID_JSON_RESPONSE_CONTENT_ERROR: &str =
+    "chat completions response content was not valid JSON";
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LlmRequest {
     pub provider: String,

@@ -19,6 +19,7 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use pa_analysis::shared_bar_analysis_v2;
 use pa_app::{
     replay::{ReplayExecutionMode, ReplayStepRun},
     replay_config::load_replay_config,
@@ -29,7 +30,10 @@ use pa_app::{
 };
 use pa_core::AppError;
 use pa_market::{ProviderRouter, provider::providers::TwelveDataProvider};
-use pa_orchestrator::{ExecutionAttempt, ExecutionOutcome};
+use pa_orchestrator::{
+    ExecutionAttempt, ExecutionOutcome, INVALID_JSON_RESPONSE_CONTENT_ERROR,
+};
+use pa_user::user_position_advice_v2;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::types::{
@@ -502,6 +506,129 @@ async fn live_replay_runner_converts_outbound_failures_into_report_fields() {
 }
 
 #[tokio::test]
+async fn live_replay_runner_retries_warmup_invalid_json_failure_until_success() {
+    let _guard = process_test_lock();
+    let dataset = single_sample_dataset();
+    let resolved_config =
+        load_replay_config(pa_app::workspace_root().join("config.example.toml")).unwrap();
+    let sample = dataset.samples[0].clone();
+    let server = test_server_for_values(build_twelvedata_values_json(
+        utc("2026-04-18T05:15:00Z"),
+        12,
+    ))
+    .await;
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        server.base_url(),
+        "test-key",
+    )));
+    let mut results = build_success_outcomes(sample.warmup_bar_count);
+    results.insert(1, invalid_json_outbound_failure_outcome());
+    let executor = TestExecutor::new(results);
+
+    let report =
+        run_live_replay_with_dependencies(&dataset, &resolved_config, &provider_router, &executor)
+            .await
+            .expect("invalid JSON warmup failure should be retried locally");
+
+    assert_eq!(report.step_runs.len(), 4);
+    assert!(report.step_runs.iter().all(|run| run.schema_valid));
+    assert_eq!(executor.requests().len(), (sample.warmup_bar_count * 2) + 5);
+}
+
+#[tokio::test]
+async fn live_replay_runner_retries_target_schema_failure_until_success() {
+    let _guard = process_test_lock();
+    let dataset = single_sample_dataset();
+    let resolved_config =
+        load_replay_config(pa_app::workspace_root().join("config.example.toml")).unwrap();
+    let sample = dataset.samples[0].clone();
+    let server = test_server_for_values(build_twelvedata_values_json(
+        utc("2026-04-18T05:15:00Z"),
+        12,
+    ))
+    .await;
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        server.base_url(),
+        "test-key",
+    )));
+    let mut results = build_success_outcomes(sample.warmup_bar_count);
+    let target_shared_bar_index = sample.warmup_bar_count * 2 + 1;
+    results.insert(
+        target_shared_bar_index,
+        schema_validation_failure_outcome(
+            shared_bar_output("target-bar-invalid"),
+            "missing checkpoint_2".to_string(),
+        ),
+    );
+    let executor = TestExecutor::new(results);
+
+    let report =
+        run_live_replay_with_dependencies(&dataset, &resolved_config, &provider_router, &executor)
+            .await
+            .expect("schema validation target failure should be retried locally");
+
+    assert_eq!(report.step_runs.len(), 4);
+    assert!(report.step_runs.iter().all(|run| run.schema_valid));
+    assert_eq!(executor.requests().len(), (sample.warmup_bar_count * 2) + 5);
+}
+
+#[test]
+fn shared_bar_output_fixture_matches_named_schema_slots() {
+    let output = shared_bar_output("fixture");
+    let schema = shared_bar_analysis_v2().output_json_schema;
+
+    let key_levels = output["key_levels"]
+        .as_object()
+        .expect("key_levels fixture should stay an object");
+    for field in schema["properties"]["key_levels"]["required"]
+        .as_array()
+        .expect("key_levels schema should declare required slots")
+    {
+        let field = field.as_str().expect("required slot names should be strings");
+        assert!(
+            key_levels.contains_key(field),
+            "shared_bar_output fixture missing key_levels.{field}"
+        );
+    }
+
+    let checkpoints = output["follow_through_checkpoints"]
+        .as_object()
+        .expect("follow_through_checkpoints fixture should stay an object");
+    for field in schema["properties"]["follow_through_checkpoints"]["required"]
+        .as_array()
+        .expect("checkpoint schema should declare required slots")
+    {
+        let field = field.as_str().expect("required slot names should be strings");
+        assert!(
+            checkpoints.contains_key(field),
+            "shared_bar_output fixture missing follow_through_checkpoints.{field}"
+        );
+    }
+}
+
+#[test]
+fn user_position_output_fixture_matches_named_action_candidate_slots() {
+    let output = user_position_output("fixture");
+    let schema = user_position_advice_v2().output_json_schema;
+
+    let action_candidates = output["action_candidates"]
+        .as_object()
+        .expect("action_candidates fixture should stay an object");
+    for field in schema["properties"]["action_candidates"]["required"]
+        .as_array()
+        .expect("action_candidates schema should declare required slots")
+    {
+        let field = field.as_str().expect("required slot names should be strings");
+        assert!(
+            action_candidates.contains_key(field),
+            "user_position_output fixture missing action_candidates.{field}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn live_replay_summary_records_transport_failure_identity() {
     let _guard = process_test_lock();
     let dataset = single_sample_dataset();
@@ -930,6 +1057,39 @@ fn outbound_failure_outcome(message: &str) -> ExecutionOutcome {
     }
 }
 
+fn invalid_json_outbound_failure_outcome() -> ExecutionOutcome {
+    ExecutionOutcome::OutboundCallFailed {
+        attempt: ExecutionAttempt {
+            raw_response_json: Some(json!({
+                "choices": [{
+                    "message": {
+                        "content": "{ \"follow_through_checkpoints\": [}"
+                    }
+                }]
+            })),
+            outbound_error_message: Some(
+                "provider error: response parse failed after raw payload capture".to_string(),
+            ),
+            ..sample_attempt()
+        },
+        error: AppError::Provider {
+            message: INVALID_JSON_RESPONSE_CONTENT_ERROR.to_string(),
+            source: None,
+        },
+    }
+}
+
+fn schema_validation_failure_outcome(
+    output_json: Value,
+    schema_validation_error: String,
+) -> ExecutionOutcome {
+    let mut attempt = sample_attempt();
+    attempt.raw_response_json = Some(output_json.clone());
+    attempt.parsed_output_json = Some(output_json);
+    attempt.schema_validation_error = Some(schema_validation_error);
+    ExecutionOutcome::SchemaValidationFailed(attempt)
+}
+
 fn sample_attempt() -> ExecutionAttempt {
     ExecutionAttempt {
         llm_provider: "fixture".to_string(),
@@ -965,12 +1125,21 @@ fn shared_bar_output(tag: &str) -> Value {
         "bullish_case": { "tag": tag },
         "bearish_case": { "tag": tag },
         "two_sided_balance": { "tag": tag },
-        "key_levels": { "tag": tag },
+        "key_levels": {
+            "immediate_support": { "tag": format!("{tag}-immediate-support") },
+            "immediate_resistance": { "tag": format!("{tag}-immediate-resistance") },
+            "next_support_below": { "tag": format!("{tag}-next-support-below") },
+            "next_resistance_above": { "tag": format!("{tag}-next-resistance-above") }
+        },
         "signal_bar_verdict": { "tag": tag },
         "continuation_path": { "tag": tag },
         "reversal_path": { "tag": tag },
         "invalidation_map": { "tag": tag },
-        "follow_through_checkpoints": { "tag": tag }
+        "follow_through_checkpoints": {
+            "checkpoint_1": { "tag": format!("{tag}-checkpoint-1") },
+            "checkpoint_2": { "tag": format!("{tag}-checkpoint-2") },
+            "checkpoint_3": { "tag": format!("{tag}-checkpoint-3") }
+        }
     })
 }
 
@@ -1001,7 +1170,11 @@ fn user_position_output(tag: &str) -> Value {
         "hold_reduce_exit_conditions": { "tag": tag },
         "risk_control_levels": { "tag": tag },
         "invalidations": { "tag": tag },
-        "action_candidates": { "tag": tag }
+        "action_candidates": {
+            "immediate_action": { "tag": format!("{tag}-immediate-action") },
+            "confirmation_action": { "tag": format!("{tag}-confirmation-action") },
+            "fallback_action": { "tag": format!("{tag}-fallback-action") }
+        }
     })
 }
 
