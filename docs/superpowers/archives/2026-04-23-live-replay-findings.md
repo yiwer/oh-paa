@@ -126,6 +126,39 @@
   - tighten `shared_bar_analysis_v2` prompt contract again so every required top-level section must remain an object
   - explicitly name `market_story` as object-only to target the exact Stage 3 schema drift
 
+## Stage 3 Confirmation Pass 1
+
+- Candidate:
+  - rerun of existing candidate `qwenplus-dsreasoner-dschat`
+  - archive label: `shared-pa-qwen-plus__bar-daily-deepseek-reasoner__user-deepseek-chat`
+- Config snapshot:
+  - source: local uncommitted `G:\Rust\oh-paa\.worktrees\live-replay-quality-opt\config.toml`
+  - SHA-256: `7A0BC36C62874370A74FBDD5FF8DA4B85EAE53CEE1AFA6400B143C6D133FFFB0`
+  - effective execution profiles:
+    - `pa_state_extract_fast`: provider `dashscope`, model `qwen-plus`, `max_tokens = 12000`, `max_retries = 2`, `per_call_timeout_secs = 180`, `retry_initial_backoff_ms = 1000`
+    - `shared_bar_reasoner`: provider `deepseek`, model `deepseek-reasoner`, `max_tokens = 32765`, `max_retries = 2`, `per_call_timeout_secs = 600`, `retry_initial_backoff_ms = 1000`
+    - `user_position_reasoner`: provider `deepseek`, model `deepseek-chat`, `max_tokens = 16384`, `max_retries = 2`, `per_call_timeout_secs = 300`, `retry_initial_backoff_ms = 1000`
+  - effective step bindings:
+    - `shared_pa_state_bar_v1 -> pa_state_extract_fast`
+    - `shared_bar_analysis_v2 -> shared_bar_reasoner`
+    - `shared_daily_context_v2 -> shared_bar_reasoner`
+    - `user_position_advice_v2 -> user_position_reasoner`
+- Archived outputs:
+  - stdout: `G:\Rust\oh-paa\.worktrees\live-replay-quality-opt\docs\superpowers\archives\2026-04-23-shared-pa-qwen-plus__bar-daily-deepseek-reasoner__user-deepseek-chat-stage3-run1.stdout.log`
+  - stderr: `G:\Rust\oh-paa\.worktrees\live-replay-quality-opt\docs\superpowers\archives\2026-04-23-shared-pa-qwen-plus__bar-daily-deepseek-reasoner__user-deepseek-chat-stage3-run1.stderr.log`
+- Outcome:
+  - fail
+  - command exit code: `1`
+  - elapsed wall time: about `259.5s`
+  - stdout report generation: not produced; archived stdout file is empty
+  - first failing step: warmup `shared_bar_analysis:v2`
+  - failing sample: `crypto-btcusd-2026-04-18t08-15z`
+  - failure category: `outbound_failure`
+  - provider error: chat completions response content was not valid JSON
+  - parse detail: `expected ',' or '}' at line 67 column 32`
+- Pass-1 metrics:
+  - unavailable because the run terminated before emitting a Stage 3 report JSON
+
 ## Working Conclusion
 
 - The strongest candidate remains `qwen-plus -> deepseek-reasoner -> deepseek-reasoner -> deepseek-chat`, but it has not yet met the required two-run confirmation gate.

@@ -5,8 +5,8 @@ use pa_core::AppError;
 use serde_json::{Value, json};
 
 use super::{
-    LlmCallEnvelope, LlmClient, LlmFailureEnvelope, LlmRequest, LlmSuccessEnvelope,
-    StructuredOutputMode,
+    INVALID_JSON_RESPONSE_CONTENT_ERROR, LlmCallEnvelope, LlmClient, LlmFailureEnvelope,
+    LlmRequest, LlmSuccessEnvelope, StructuredOutputMode,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -206,7 +206,7 @@ fn parse_json_like_text(text: &str) -> Result<Value, AppError> {
     }
 
     serde_json::from_str::<Value>(trimmed).map_err(|err| AppError::Provider {
-        message: "chat completions response content was not valid JSON".to_string(),
+        message: INVALID_JSON_RESPONSE_CONTENT_ERROR.to_string(),
         source: Some(Box::new(err)),
     })
 }

@@ -101,6 +101,7 @@ pub fn user_position_advice_v2() -> AnalysisStepSpec {
                 "invalidations",
                 "action_candidates"
             ],
+            "additionalProperties": false,
             "properties": {
                 "position_state": { "type": "object" },
                 "market_read_through": { "type": "object" },
@@ -109,7 +110,20 @@ pub fn user_position_advice_v2() -> AnalysisStepSpec {
                 "hold_reduce_exit_conditions": { "type": "object" },
                 "risk_control_levels": { "type": "object" },
                 "invalidations": { "type": "object" },
-                "action_candidates": { "type": "object" }
+                "action_candidates": {
+                    "type": "object",
+                    "required": [
+                        "immediate_action",
+                        "confirmation_action",
+                        "fallback_action"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "immediate_action": { "type": "object" },
+                        "confirmation_action": { "type": "object" },
+                        "fallback_action": { "type": "object" }
+                    }
+                }
             }
         }),
         result_semantics: PromptResultSemantics::UserPrivateAsset,
@@ -137,9 +151,11 @@ pub fn user_position_advice_prompt_v2() -> PromptTemplateSpec {
                 .to_string(),
             "Do not rename schema sections. Use position_state instead of user_position, market_read_through instead of current_bar_context or higher_timeframe_bias, and keep all required top-level keys as objects."
                 .to_string(),
+            "action_candidates must stay a JSON object. Represent candidate actions with named child objects such as immediate_action, confirmation_action, and fallback_action, never as an array or bare checklist."
+                .to_string(),
             "If evidence is mixed, keep every required top-level object and express uncertainty inside those objects instead of omitting sections."
                 .to_string(),
-            "Use this minimum output skeleton and expand each object with evidence-driven details: {\"position_state\":{},\"market_read_through\":{},\"bullish_path_for_user\":{},\"bearish_path_for_user\":{},\"hold_reduce_exit_conditions\":{},\"risk_control_levels\":{},\"invalidations\":{},\"action_candidates\":{}}"
+            "Use this minimum output skeleton and expand each object with evidence-driven details: {\"position_state\":{},\"market_read_through\":{},\"bullish_path_for_user\":{},\"bearish_path_for_user\":{},\"hold_reduce_exit_conditions\":{},\"risk_control_levels\":{},\"invalidations\":{},\"action_candidates\":{\"immediate_action\":{},\"confirmation_action\":{},\"fallback_action\":{}}}"
                 .to_string(),
             "Prefer compact outputs: concise bullets or short phrases; avoid long narrative paragraphs unless critical for risk control clarity."
                 .to_string(),
