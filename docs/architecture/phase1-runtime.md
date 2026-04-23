@@ -123,6 +123,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Stage 3 confirmation run 1 failed. Review $run1Stdout and $run1Stderr before attempting run 2."
 }
 cargo run -p pa-app --bin replay_analysis -- --mode live --dataset testdata/analysis_replay/live_crypto_15m.json --config $tempConfig --variant baseline_a 1> $run2Stdout 2> $run2Stderr
+if ($LASTEXITCODE -ne 0) {
+    throw "Stage 3 confirmation run 2 failed. Review $run2Stdout and $run2Stderr before treating the candidate as confirmed."
+}
 ```
 
 ## Prompt Iteration Findings (2026-04-22)
