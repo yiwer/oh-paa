@@ -502,6 +502,84 @@ async fn live_replay_runner_converts_outbound_failures_into_report_fields() {
 }
 
 #[tokio::test]
+async fn live_replay_summary_records_transport_failure_identity() {
+    let _guard = process_test_lock();
+    let dataset = single_sample_dataset();
+    let resolved_config =
+        load_replay_config(pa_app::workspace_root().join("config.example.toml")).unwrap();
+    let sample = dataset.samples[0].clone();
+    let server = test_server_for_values(build_twelvedata_values_json(
+        utc("2026-04-18T05:15:00Z"),
+        12,
+    ))
+    .await;
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        server.base_url(),
+        "test-key",
+    )));
+    let mut results = build_success_outcomes(sample.warmup_bar_count)
+        .into_iter()
+        .map(TestExecutionResult::Outcome)
+        .collect::<Vec<_>>();
+    results[sample.warmup_bar_count * 2] = TestExecutionResult::Error(AppError::Provider {
+        message: "operation timed out".to_string(),
+        source: None,
+    });
+    let executor = TestExecutor::new_results(results);
+
+    let error =
+        run_live_replay_with_dependencies(&dataset, &resolved_config, &provider_router, &executor)
+            .await
+            .expect_err("transport failures should preserve sample and step identity");
+
+    let message = error.to_string();
+    assert!(message.contains("shared_pa_state_bar:v1"));
+    assert!(message.contains("operation timed out"));
+    assert!(message.contains("crypto-btcusd-2026-04-18t08-15z"));
+}
+
+#[tokio::test]
+async fn live_replay_direct_executor_error_uses_generic_identity_wrapper() {
+    let _guard = process_test_lock();
+    let dataset = single_sample_dataset();
+    let resolved_config =
+        load_replay_config(pa_app::workspace_root().join("config.example.toml")).unwrap();
+    let sample = dataset.samples[0].clone();
+    let server = test_server_for_values(build_twelvedata_values_json(
+        utc("2026-04-18T05:15:00Z"),
+        12,
+    ))
+    .await;
+    let mut provider_router = ProviderRouter::default();
+    provider_router.insert(Arc::new(TwelveDataProvider::new(
+        server.base_url(),
+        "test-key",
+    )));
+    let mut results = build_success_outcomes(sample.warmup_bar_count)
+        .into_iter()
+        .map(TestExecutionResult::Outcome)
+        .collect::<Vec<_>>();
+    results[sample.warmup_bar_count * 2] = TestExecutionResult::Error(AppError::Analysis {
+        message: "executor setup invalid".to_string(),
+        source: None,
+    });
+    let executor = TestExecutor::new_results(results);
+
+    let error =
+        run_live_replay_with_dependencies(&dataset, &resolved_config, &provider_router, &executor)
+            .await
+            .expect_err("direct executor errors should preserve identity without misclassification");
+
+    let message = error.to_string();
+    assert!(message.contains("shared_pa_state_bar:v1"));
+    assert!(message.contains("crypto-btcusd-2026-04-18t08-15z"));
+    assert!(message.contains("failed before producing execution outcome"));
+    assert!(message.contains("executor setup invalid"));
+    assert!(!message.contains("transport"));
+}
+
+#[tokio::test]
 async fn live_replay_runner_rejects_truncated_provider_history_below_configured_lookback() {
     let _guard = process_test_lock();
     let dataset = single_sample_dataset();
@@ -833,32 +911,34 @@ fn build_failure_outcomes(warmup_count: usize) -> Vec<ExecutionOutcome> {
 }
 
 fn success_outcome(output_json: Value) -> ExecutionOutcome {
-    ExecutionOutcome::Success(ExecutionAttempt {
-        llm_provider: "fixture".to_string(),
-        model: "fixture-live".to_string(),
-        request_payload_json: Value::Null,
-        raw_response_json: Some(output_json.clone()),
-        parsed_output_json: Some(output_json),
-        schema_validation_error: None,
-        outbound_error_message: None,
-    })
+    let mut attempt = sample_attempt();
+    attempt.raw_response_json = Some(output_json.clone());
+    attempt.parsed_output_json = Some(output_json);
+    ExecutionOutcome::Success(attempt)
 }
 
 fn outbound_failure_outcome(message: &str) -> ExecutionOutcome {
     ExecutionOutcome::OutboundCallFailed {
         attempt: ExecutionAttempt {
-            llm_provider: "fixture".to_string(),
-            model: "fixture-live".to_string(),
-            request_payload_json: Value::Null,
-            raw_response_json: None,
-            parsed_output_json: None,
-            schema_validation_error: None,
             outbound_error_message: Some(message.to_string()),
+            ..sample_attempt()
         },
         error: AppError::Provider {
             message: message.to_string(),
             source: None,
         },
+    }
+}
+
+fn sample_attempt() -> ExecutionAttempt {
+    ExecutionAttempt {
+        llm_provider: "fixture".to_string(),
+        model: "fixture-live".to_string(),
+        request_payload_json: Value::Null,
+        raw_response_json: None,
+        parsed_output_json: None,
+        schema_validation_error: None,
+        outbound_error_message: None,
     }
 }
 
@@ -931,15 +1011,30 @@ struct RecordedExecution {
 }
 
 #[derive(Debug)]
+enum TestExecutionResult {
+    Outcome(ExecutionOutcome),
+    Error(AppError),
+}
+
+#[derive(Debug)]
 struct TestExecutor {
-    outcomes: Mutex<Vec<ExecutionOutcome>>,
+    results: Mutex<Vec<TestExecutionResult>>,
     requests: Mutex<Vec<RecordedExecution>>,
 }
 
 impl TestExecutor {
     fn new(outcomes: Vec<ExecutionOutcome>) -> Self {
+        Self::new_results(
+            outcomes
+                .into_iter()
+                .map(TestExecutionResult::Outcome)
+                .collect(),
+        )
+    }
+
+    fn new_results(results: Vec<TestExecutionResult>) -> Self {
         Self {
-            outcomes: Mutex::new(outcomes.into_iter().rev().collect()),
+            results: Mutex::new(results.into_iter().rev().collect()),
             requests: Mutex::new(Vec::new()),
         }
     }
@@ -959,9 +1054,14 @@ impl LiveReplayExecutor for TestExecutor {
         self.requests.lock().unwrap().push(RecordedExecution {
             input_json: input_json.clone(),
         });
-        let outcome = self.outcomes.lock().unwrap().pop().unwrap();
+        let result = self.results.lock().unwrap().pop().unwrap();
 
-        Box::pin(async move { Ok(outcome) })
+        Box::pin(async move {
+            match result {
+                TestExecutionResult::Outcome(outcome) => Ok(outcome),
+                TestExecutionResult::Error(error) => Err(error),
+            }
+        })
     }
 }
 

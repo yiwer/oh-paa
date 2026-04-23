@@ -396,7 +396,8 @@ where
     let started_at = Instant::now();
     let outcome = executor
         .execute_json(step.step_key, step.step_version, input_json)
-        .await?;
+        .await
+        .map_err(|error| transport_step_error(sample_id, step, "warmup", error))?;
     let latency_ms = started_at.elapsed().as_millis() as u64;
 
     match outcome {
@@ -498,7 +499,8 @@ where
     let started_at = Instant::now();
     let outcome = executor
         .execute_json(step.step_key, step.step_version, input_json)
-        .await?;
+        .await
+        .map_err(|error| transport_step_error(&sample.sample_id, step, "target", error))?;
     let latency_ms = started_at.elapsed().as_millis() as u64;
 
     let step_run = replay_step_run_from_outcome(
@@ -597,6 +599,21 @@ fn replay_step_run_from_outcome(
             judge_score: None,
             human_notes: None,
         },
+    }
+}
+
+fn transport_step_error(
+    sample_id: &str,
+    step: &ReplayStepSpec,
+    phase: &str,
+    error: AppError,
+) -> AppError {
+    AppError::Analysis {
+        message: format!(
+            "{phase} step {}:{} for sample {sample_id} failed before producing execution outcome: {error}",
+            step.step_key, step.step_version
+        ),
+        source: Some(Box::new(error)),
     }
 }
 
