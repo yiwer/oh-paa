@@ -207,7 +207,15 @@
                   "bullish_invalidation": 84320.0
                 },
                 "follow_through_checkpoints": {
-                  "next_objective": 84950.0
+                  "checkpoint_1": {
+                    "trigger": "hold_above_84500"
+                  },
+                  "checkpoint_2": {
+                    "target": 84750.0
+                  },
+                  "checkpoint_3": {
+                    "target": 84950.0
+                  }
                 }
               }
             },
@@ -309,7 +317,15 @@
                   "primary": "15m_close_below_84320"
                 },
                 "action_candidates": {
-                  "next_step": "trail_stop_under_breakout"
+                  "immediate_action": {
+                    "action": "trail_stop_under_breakout"
+                  },
+                  "confirmation_action": {
+                    "condition": "acceptance_above_84750"
+                  },
+                  "fallback_action": {
+                    "condition": "reduce_if_price_closes_back_below_84320"
+                  }
                 }
               }
             }
@@ -523,7 +539,15 @@
                   "bearish_invalidation": 16.45
                 },
                 "follow_through_checkpoints": {
-                  "next_objective": 15.92
+                  "checkpoint_1": {
+                    "trigger": "hourly_close_below_16_05"
+                  },
+                  "checkpoint_2": {
+                    "target": 15.92
+                  },
+                  "checkpoint_3": {
+                    "condition": "watch_for_failed_bounce_under_16_24"
+                  }
                 }
               }
             },
@@ -626,7 +650,15 @@
                   "primary": "hourly_close_below_16_05"
                 },
                 "action_candidates": {
-                  "next_step": "trim_into_failed_breakout_risk"
+                  "immediate_action": {
+                    "action": "trim_into_failed_breakout_risk"
+                  },
+                  "confirmation_action": {
+                    "condition": "press_reduction_if_next_hour_closes_below_16_05"
+                  },
+                  "fallback_action": {
+                    "condition": "stop_cutting_if_16_45_is_reclaimed"
+                  }
                 }
               }
             }
@@ -840,7 +872,15 @@
                   "neutral_invalidation": "close_outside_compression_bounds"
                 },
                 "follow_through_checkpoints": {
-                  "next_objective": "watch_next_two_daily_closes"
+                  "checkpoint_1": {
+                    "trigger": "watch_next_two_daily_closes"
+                  },
+                  "checkpoint_2": {
+                    "target": 1.0922
+                  },
+                  "checkpoint_3": {
+                    "target": 1.0875
+                  }
                 }
               }
             },
@@ -945,7 +985,15 @@
                   "primary": "do_not_trade_center_of_range"
                 },
                 "action_candidates": {
-                  "next_step": "set_alerts_at_range_edges"
+                  "immediate_action": {
+                    "action": "set_alerts_at_range_edges"
+                  },
+                  "confirmation_action": {
+                    "condition": "prepare_trade_plan_only_after_range_break"
+                  },
+                  "fallback_action": {
+                    "condition": "stay_flat_while_price_remains_mid_range"
+                  }
                 }
               }
             }
