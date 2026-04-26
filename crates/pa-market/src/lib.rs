@@ -19,7 +19,7 @@ pub use repository::{
     InMemoryCanonicalKlineRepository, PgCanonicalKlineRepository,
 };
 pub use service::{
-    AggregateCanonicalKlinesRequest, AggregatedKline, BackfillCanonicalKlinesRequest,
+    AggregateCanonicalKlinesRequest, AggregatedKline,
     DeriveOpenBarRequest, DerivedOpenBar, aggregate_canonical_klines, aggregate_replay_window_rows,
     backfill_canonical_klines, derive_open_bar, list_canonical_klines,
 };

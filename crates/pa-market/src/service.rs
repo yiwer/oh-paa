@@ -10,19 +10,6 @@ use crate::{
     session::MarketSessionProfile,
 };
 
-#[derive(Debug, Clone)]
-pub struct BackfillCanonicalKlinesRequest<'a> {
-    pub instrument_id: Uuid,
-    pub primary_provider_symbol: &'a str,
-    pub fallback_provider_symbol: &'a str,
-    pub timeframe: Timeframe,
-    pub limit: usize,
-    pub primary_provider: &'a str,
-    pub fallback_provider: &'a str,
-    pub market_code: Option<&'a str>,
-    pub market_timezone: Option<&'a str>,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct AggregatedKline {
     pub instrument_id: Uuid,
@@ -82,36 +69,28 @@ pub struct DerivedOpenBar {
 }
 
 pub async fn backfill_canonical_klines(
-    router: &ProviderRouter,
+    gateway: &crate::MarketGateway,
     repository: &dyn CanonicalKlineRepository,
-    request: BackfillCanonicalKlinesRequest<'_>,
+    ctx: &pa_instrument::InstrumentMarketDataContext,
+    timeframe: Timeframe,
+    limit: usize,
 ) -> Result<(), AppError> {
-    let session_profile =
-        MarketSessionProfile::from_market(request.market_code, request.market_timezone);
-    let routed = router
-        .fetch_klines_with_fallback_source(
-            request.primary_provider,
-            request.fallback_provider,
-            request.primary_provider_symbol,
-            request.fallback_provider_symbol,
-            request.timeframe,
-            request.limit,
-        )
-        .await?;
+    let session_profile = MarketSessionProfile::from_market_record(&ctx.market);
+    let routed = gateway.fetch_klines(ctx, timeframe, limit).await?;
 
     for bar in routed.klines {
         let normalized = normalize_kline(bar)?;
         if normalized.close_time > Utc::now() {
             continue;
         }
-        if !session_profile.accepts_bar_open(request.timeframe, normalized.open_time) {
+        if !session_profile.accepts_bar_open(timeframe, normalized.open_time) {
             continue;
         }
 
         repository
             .upsert_canonical_kline(CanonicalKlineRow {
-                instrument_id: request.instrument_id,
-                timeframe: request.timeframe,
+                instrument_id: ctx.instrument.id,
+                timeframe,
                 open_time: normalized.open_time,
                 close_time: normalized.close_time,
                 open: normalized.open,
