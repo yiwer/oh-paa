@@ -974,10 +974,11 @@ impl OrchestrationRepository for PgOrchestrationRepository {
         let result = sqlx::query(
             r#"
             UPDATE analysis_tasks
-            SET status = CASE WHEN status = 'running' THEN 'pending' ELSE status END,
+            SET status = 'pending',
                 last_error_code = 'claim_released',
                 last_error_message = $2
             WHERE id = $1
+              AND status = 'running'
             "#,
         )
         .bind(task_id)
@@ -988,7 +989,7 @@ impl OrchestrationRepository for PgOrchestrationRepository {
 
         ensure_rows_affected(
             result.rows_affected(),
-            format!("task not found: {task_id}"),
+            format!("task not found or not running: {task_id}"),
         )
     }
 
