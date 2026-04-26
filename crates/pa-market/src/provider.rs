@@ -206,7 +206,7 @@ impl ProviderRouter {
         }
     }
 
-    async fn fetch_klines_from(
+    pub(crate) async fn fetch_klines_from(
         &self,
         provider_name: &str,
         provider_symbol: &str,
@@ -225,7 +225,7 @@ impl ProviderRouter {
             .await
     }
 
-    async fn fetch_latest_tick_from(
+    pub(crate) async fn fetch_latest_tick_from(
         &self,
         provider_name: &str,
         provider_symbol: &str,
