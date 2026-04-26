@@ -332,7 +332,11 @@ async fn gateway_forwards_binding_derived_provider_symbol() {
         None,
     );
     // Pin the binding to a known value so we can assert it was forwarded.
-    ctx.bindings[0].provider_symbol = "EXPECTED-SYMBOL".to_string();
+    ctx.bindings
+        .iter_mut()
+        .find(|b| b.provider == "primary")
+        .expect("primary binding present")
+        .provider_symbol = "EXPECTED-SYMBOL".to_string();
 
     gateway
         .fetch_klines(&ctx, Timeframe::M15, 100)
