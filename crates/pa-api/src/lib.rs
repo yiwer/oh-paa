@@ -7,5 +7,6 @@ mod error;
 pub mod market;
 pub mod router;
 pub mod user;
+pub mod ws;
 
 pub use router::{AppState, MarketRuntime, app_router};

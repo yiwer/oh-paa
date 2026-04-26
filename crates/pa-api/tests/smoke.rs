@@ -638,7 +638,8 @@ fn market_runtime_app_with_repository(
         canonical_repository,
         Arc::new(MarketGateway::new(provider_router)),
     ));
-    let state = AppState::with_dependencies("127.0.0.1:0", orchestration_repository, Some(runtime));
+    let (debug_tx, _) = tokio::sync::broadcast::channel(16);
+    let state = AppState::with_dependencies("127.0.0.1:0", orchestration_repository, Some(runtime), debug_tx);
 
     app_router(state)
 }

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use axum::{Router, routing::get};
+use pa_core::DebugEvent;
 use pa_instrument::InstrumentRepository;
 use pa_market::{CanonicalKlineRepository, MarketGateway};
 use pa_orchestrator::{InMemoryOrchestrationRepository, OrchestrationRepository};
+use tokio::sync::broadcast;
 
-use crate::{admin, analysis, market, user};
+use crate::{admin, analysis, market, user, ws};
 
 #[derive(Clone)]
 pub struct MarketRuntime {
@@ -33,14 +35,17 @@ pub struct AppState {
     pub server_addr: String,
     pub orchestration_repository: Arc<dyn OrchestrationRepository>,
     pub market_runtime: Option<Arc<MarketRuntime>>,
+    pub debug_tx: broadcast::Sender<DebugEvent>,
 }
 
 impl AppState {
     pub fn new(server_addr: impl Into<String>) -> Self {
+        let (debug_tx, _) = broadcast::channel(16);
         Self::with_dependencies(
             server_addr,
             Arc::new(InMemoryOrchestrationRepository::default()),
             None,
+            debug_tx,
         )
     }
 
@@ -48,11 +53,13 @@ impl AppState {
         server_addr: impl Into<String>,
         orchestration_repository: Arc<dyn OrchestrationRepository>,
         market_runtime: Option<Arc<MarketRuntime>>,
+        debug_tx: broadcast::Sender<DebugEvent>,
     ) -> Self {
         Self {
             server_addr: server_addr.into(),
             orchestration_repository,
             market_runtime,
+            debug_tx,
         }
     }
 
@@ -60,10 +67,12 @@ impl AppState {
         server_addr: impl Into<String>,
         market_runtime: Arc<MarketRuntime>,
     ) -> Self {
+        let (debug_tx, _) = broadcast::channel(16);
         Self::with_dependencies(
             server_addr,
             Arc::new(InMemoryOrchestrationRepository::default()),
             Some(market_runtime),
+            debug_tx,
         )
     }
 
@@ -75,6 +84,7 @@ impl AppState {
 pub fn app_router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/ws", get(ws::ws_handler))
         .nest("/admin", admin::routes())
         .nest("/market", market::routes())
         .nest("/analysis", analysis::routes())
