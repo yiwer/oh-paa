@@ -8,7 +8,10 @@ use pa_market::{
     PgCanonicalKlineRepository, ProviderRouter,
     provider::providers::{EastMoneyProvider, TwelveDataProvider},
 };
-use pa_orchestrator::{Executor, OpenAiCompatibleClient, run_single_task};
+use pa_orchestrator::{
+    Executor, OpenAiCompatibleClient, OrchestrationRepository, PgOrchestrationRepository,
+    run_single_task,
+};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
 
@@ -37,8 +40,17 @@ async fn main() -> Result<()> {
         .await?
         .run(&pool)
         .await?;
+    let orchestration_repository: Arc<dyn OrchestrationRepository> =
+        Arc::new(PgOrchestrationRepository::new(pool.clone()));
+    orchestration_repository
+        .recover_stale_running_tasks(
+            chrono::Utc::now() - chrono::Duration::minutes(5),
+            "worker_recovered_on_startup",
+            "startup recovery returned stale running task to retry_waiting",
+        )
+        .await?;
     let instrument_repository = InstrumentRepository::new(pool.clone());
-    let canonical_kline_repository = Arc::new(PgCanonicalKlineRepository::new(pool));
+    let canonical_kline_repository = Arc::new(PgCanonicalKlineRepository::new(pool.clone()));
     let mut provider_router = ProviderRouter::default();
     provider_router.insert(Arc::new(EastMoneyProvider::new(&config.eastmoney_base_url)));
     provider_router.insert(Arc::new(TwelveDataProvider::new(
@@ -51,8 +63,12 @@ async fn main() -> Result<()> {
         Arc::new(provider_router),
     ));
     let worker_executor = build_worker_executor_from_config(&config)?;
-    let state = AppState::with_market_runtime(config.server_addr.clone(), market_runtime);
-    let worker_repository = Arc::clone(&state.orchestration_repository);
+    let state = AppState::with_dependencies(
+        config.server_addr.clone(),
+        Arc::clone(&orchestration_repository),
+        Some(market_runtime),
+    );
+    let worker_repository = Arc::clone(&orchestration_repository);
     let app = app_router(state);
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
@@ -70,7 +86,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_analysis_worker(
-    repository: Arc<pa_orchestrator::InMemoryOrchestrationRepository>,
+    repository: Arc<dyn pa_orchestrator::OrchestrationRepository>,
     executor: Executor<OpenAiCompatibleClient>,
 ) {
     loop {

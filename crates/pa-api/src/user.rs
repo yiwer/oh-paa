@@ -1,5 +1,5 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
-use pa_orchestrator::{InsertTaskResult, OrchestrationRepository};
+use pa_orchestrator::InsertTaskResult;
 use pa_user::build_manual_user_analysis_task;
 use serde_json::Value;
 
@@ -30,6 +30,7 @@ async fn create_manual_user_analysis_task(
             let existing_task = state
                 .orchestration_repository
                 .task(existing_task_id)
+                .await?
                 .ok_or_else(|| {
                     ApiError::not_found(format!(
                         "deduped manual analysis task not found: {existing_task_id}"

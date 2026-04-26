@@ -10,7 +10,6 @@ use pa_analysis::{
 use pa_core::AppError;
 use pa_orchestrator::{
     AnalysisAttempt, AnalysisDeadLetter, AnalysisResult, AnalysisTask, InsertTaskResult,
-    OrchestrationRepository,
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -79,6 +78,7 @@ async fn get_task(
     let task = state
         .orchestration_repository
         .task(task_id)
+        .await?
         .ok_or_else(|| ApiError::not_found(format!("analysis task not found: {task_id}")))?;
 
     Ok(Json(task_json(&task)))
@@ -91,6 +91,7 @@ async fn get_result(
     let result = state
         .orchestration_repository
         .result_for_task(task_id)
+        .await?
         .ok_or_else(|| ApiError::not_found(format!("analysis result not found: {task_id}")))?;
 
     Ok(Json(result_json(&result)))
@@ -100,7 +101,10 @@ async fn get_attempts(
     State(state): State<AppState>,
     Path(task_id): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
-    let attempts = state.orchestration_repository.attempts_for_task(task_id);
+    let attempts = state
+        .orchestration_repository
+        .attempts_for_task(task_id)
+        .await?;
 
     Ok(Json(json!({
         "task_id": task_id,
@@ -115,6 +119,7 @@ async fn get_dead_letter(
     let dead_letter = state
         .orchestration_repository
         .dead_letter_for_task(task_id)
+        .await?
         .ok_or_else(|| ApiError::not_found(format!("analysis dead letter not found: {task_id}")))?;
 
     Ok(Json(dead_letter_json(&dead_letter)))
@@ -135,6 +140,7 @@ async fn enqueue_task(
             let existing_task = state
                 .orchestration_repository
                 .task(existing_task_id)
+                .await?
                 .ok_or_else(|| {
                     ApiError::from(AppError::Storage {
                         message: format!(

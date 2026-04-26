@@ -112,18 +112,23 @@ pub(crate) async fn resolve_shared_bar_input(
             bar_state,
             resolved.bar_open_time,
             resolved.bar_close_time,
-        )?,
-    };
-    let recent_pa_states_json = request.recent_pa_states_json.unwrap_or_else(|| {
-        collect_recent_shared_pa_states_for_bar(
-            state,
-            request.instrument_id,
-            timeframe,
-            resolved.bar_open_time,
-            resolved.bar_close_time,
-            8,
         )
-    });
+        .await?,
+    };
+    let recent_pa_states_json = match request.recent_pa_states_json {
+        Some(value) => value,
+        None => {
+            collect_recent_shared_pa_states_for_bar(
+                state,
+                request.instrument_id,
+                timeframe,
+                resolved.bar_open_time,
+                resolved.bar_close_time,
+                8,
+            )
+            .await?
+        }
+    };
 
     Ok(SharedBarAnalysisInput {
         instrument_id: request.instrument_id,
@@ -201,10 +206,12 @@ pub(crate) async fn resolve_shared_daily_input(
             &context.market.timezone,
             trading_date,
             8,
-        )?,
+        )
+        .await?,
     };
-    let recent_shared_bar_analyses_json =
-        request.recent_shared_bar_analyses_json.unwrap_or_else(|| {
+    let recent_shared_bar_analyses_json = match request.recent_shared_bar_analyses_json {
+        Some(value) => value,
+        None => {
             collect_recent_shared_bar_results_for_trading_date(
                 state,
                 request.instrument_id,
@@ -212,7 +219,9 @@ pub(crate) async fn resolve_shared_daily_input(
                 trading_date,
                 8,
             )
-        });
+            .await?
+        }
+    };
     let multi_timeframe_structure_json = request
         .multi_timeframe_structure_json
         .unwrap_or(build_multi_timeframe_context_json(runtime, &context).await?);
@@ -277,11 +286,13 @@ pub(crate) async fn resolve_manual_user_input(
             bar_state,
             resolved.bar_open_time,
             resolved.bar_close_time,
-        )?,
+        )
+        .await?,
     };
     let shared_daily_context_json = match request.shared_daily_context_json {
         Some(value) => value,
-        None => find_matching_shared_daily_context(state, request.instrument_id, trading_date)?,
+        None => find_matching_shared_daily_context(state, request.instrument_id, trading_date)
+            .await?,
     };
     let shared_pa_state_json = match request.shared_pa_state_json {
         Some(value) => value,
@@ -292,7 +303,8 @@ pub(crate) async fn resolve_manual_user_input(
             bar_state,
             resolved.bar_open_time,
             resolved.bar_close_time,
-        )?,
+        )
+        .await?,
     };
 
     Ok(ManualUserAnalysisInput {
@@ -817,16 +829,16 @@ async fn list_latest_canonical_row(
     Ok(rows.pop())
 }
 
-fn collect_recent_shared_pa_states_for_bar(
+async fn collect_recent_shared_pa_states_for_bar(
     state: &AppState,
     instrument_id: Uuid,
     timeframe: Timeframe,
     target_bar_open_time: DateTime<Utc>,
     target_bar_close_time: DateTime<Utc>,
     limit: usize,
-) -> Value {
+) -> Result<Value, ApiError> {
     let rows = collect_recent_shared_pa_states_for_bar_from_results(
-        state.orchestration_repository.results(),
+        state.orchestration_repository.results().await?,
         instrument_id,
         timeframe,
         target_bar_open_time,
@@ -834,7 +846,9 @@ fn collect_recent_shared_pa_states_for_bar(
         limit,
     );
 
-    Value::Array(rows.into_iter().map(pa_state_result_json).collect())
+    Ok(Value::Array(
+        rows.into_iter().map(pa_state_result_json).collect(),
+    ))
 }
 
 fn collect_recent_shared_pa_states_for_bar_from_results(
@@ -859,7 +873,7 @@ fn collect_recent_shared_pa_states_for_bar_from_results(
     rows
 }
 
-fn collect_recent_shared_pa_states_for_trading_date(
+async fn collect_recent_shared_pa_states_for_trading_date(
     state: &AppState,
     instrument_id: Uuid,
     market_timezone: &str,
@@ -867,7 +881,7 @@ fn collect_recent_shared_pa_states_for_trading_date(
     limit: usize,
 ) -> Result<Value, ApiError> {
     let rows = collect_recent_shared_pa_states_for_trading_date_from_results(
-        state.orchestration_repository.results(),
+        state.orchestration_repository.results().await?,
         instrument_id,
         market_timezone,
         trading_date,
@@ -901,16 +915,17 @@ fn collect_recent_shared_pa_states_for_trading_date_from_results(
     Ok(rows)
 }
 
-fn collect_recent_shared_bar_results_for_trading_date(
+async fn collect_recent_shared_bar_results_for_trading_date(
     state: &AppState,
     instrument_id: Uuid,
     market_timezone: &str,
     trading_date: NaiveDate,
     limit: usize,
-) -> Value {
+) -> Result<Value, ApiError> {
     let mut rows = state
         .orchestration_repository
         .results()
+        .await?
         .into_iter()
         .filter(|result| is_shared_bar_result(result, instrument_id))
         .filter(|result| result_matches_trading_date(result, market_timezone, trading_date))
@@ -919,7 +934,9 @@ fn collect_recent_shared_bar_results_for_trading_date(
     rows.reverse();
     rows.truncate(limit);
 
-    Value::Array(rows.into_iter().map(shared_bar_result_json).collect())
+    Ok(Value::Array(
+        rows.into_iter().map(shared_bar_result_json).collect(),
+    ))
 }
 
 fn is_shared_pa_state_result(
@@ -1006,7 +1023,7 @@ async fn build_market_background_json(
     }))
 }
 
-fn find_matching_shared_bar_result(
+async fn find_matching_shared_bar_result(
     state: &AppState,
     instrument_id: Uuid,
     timeframe: Timeframe,
@@ -1015,7 +1032,7 @@ fn find_matching_shared_bar_result(
     bar_close_time: DateTime<Utc>,
 ) -> Result<Value, ApiError> {
     latest_matching_shared_bar_result_from_results(
-        state.orchestration_repository.results(),
+        state.orchestration_repository.results().await?,
         instrument_id,
         timeframe,
         bar_state,
@@ -1058,7 +1075,7 @@ fn latest_matching_shared_bar_result_from_results(
         .max_by_key(|result| result.created_at)
 }
 
-fn find_matching_shared_pa_state(
+async fn find_matching_shared_pa_state(
     state: &AppState,
     instrument_id: Uuid,
     timeframe: Timeframe,
@@ -1067,7 +1084,7 @@ fn find_matching_shared_pa_state(
     bar_close_time: DateTime<Utc>,
 ) -> Result<Value, ApiError> {
     latest_matching_shared_pa_state_from_results(
-        state.orchestration_repository.results(),
+        state.orchestration_repository.results().await?,
         instrument_id,
         timeframe,
         bar_state,
@@ -1110,7 +1127,7 @@ fn latest_matching_shared_pa_state_from_results(
         .max_by_key(|result| result.created_at)
 }
 
-fn find_matching_shared_daily_context(
+async fn find_matching_shared_daily_context(
     state: &AppState,
     instrument_id: Uuid,
     trading_date: NaiveDate,
@@ -1118,6 +1135,7 @@ fn find_matching_shared_daily_context(
     state
         .orchestration_repository
         .results()
+        .await?
         .into_iter()
         .filter(|result| {
             result.task_type == shared_daily_context_v2().task_type

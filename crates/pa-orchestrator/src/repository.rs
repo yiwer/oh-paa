@@ -32,6 +32,8 @@ pub trait OrchestrationRepository: Send + Sync {
 
     async fn result_for_task(&self, task_id: Uuid) -> Result<Option<AnalysisResult>, AppError>;
 
+    async fn results(&self) -> Result<Vec<AnalysisResult>, AppError>;
+
     async fn attempts_for_task(&self, task_id: Uuid) -> Result<Vec<AnalysisAttempt>, AppError>;
 
     async fn dead_letter_for_task(
@@ -247,6 +249,10 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
     async fn result_for_task(&self, task_id: Uuid) -> Result<Option<AnalysisResult>, AppError> {
         Ok(self.result_for_task(task_id))
+    }
+
+    async fn results(&self) -> Result<Vec<AnalysisResult>, AppError> {
+        Ok(self.results())
     }
 
     async fn attempts_for_task(&self, task_id: Uuid) -> Result<Vec<AnalysisAttempt>, AppError> {
@@ -849,6 +855,35 @@ impl OrchestrationRepository for PgOrchestrationRepository {
         .map_err(storage_error("failed to query analysis result"))?
         .map(map_result_row)
         .transpose()
+    }
+
+    async fn results(&self) -> Result<Vec<AnalysisResult>, AppError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id,
+                task_id,
+                task_type,
+                instrument_id,
+                user_id,
+                timeframe,
+                bar_state,
+                bar_open_time,
+                bar_close_time,
+                trading_date,
+                prompt_key,
+                prompt_version,
+                output_json::text AS output_json_text,
+                created_at
+            FROM analysis_results
+            ORDER BY created_at DESC, id DESC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(storage_error("failed to query analysis results"))?;
+
+        rows.into_iter().map(map_result_row).collect()
     }
 
     async fn attempts_for_task(&self, task_id: Uuid) -> Result<Vec<AnalysisAttempt>, AppError> {

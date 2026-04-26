@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{Router, routing::get};
 use pa_instrument::InstrumentRepository;
 use pa_market::{CanonicalKlineRepository, ProviderRouter};
-use pa_orchestrator::InMemoryOrchestrationRepository;
+use pa_orchestrator::{InMemoryOrchestrationRepository, OrchestrationRepository};
 
 use crate::{admin, analysis, market, user};
 
@@ -31,7 +31,7 @@ impl MarketRuntime {
 #[derive(Clone)]
 pub struct AppState {
     pub server_addr: String,
-    pub orchestration_repository: Arc<InMemoryOrchestrationRepository>,
+    pub orchestration_repository: Arc<dyn OrchestrationRepository>,
     pub market_runtime: Option<Arc<MarketRuntime>>,
 }
 
@@ -46,7 +46,7 @@ impl AppState {
 
     pub fn with_dependencies(
         server_addr: impl Into<String>,
-        orchestration_repository: Arc<InMemoryOrchestrationRepository>,
+        orchestration_repository: Arc<dyn OrchestrationRepository>,
         market_runtime: Option<Arc<MarketRuntime>>,
     ) -> Self {
         Self {
