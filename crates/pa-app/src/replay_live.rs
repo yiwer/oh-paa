@@ -9,6 +9,10 @@ use std::{
 
 use pa_analysis::{SharedBarAnalysisInput, SharedDailyContextInput, SharedPaStateBarInput};
 use pa_core::{AppError, Timeframe};
+use pa_instrument::{
+    Instrument, InstrumentMarketDataContext, InstrumentSymbolBinding, Market, PolicyScope,
+    ProviderPolicy,
+};
 use pa_market::{
     AggregatedKline, CanonicalKlineRow, HistoricalKlineQuery, ProviderRouter,
     aggregate_replay_window_rows, normalize_kline, provider::providers::TwelveDataProvider,
@@ -900,27 +904,61 @@ fn build_multi_timeframe_structure_json(
     sample: &LiveReplaySample,
     visible_rows: &[CanonicalKlineRow],
 ) -> Result<Value, AppError> {
-    let one_hour = aggregate_replay_window_rows(
-        visible_rows,
-        sample.instrument_id,
-        Timeframe::M15,
-        Timeframe::H1,
-        None,
-        None,
-    )?;
-    let one_day = aggregate_replay_window_rows(
-        visible_rows,
-        sample.instrument_id,
-        Timeframe::M15,
-        Timeframe::D1,
-        None,
-        None,
-    )?;
+    let ctx = build_replay_context(sample, "continuous-utc");
+    let one_hour =
+        aggregate_replay_window_rows(visible_rows, &ctx, Timeframe::M15, Timeframe::H1)?;
+    let one_day =
+        aggregate_replay_window_rows(visible_rows, &ctx, Timeframe::M15, Timeframe::D1)?;
 
     Ok(json!({
         "1h": aggregated_rows_json(&one_hour),
         "1d": aggregated_rows_json(&one_day),
     }))
+}
+
+fn build_replay_context(
+    sample: &LiveReplaySample,
+    market_code: &str,
+) -> InstrumentMarketDataContext {
+    let now = chrono::Utc::now();
+    let market_id = Uuid::new_v4();
+    let market = Market {
+        id: market_id,
+        code: market_code.to_string(),
+        name: market_code.to_string(),
+        timezone: "UTC".to_string(),
+        created_at: now,
+        updated_at: now,
+    };
+    let instrument = Instrument {
+        id: sample.instrument_id,
+        market_id,
+        symbol: sample.display_symbol.clone(),
+        name: sample.display_symbol.clone(),
+        instrument_type: "equity".to_string(),
+        created_at: now,
+        updated_at: now,
+    };
+    let bindings = vec![InstrumentSymbolBinding {
+        id: Uuid::new_v4(),
+        instrument_id: sample.instrument_id,
+        provider: sample.provider.clone(),
+        provider_symbol: sample.provider_symbol.clone(),
+        created_at: now,
+    }];
+    let policy = ProviderPolicy::new(
+        PolicyScope::Market(market_id.to_string()),
+        sample.provider.clone(),
+        None,
+        sample.provider.clone(),
+        None,
+    );
+    InstrumentMarketDataContext {
+        market,
+        instrument,
+        policy,
+        bindings,
+    }
 }
 
 fn aggregated_rows_json(rows: &[AggregatedKline]) -> Vec<Value> {

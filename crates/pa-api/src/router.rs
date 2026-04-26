@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{Router, routing::get};
 use pa_instrument::InstrumentRepository;
-use pa_market::{CanonicalKlineRepository, ProviderRouter};
+use pa_market::{CanonicalKlineRepository, MarketGateway};
 use pa_orchestrator::{InMemoryOrchestrationRepository, OrchestrationRepository};
 
 use crate::{admin, analysis, market, user};
@@ -11,19 +11,19 @@ use crate::{admin, analysis, market, user};
 pub struct MarketRuntime {
     pub instrument_repository: InstrumentRepository,
     pub canonical_kline_repository: Arc<dyn CanonicalKlineRepository>,
-    pub provider_router: Arc<ProviderRouter>,
+    pub market_gateway: Arc<MarketGateway>,
 }
 
 impl MarketRuntime {
     pub fn new(
         instrument_repository: InstrumentRepository,
         canonical_kline_repository: Arc<dyn CanonicalKlineRepository>,
-        provider_router: Arc<ProviderRouter>,
+        market_gateway: Arc<MarketGateway>,
     ) -> Self {
         Self {
             instrument_repository,
             canonical_kline_repository,
-            provider_router,
+            market_gateway,
         }
     }
 }

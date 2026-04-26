@@ -5,7 +5,7 @@ use pa_api::{AppState, MarketRuntime, app_router};
 use pa_app::build_worker_executor_from_config;
 use pa_instrument::InstrumentRepository;
 use pa_market::{
-    PgCanonicalKlineRepository, ProviderRouter,
+    MarketGateway, PgCanonicalKlineRepository, ProviderRouter,
     provider::providers::{EastMoneyProvider, TwelveDataProvider},
 };
 use pa_orchestrator::{
@@ -57,10 +57,11 @@ async fn main() -> Result<()> {
         &config.twelvedata_base_url,
         &config.twelvedata_api_key,
     )));
+    let market_gateway = Arc::new(MarketGateway::new(provider_router));
     let market_runtime = Arc::new(MarketRuntime::new(
         instrument_repository,
         canonical_kline_repository,
-        Arc::new(provider_router),
+        market_gateway,
     ));
     let worker_executor = build_worker_executor_from_config(&config)?;
     let state = AppState::with_dependencies(

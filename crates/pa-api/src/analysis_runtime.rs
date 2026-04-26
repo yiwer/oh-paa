@@ -533,15 +533,13 @@ async fn resolve_closed_bar_json(
         Timeframe::H1 | Timeframe::D1 => {
             let rows = aggregate_canonical_klines(
                 runtime.canonical_kline_repository.as_ref(),
+                context,
                 AggregateCanonicalKlinesRequest {
-                    instrument_id: context.instrument.id,
                     source_timeframe: Timeframe::M15,
                     target_timeframe: timeframe,
                     start_open_time: None,
                     end_open_time: None,
                     limit: 64,
-                    market_code: Some(context.market.code.clone()),
-                    market_timezone: Some(context.market.timezone.clone()),
                 },
             )
             .await?;
@@ -567,27 +565,11 @@ async fn resolve_open_bar_json(
     requested_bar_open_time: Option<DateTime<Utc>>,
     requested_bar_close_time: Option<DateTime<Utc>>,
 ) -> Result<(DateTime<Utc>, DateTime<Utc>, Value), ApiError> {
-    let primary_provider = context.policy.tick_primary.as_str();
-    let fallback_provider = context
-        .policy
-        .tick_fallback
-        .as_deref()
-        .unwrap_or(primary_provider);
-    let primary_binding = context.binding_for_provider(primary_provider)?;
-    let fallback_binding = context.binding_for_provider(fallback_provider)?;
     let row = derive_open_bar(
-        runtime.provider_router.as_ref(),
+        runtime.market_gateway.as_ref(),
         runtime.canonical_kline_repository.as_ref(),
-        pa_market::DeriveOpenBarRequest {
-            instrument_id: context.instrument.id,
-            timeframe,
-            market_code: Some(context.market.code.clone()),
-            market_timezone: Some(context.market.timezone.clone()),
-            primary_provider,
-            fallback_provider,
-            primary_provider_symbol: &primary_binding.provider_symbol,
-            fallback_provider_symbol: &fallback_binding.provider_symbol,
-        },
+        context,
+        timeframe,
     )
     .await?
     .ok_or_else(|| ApiError::bad_request("unable to resolve open bar because market is closed"))?;
@@ -676,15 +658,13 @@ async fn build_timeframe_structure_json(
         .collect::<Vec<_>>(),
         Timeframe::H1 | Timeframe::D1 => aggregate_canonical_klines(
             runtime.canonical_kline_repository.as_ref(),
+            context,
             AggregateCanonicalKlinesRequest {
-                instrument_id: context.instrument.id,
                 source_timeframe: Timeframe::M15,
                 target_timeframe: timeframe,
                 start_open_time: None,
                 end_open_time: None,
                 limit,
-                market_code: Some(context.market.code.clone()),
-                market_timezone: Some(context.market.timezone.clone()),
             },
         )
         .await?
@@ -709,27 +689,11 @@ async fn build_current_open_bar_json(
     context: &InstrumentMarketDataContext,
     timeframe: Timeframe,
 ) -> Result<Value, ApiError> {
-    let primary_provider = context.policy.tick_primary.as_str();
-    let fallback_provider = context
-        .policy
-        .tick_fallback
-        .as_deref()
-        .unwrap_or(primary_provider);
-    let primary_binding = context.binding_for_provider(primary_provider)?;
-    let fallback_binding = context.binding_for_provider(fallback_provider)?;
     let row = derive_open_bar(
-        runtime.provider_router.as_ref(),
+        runtime.market_gateway.as_ref(),
         runtime.canonical_kline_repository.as_ref(),
-        pa_market::DeriveOpenBarRequest {
-            instrument_id: context.instrument.id,
-            timeframe,
-            market_code: Some(context.market.code.clone()),
-            market_timezone: Some(context.market.timezone.clone()),
-            primary_provider,
-            fallback_provider,
-            primary_provider_symbol: &primary_binding.provider_symbol,
-            fallback_provider_symbol: &fallback_binding.provider_symbol,
-        },
+        context,
+        timeframe,
     )
     .await?;
 
@@ -741,23 +705,7 @@ async fn fetch_latest_tick_json(
     runtime: &std::sync::Arc<MarketRuntime>,
     context: &InstrumentMarketDataContext,
 ) -> Result<Value, ApiError> {
-    let primary_provider = context.policy.tick_primary.as_str();
-    let fallback_provider = context
-        .policy
-        .tick_fallback
-        .as_deref()
-        .unwrap_or(primary_provider);
-    let primary_binding = context.binding_for_provider(primary_provider)?;
-    let fallback_binding = context.binding_for_provider(fallback_provider)?;
-    let routed = runtime
-        .provider_router
-        .fetch_latest_tick_with_fallback_source(
-            primary_provider,
-            fallback_provider,
-            &primary_binding.provider_symbol,
-            &fallback_binding.provider_symbol,
-        )
-        .await?;
+    let routed = runtime.market_gateway.fetch_latest_tick(context).await?;
 
     Ok(json!({
         "provider": routed.provider_name,
@@ -777,27 +725,11 @@ async fn derive_latest_trading_date(
         return trading_date_for_datetime(&context.market.timezone, row.open_time);
     }
 
-    let primary_provider = context.policy.tick_primary.as_str();
-    let fallback_provider = context
-        .policy
-        .tick_fallback
-        .as_deref()
-        .unwrap_or(primary_provider);
-    let primary_binding = context.binding_for_provider(primary_provider)?;
-    let fallback_binding = context.binding_for_provider(fallback_provider)?;
     let open_bar = derive_open_bar(
-        runtime.provider_router.as_ref(),
+        runtime.market_gateway.as_ref(),
         runtime.canonical_kline_repository.as_ref(),
-        pa_market::DeriveOpenBarRequest {
-            instrument_id: context.instrument.id,
-            timeframe: Timeframe::M15,
-            market_code: Some(context.market.code.clone()),
-            market_timezone: Some(context.market.timezone.clone()),
-            primary_provider,
-            fallback_provider,
-            primary_provider_symbol: &primary_binding.provider_symbol,
-            fallback_provider_symbol: &fallback_binding.provider_symbol,
-        },
+        context,
+        Timeframe::M15,
     )
     .await?;
 

@@ -10,8 +10,8 @@ use pa_api::{AppState, MarketRuntime, app_router};
 use pa_core::{AppError, Timeframe};
 use pa_instrument::InstrumentRepository;
 use pa_market::{
-    CanonicalKlineRepository, MarketDataProvider, PgCanonicalKlineRepository, ProviderKline,
-    ProviderRouter, ProviderTick,
+    CanonicalKlineRepository, MarketDataProvider, MarketGateway, PgCanonicalKlineRepository,
+    ProviderKline, ProviderRouter, ProviderTick,
 };
 use pa_orchestrator::{
     AnalysisResult, InMemoryOrchestrationRepository, OrchestrationRepository,
@@ -637,7 +637,7 @@ fn market_runtime_app_with_repository(
     let runtime = Arc::new(MarketRuntime::new(
         instrument_repository,
         canonical_repository,
-        Arc::new(provider_router),
+        Arc::new(MarketGateway::new(provider_router)),
     ));
     let state = AppState::with_dependencies("127.0.0.1:0", orchestration_repository, Some(runtime));
 
