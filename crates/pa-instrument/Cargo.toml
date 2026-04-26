@@ -12,3 +12,6 @@ uuid.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
+
+[features]
+test-fixtures = []
