@@ -1363,9 +1363,11 @@ name = "pa-core"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "rust_decimal",
  "serde",
  "thiserror",
  "toml",
+ "uuid",
 ]
 
 [[package]]
@@ -1388,6 +1390,7 @@ dependencies = [
  "axum",
  "chrono",
  "pa-core",
+ "pa-instrument",
  "reqwest",
  "rust_decimal",
  "serde",
