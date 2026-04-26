@@ -275,10 +275,11 @@ fn storage_decode_error(source: sqlx::Error) -> AppError {
 impl InstrumentMarketDataContext {
     /// Build an in-memory `InstrumentMarketDataContext` for tests.
     ///
-    /// `policy_primary` and `policy_fallback` are provider names. For each
-    /// non-`None` entry, an `InstrumentSymbolBinding` is generated using
-    /// `format!("{}-{}", instrument_symbol, provider)` as the
-    /// `provider_symbol`.
+    /// Each unique provider name across `kline_primary`, `kline_fallback`,
+    /// `tick_primary`, and `tick_fallback` produces an `InstrumentSymbolBinding`
+    /// with `provider_symbol = format!("{instrument_symbol}-{provider}")`.
+    /// Duplicate provider names (e.g. when the same provider serves both
+    /// kline and tick) are deduplicated.
     pub fn fixture(
         market_code: &str,
         market_timezone: &str,
