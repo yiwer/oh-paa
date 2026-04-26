@@ -5,6 +5,7 @@ import MetricCard, { MetricStrip } from '@/components/MetricCard/MetricCard';
 import { useDebugEventStore } from '@/ws/debugEventStore';
 import { useInstruments } from '@/api/hooks/usePipeline';
 import InstrumentCard from '@/pages/pipeline/InstrumentCard';
+import EventStream from '@/pages/pipeline/EventStream';
 import type { Instrument, DebugEvent } from '@/api/types';
 
 function isCrypto(symbol: string) {
@@ -119,6 +120,9 @@ export default function PipelinePage() {
         </section>
       )}
 
+      <EventStreamWrapper>
+        <EventStream events={events} />
+      </EventStreamWrapper>
     </Root>
   );
 }
@@ -157,4 +161,8 @@ const CardGrid = styled.div`
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: ${space.px10}px;
   margin-bottom: ${space.px24}px;
+`;
+
+const EventStreamWrapper = styled.div`
+  margin-top: ${space.px8}px;
 `;
