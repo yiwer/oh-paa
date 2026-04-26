@@ -935,7 +935,7 @@ fn build_replay_context(
         market_id,
         symbol: sample.display_symbol.clone(),
         name: sample.display_symbol.clone(),
-        instrument_type: "equity".to_string(),
+        instrument_type: "crypto".to_string(),
         created_at: now,
         updated_at: now,
     };

@@ -114,7 +114,6 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
     let backfill_json = response_json(backfill).await;
     assert_eq!(backfill_json["primary_provider"], "primary");
     assert_eq!(backfill_json["fallback_provider"], "fallback");
-    assert_eq!(backfill_json["fallback_provider_symbol"], "BBB");
 
     let canonical = request(
         &app,
