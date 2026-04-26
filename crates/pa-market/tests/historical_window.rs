@@ -9,6 +9,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use pa_core::{AppError, Timeframe};
+use pa_instrument::InstrumentMarketDataContext;
 use pa_market::{
     CanonicalKlineRow, HistoricalKlineQuery, MarketDataProvider, aggregate_replay_window_rows,
     provider::providers::TwelveDataProvider,
@@ -69,7 +70,8 @@ async fn twelvedata_fetch_klines_window_uses_explicit_bounds_ascending_order_and
 
 #[test]
 fn aggregate_replay_window_rows_builds_complete_hour_from_contiguous_15m_rows() {
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     let rows = vec![
         row(
             instrument_id,
@@ -105,15 +107,8 @@ fn aggregate_replay_window_rows_builds_complete_hour_from_contiguous_15m_rows() 
         ),
     ];
 
-    let aggregated = aggregate_replay_window_rows(
-        &rows,
-        instrument_id,
-        Timeframe::M15,
-        Timeframe::H1,
-        None,
-        None,
-    )
-    .expect("in-memory replay aggregation should succeed");
+    let aggregated = aggregate_replay_window_rows(&rows, &ctx, Timeframe::M15, Timeframe::H1)
+        .expect("in-memory replay aggregation should succeed");
 
     assert_eq!(aggregated.len(), 1);
     assert_eq!(aggregated[0].open_time, utc("2024-01-02T00:00:00Z"));
@@ -130,7 +125,8 @@ fn aggregate_replay_window_rows_builds_complete_hour_from_contiguous_15m_rows() 
 
 #[test]
 fn aggregate_replay_window_rows_rejects_duplicate_child_open_time() {
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     let rows = vec![
         row(
             instrument_id,
@@ -166,15 +162,8 @@ fn aggregate_replay_window_rows_rejects_duplicate_child_open_time() {
         ),
     ];
 
-    let error = aggregate_replay_window_rows(
-        &rows,
-        instrument_id,
-        Timeframe::M15,
-        Timeframe::H1,
-        None,
-        None,
-    )
-    .expect_err("duplicate child rows should be rejected");
+    let error = aggregate_replay_window_rows(&rows, &ctx, Timeframe::M15, Timeframe::H1)
+        .expect_err("duplicate child rows should be rejected");
 
     match error {
         AppError::Validation { message, .. } => {
@@ -315,4 +304,16 @@ fn utc(value: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(value)
         .expect("fixture timestamp should be valid")
         .with_timezone(&Utc)
+}
+
+fn ctx_for_test() -> InstrumentMarketDataContext {
+    InstrumentMarketDataContext::fixture(
+        "continuous-utc",
+        "UTC",
+        "000001",
+        "primary",
+        Some("fallback"),
+        "primary",
+        Some("fallback"),
+    )
 }

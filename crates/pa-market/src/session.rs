@@ -26,6 +26,10 @@ pub struct SessionBucket {
 }
 
 impl MarketSessionProfile {
+    pub fn from_market_record(market: &pa_instrument::Market) -> Self {
+        Self::from_market(Some(&market.code), Some(&market.timezone))
+    }
+
     pub fn from_market(market_code: Option<&str>, market_timezone: Option<&str>) -> Self {
         let market_code = market_code.unwrap_or("continuous-utc").to_ascii_lowercase();
         let normalized_code = market_code.replace('_', "-");
@@ -493,5 +497,32 @@ mod tests {
         assert!(profile.is_market_open(utc("2024-01-04T12:00:00Z"), Timeframe::H1));
         assert!(!profile.is_market_open(utc("2024-01-06T12:00:00Z"), Timeframe::H1));
         assert!(profile.is_market_open(utc("2024-01-07T22:15:00Z"), Timeframe::H1));
+    }
+}
+
+#[cfg(test)]
+mod from_market_record_tests {
+    use super::{MarketSessionKind, MarketSessionProfile};
+    use chrono::Utc;
+    use pa_instrument::Market;
+    use uuid::Uuid;
+
+    #[test]
+    fn from_market_record_matches_from_market_strings() {
+        let now = Utc::now();
+        let market = Market {
+            id: Uuid::new_v4(),
+            code: "cn-a".to_string(),
+            name: "CN A".to_string(),
+            timezone: "Asia/Shanghai".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let from_record = MarketSessionProfile::from_market_record(&market);
+        let from_strings = MarketSessionProfile::from_market(Some("cn-a"), Some("Asia/Shanghai"));
+
+        assert_eq!(from_record, from_strings);
+        assert_eq!(from_record.kind, MarketSessionKind::CnA);
     }
 }

@@ -271,6 +271,88 @@ fn storage_decode_error(source: sqlx::Error) -> AppError {
     }
 }
 
+#[cfg(any(test, feature = "test-fixtures"))]
+impl InstrumentMarketDataContext {
+    /// Build an in-memory `InstrumentMarketDataContext` for tests.
+    ///
+    /// Each unique provider name across `kline_primary`, `kline_fallback`,
+    /// `tick_primary`, and `tick_fallback` produces an `InstrumentSymbolBinding`
+    /// with `provider_symbol = format!("{instrument_symbol}-{provider}")`.
+    /// Duplicate provider names (e.g. when the same provider serves both
+    /// kline and tick) are deduplicated.
+    pub fn fixture(
+        market_code: &str,
+        market_timezone: &str,
+        instrument_symbol: &str,
+        kline_primary: &str,
+        kline_fallback: Option<&str>,
+        tick_primary: &str,
+        tick_fallback: Option<&str>,
+    ) -> Self {
+        use chrono::Utc;
+
+        let market_id = uuid::Uuid::new_v4();
+        let instrument_id = uuid::Uuid::new_v4();
+        let now = Utc::now();
+
+        let market = crate::models::Market {
+            id: market_id,
+            code: market_code.to_string(),
+            name: market_code.to_string(),
+            timezone: market_timezone.to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        let instrument = crate::models::Instrument {
+            id: instrument_id,
+            market_id,
+            symbol: instrument_symbol.to_string(),
+            name: instrument_symbol.to_string(),
+            instrument_type: "equity".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let mut bindings = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for provider in [
+            Some(kline_primary),
+            kline_fallback,
+            Some(tick_primary),
+            tick_fallback,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !seen.insert(provider.to_string()) {
+                continue;
+            }
+            bindings.push(crate::models::InstrumentSymbolBinding {
+                id: uuid::Uuid::new_v4(),
+                instrument_id,
+                provider: provider.to_string(),
+                provider_symbol: format!("{instrument_symbol}-{provider}"),
+                created_at: now,
+            });
+        }
+
+        let policy = crate::models::ProviderPolicy::new(
+            crate::models::PolicyScope::Market(market_id.to_string()),
+            kline_primary.to_string(),
+            kline_fallback.map(|s| s.to_string()),
+            tick_primary.to_string(),
+            tick_fallback.map(|s| s.to_string()),
+        );
+
+        Self {
+            market,
+            instrument,
+            policy,
+            bindings,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{InstrumentRepository, PolicyScope};

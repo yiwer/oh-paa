@@ -3,10 +3,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use pa_core::{AppError, Timeframe};
+use pa_instrument::InstrumentMarketDataContext;
 use pa_market::{
-    CanonicalKlineRepository, CanonicalKlineRow, DeriveOpenBarRequest,
-    InMemoryCanonicalKlineRepository, MarketDataProvider, ProviderKline, ProviderRouter,
-    ProviderTick, derive_open_bar,
+    CanonicalKlineRepository, CanonicalKlineRow, InMemoryCanonicalKlineRepository,
+    MarketDataProvider, MarketGateway, ProviderKline, ProviderRouter, ProviderTick, derive_open_bar,
 };
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -54,6 +54,18 @@ async fn insert_rows(repository: &InMemoryCanonicalKlineRepository, rows: Vec<Ca
     }
 }
 
+fn ctx_for_test() -> InstrumentMarketDataContext {
+    InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        Some("fallback"),
+        "primary",
+        Some("fallback"),
+    )
+}
+
 struct TickOnlyProvider {
     tick: ProviderTick,
 }
@@ -73,14 +85,7 @@ impl MarketDataProvider for TickOnlyProvider {
         Ok(Vec::new())
     }
 
-    async fn fetch_latest_tick(&self, provider_symbol: &str) -> Result<ProviderTick, AppError> {
-        if provider_symbol != "BBB" {
-            return Err(AppError::Validation {
-                message: format!("unexpected symbol: {provider_symbol}"),
-                source: None,
-            });
-        }
-
+    async fn fetch_latest_tick(&self, _provider_symbol: &str) -> Result<ProviderTick, AppError> {
         Ok(self.tick.clone())
     }
 
@@ -120,7 +125,8 @@ impl MarketDataProvider for FailingTickProvider {
 
 #[tokio::test]
 async fn cn_a_hourly_open_bar_after_lunch_uses_previous_close_as_open() {
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     let repository = InMemoryCanonicalKlineRepository::default();
     insert_rows(
         &repository,
@@ -171,23 +177,11 @@ async fn cn_a_hourly_open_bar_after_lunch_uses_previous_close_as_open() {
         },
     }));
 
-    let open_bar = derive_open_bar(
-        &router,
-        &repository,
-        DeriveOpenBarRequest {
-            instrument_id,
-            timeframe: Timeframe::H1,
-            market_code: Some("cn-a".to_string()),
-            market_timezone: Some("Asia/Shanghai".to_string()),
-            primary_provider: "primary",
-            fallback_provider: "fallback",
-            primary_provider_symbol: "AAA",
-            fallback_provider_symbol: "BBB",
-        },
-    )
-    .await
-    .expect("open bar derivation should succeed")
-    .expect("market should be open");
+    let gateway = MarketGateway::new(router);
+    let open_bar = derive_open_bar(&gateway, &repository, &ctx, Timeframe::H1)
+        .await
+        .expect("open bar derivation should succeed")
+        .expect("market should be open");
 
     assert_eq!(open_bar.open_time, utc("2024-01-02T05:00:00Z"));
     assert_eq!(open_bar.close_time, utc("2024-01-02T06:00:00Z"));
@@ -200,7 +194,8 @@ async fn cn_a_hourly_open_bar_after_lunch_uses_previous_close_as_open() {
 
 #[tokio::test]
 async fn cn_a_daily_open_bar_reuses_closed_children_before_applying_latest_tick() {
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     let repository = InMemoryCanonicalKlineRepository::default();
     insert_rows(
         &repository,
@@ -259,23 +254,11 @@ async fn cn_a_daily_open_bar_reuses_closed_children_before_applying_latest_tick(
         },
     }));
 
-    let open_bar = derive_open_bar(
-        &router,
-        &repository,
-        DeriveOpenBarRequest {
-            instrument_id,
-            timeframe: Timeframe::D1,
-            market_code: Some("cn-a".to_string()),
-            market_timezone: Some("Asia/Shanghai".to_string()),
-            primary_provider: "primary",
-            fallback_provider: "fallback",
-            primary_provider_symbol: "AAA",
-            fallback_provider_symbol: "BBB",
-        },
-    )
-    .await
-    .expect("open bar derivation should succeed")
-    .expect("market should be open");
+    let gateway = MarketGateway::new(router);
+    let open_bar = derive_open_bar(&gateway, &repository, &ctx, Timeframe::D1)
+        .await
+        .expect("open bar derivation should succeed")
+        .expect("market should be open");
 
     assert_eq!(open_bar.open_time, utc("2024-01-02T01:30:00Z"));
     assert_eq!(open_bar.close_time, utc("2024-01-02T07:00:00Z"));

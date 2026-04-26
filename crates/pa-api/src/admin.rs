@@ -1,6 +1,6 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use pa_core::Timeframe;
-use pa_market::{BackfillCanonicalKlinesRequest, backfill_canonical_klines};
+use pa_market::backfill_canonical_klines;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -34,30 +34,14 @@ async fn backfill_market_data(
         .instrument_repository
         .resolve_market_data_context(request.instrument_id)
         .await?;
-    let primary_provider = context.policy.kline_primary.as_str();
-    let fallback_provider = context
-        .policy
-        .kline_fallback
-        .as_deref()
-        .unwrap_or(primary_provider);
-    let primary_binding = context.binding_for_provider(primary_provider)?;
-    let fallback_binding = context.binding_for_provider(fallback_provider)?;
     let limit = request.limit.unwrap_or(200);
 
     backfill_canonical_klines(
-        runtime.provider_router.as_ref(),
+        runtime.market_gateway.as_ref(),
         runtime.canonical_kline_repository.as_ref(),
-        BackfillCanonicalKlinesRequest {
-            instrument_id: context.instrument.id,
-            primary_provider_symbol: &primary_binding.provider_symbol,
-            fallback_provider_symbol: &fallback_binding.provider_symbol,
-            timeframe,
-            limit,
-            primary_provider,
-            fallback_provider,
-            market_code: Some(&context.market.code),
-            market_timezone: Some(&context.market.timezone),
-        },
+        &context,
+        timeframe,
+        limit,
     )
     .await?;
 
@@ -67,10 +51,8 @@ async fn backfill_market_data(
             "status": "accepted",
             "instrument_id": context.instrument.id,
             "timeframe": timeframe.as_str(),
-            "primary_provider": primary_provider,
-            "primary_provider_symbol": primary_binding.provider_symbol,
-            "fallback_provider": fallback_provider,
-            "fallback_provider_symbol": fallback_binding.provider_symbol,
+            "primary_provider": context.policy.kline_primary,
+            "fallback_provider": context.policy.kline_fallback,
             "limit": limit,
         })),
     ))
