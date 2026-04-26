@@ -56,6 +56,7 @@ impl MarketGateway {
         }
     }
 
+    /// Window queries are primary-only. `policy.kline_fallback` is intentionally ignored.
     pub async fn fetch_klines_window(
         &self,
         ctx: &InstrumentMarketDataContext,

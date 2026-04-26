@@ -108,3 +108,168 @@ async fn fetch_klines_returns_primary_provider_when_primary_succeeds() {
     assert_eq!(routed.provider_name, "primary");
     assert_eq!(routed.klines.len(), 1);
 }
+
+#[tokio::test]
+async fn fetch_klines_falls_back_when_primary_returns_empty() {
+    let primary = ok_klines_provider("primary", Vec::new());
+    let fallback = ok_klines_provider("fallback", vec![ProviderKline::fixture()]);
+
+    let mut router = ProviderRouter::default();
+    router.insert(primary);
+    router.insert(fallback);
+    let gateway = MarketGateway::new(router);
+
+    let ctx = InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        Some("fallback"),
+        "primary",
+        Some("fallback"),
+    );
+
+    let routed = gateway
+        .fetch_klines(&ctx, Timeframe::M15, 100)
+        .await
+        .expect("fallback should satisfy");
+
+    assert_eq!(routed.provider_name, "fallback");
+    assert_eq!(routed.klines.len(), 1);
+}
+
+#[tokio::test]
+async fn fetch_klines_returns_validation_when_binding_missing() {
+    let primary = ok_klines_provider("primary", vec![ProviderKline::fixture()]);
+    let mut router = ProviderRouter::default();
+    router.insert(primary);
+    let gateway = MarketGateway::new(router);
+
+    // Policy points at "ghost" but no binding for that provider exists.
+    let mut ctx = InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        None,
+        "primary",
+        None,
+    );
+    ctx.policy.kline_primary = "ghost".to_string();
+
+    let err = gateway
+        .fetch_klines(&ctx, Timeframe::M15, 100)
+        .await
+        .expect_err("missing binding should error");
+
+    match err {
+        AppError::Validation { message, .. } => {
+            assert!(message.contains("missing provider binding"));
+        }
+        other => panic!("expected validation error, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn fetch_klines_returns_validation_when_provider_not_registered() {
+    let router = ProviderRouter::default(); // empty router
+    let gateway = MarketGateway::new(router);
+
+    let ctx = InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        None,
+        "primary",
+        None,
+    );
+
+    let err = gateway
+        .fetch_klines(&ctx, Timeframe::M15, 100)
+        .await
+        .expect_err("unregistered provider should error");
+
+    match err {
+        AppError::Validation { message, .. } => {
+            assert!(message.contains("provider `primary` is not registered"));
+        }
+        other => panic!("expected validation error, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn fetch_klines_no_fallback_surfaces_primary_failure() {
+    let primary = err_klines_provider("primary");
+    let mut router = ProviderRouter::default();
+    router.insert(primary);
+    let gateway = MarketGateway::new(router);
+
+    let ctx = InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        None,
+        "primary",
+        None,
+    );
+
+    let err = gateway
+        .fetch_klines(&ctx, Timeframe::M15, 100)
+        .await
+        .expect_err("primary failure with no fallback should surface");
+
+    match err {
+        AppError::Provider { message, .. } => {
+            assert!(message.contains("primary kline failed"));
+        }
+        other => panic!("expected provider error, got {other:?}"),
+    }
+}
+
+fn sample_tick(price: &str) -> ProviderTick {
+    ProviderTick {
+        price: price.parse().expect("decimal parses"),
+        size: None,
+        tick_time: chrono::DateTime::parse_from_rfc3339("2024-01-02T09:30:00Z")
+            .expect("rfc3339 parses")
+            .with_timezone(&chrono::Utc),
+    }
+}
+
+#[tokio::test]
+async fn fetch_latest_tick_returns_primary_when_primary_succeeds() {
+    let primary = Arc::new(StubProvider {
+        name: "primary",
+        klines: Err(AppError::Provider {
+            message: "klines not exercised".into(),
+            source: None,
+        }),
+        tick: Ok(sample_tick("10.5")),
+        kline_calls: Arc::new(AtomicUsize::new(0)),
+        tick_calls: Arc::new(AtomicUsize::new(0)),
+    });
+
+    let mut router = ProviderRouter::default();
+    router.insert(primary);
+    let gateway = MarketGateway::new(router);
+
+    let ctx = InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        None,
+        "primary",
+        None,
+    );
+
+    let routed = gateway
+        .fetch_latest_tick(&ctx)
+        .await
+        .expect("primary tick should satisfy");
+
+    assert_eq!(routed.provider_name, "primary");
+    assert_eq!(routed.tick.price, "10.5".parse().unwrap());
+}
