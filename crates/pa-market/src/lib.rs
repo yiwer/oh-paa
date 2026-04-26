@@ -4,6 +4,7 @@ pub mod models;
 pub mod normalize;
 pub mod open_bar;
 pub mod provider;
+pub mod gateway;
 pub mod repository;
 pub mod service;
 pub mod session;
@@ -12,6 +13,7 @@ pub use models::{CanonicalKline, ProviderKline, ProviderTick};
 pub use normalize::normalize_kline;
 pub use open_bar::{OpenBar, OpenBarBook};
 pub use provider::{HistoricalKlineQuery, MarketDataProvider, ProviderRouter};
+pub use gateway::MarketGateway;
 pub use repository::{
     CanonicalKlineQuery, CanonicalKlineRepository, CanonicalKlineRow,
     InMemoryCanonicalKlineRepository, PgCanonicalKlineRepository,
