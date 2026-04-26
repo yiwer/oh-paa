@@ -98,7 +98,7 @@ pub async fn backfill_canonical_klines(
                 low: normalized.low,
                 close: normalized.close,
                 volume: normalized.volume,
-                source_provider: routed.provider_name.to_string(),
+                source_provider: routed.provider_name.clone(),
             })
             .await?;
     }
