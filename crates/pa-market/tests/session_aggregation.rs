@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use pa_core::Timeframe;
+use pa_instrument::InstrumentMarketDataContext;
 use pa_market::{
     AggregateCanonicalKlinesRequest, CanonicalKlineQuery, CanonicalKlineRepository,
     CanonicalKlineRow, InMemoryCanonicalKlineRepository, aggregate_canonical_klines,
@@ -50,10 +51,23 @@ async fn insert_rows(repository: &InMemoryCanonicalKlineRepository, rows: Vec<Ca
     }
 }
 
+fn ctx_for_test() -> InstrumentMarketDataContext {
+    InstrumentMarketDataContext::fixture(
+        "cn-a",
+        "Asia/Shanghai",
+        "000001",
+        "primary",
+        Some("fallback"),
+        "primary",
+        Some("fallback"),
+    )
+}
+
 #[tokio::test]
 async fn cn_a_aggregation_from_15m_to_1h_respects_session_boundaries() {
     let repository = InMemoryCanonicalKlineRepository::default();
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     insert_rows(
         &repository,
         vec![
@@ -191,15 +205,13 @@ async fn cn_a_aggregation_from_15m_to_1h_respects_session_boundaries() {
 
     let rows = aggregate_canonical_klines(
         &repository,
+        &ctx,
         AggregateCanonicalKlinesRequest {
-            instrument_id,
             source_timeframe: Timeframe::M15,
             target_timeframe: Timeframe::H1,
             start_open_time: None,
             end_open_time: None,
             limit: 16,
-            market_code: Some("cn-a".to_string()),
-            market_timezone: Some("Asia/Shanghai".to_string()),
         },
     )
     .await
@@ -222,7 +234,8 @@ async fn cn_a_aggregation_from_15m_to_1h_respects_session_boundaries() {
 #[tokio::test]
 async fn cn_a_aggregation_from_15m_to_1d_uses_trading_day_session() {
     let repository = InMemoryCanonicalKlineRepository::default();
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     insert_rows(
         &repository,
         vec![
@@ -360,15 +373,13 @@ async fn cn_a_aggregation_from_15m_to_1d_uses_trading_day_session() {
 
     let rows = aggregate_canonical_klines(
         &repository,
+        &ctx,
         AggregateCanonicalKlinesRequest {
-            instrument_id,
             source_timeframe: Timeframe::M15,
             target_timeframe: Timeframe::D1,
             start_open_time: None,
             end_open_time: None,
             limit: 16,
-            market_code: Some("cn-a".to_string()),
-            market_timezone: Some("Asia/Shanghai".to_string()),
         },
     )
     .await
@@ -385,7 +396,8 @@ async fn cn_a_aggregation_from_15m_to_1d_uses_trading_day_session() {
 #[tokio::test]
 async fn cn_a_aggregation_ignores_invalid_1500_open_bar_from_provider_tail() {
     let repository = InMemoryCanonicalKlineRepository::default();
-    let instrument_id = Uuid::new_v4();
+    let ctx = ctx_for_test();
+    let instrument_id = ctx.instrument.id;
     insert_rows(
         &repository,
         vec![
@@ -459,15 +471,13 @@ async fn cn_a_aggregation_ignores_invalid_1500_open_bar_from_provider_tail() {
 
     let rows = aggregate_canonical_klines(
         &repository,
+        &ctx,
         AggregateCanonicalKlinesRequest {
-            instrument_id,
             source_timeframe: Timeframe::M15,
             target_timeframe: Timeframe::H1,
             start_open_time: None,
             end_open_time: None,
             limit: 8,
-            market_code: Some("cn-a".to_string()),
-            market_timezone: Some("Asia/Shanghai".to_string()),
         },
     )
     .await

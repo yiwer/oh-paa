@@ -29,14 +29,11 @@ pub struct AggregatedKline {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AggregateCanonicalKlinesRequest {
-    pub instrument_id: Uuid,
     pub source_timeframe: Timeframe,
     pub target_timeframe: Timeframe,
     pub start_open_time: Option<DateTime<Utc>>,
     pub end_open_time: Option<DateTime<Utc>>,
     pub limit: usize,
-    pub market_code: Option<String>,
-    pub market_timezone: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,21 +99,21 @@ pub async fn list_canonical_klines(
 
 pub async fn aggregate_canonical_klines(
     repository: &dyn CanonicalKlineRepository,
+    ctx: &pa_instrument::InstrumentMarketDataContext,
     request: AggregateCanonicalKlinesRequest,
 ) -> Result<Vec<AggregatedKline>, AppError> {
-    let session_profile = MarketSessionProfile::from_market(
-        request.market_code.as_deref(),
-        request.market_timezone.as_deref(),
-    );
+    let session_profile = MarketSessionProfile::from_market_record(&ctx.market);
     let source_rows = repository
         .list_canonical_klines(CanonicalKlineQuery {
-            instrument_id: request.instrument_id,
+            instrument_id: ctx.instrument.id,
             timeframe: request.source_timeframe,
             start_open_time: request.start_open_time,
             end_open_time: request.end_open_time,
             limit: request.limit.saturating_mul(
-                session_profile
-                    .expected_child_bar_count(request.source_timeframe, request.target_timeframe)?,
+                session_profile.expected_child_bar_count(
+                    request.source_timeframe,
+                    request.target_timeframe,
+                )?,
             ),
             descending: true,
         })
@@ -129,7 +126,7 @@ pub async fn aggregate_canonical_klines(
 
     aggregate_rows(
         &source_rows,
-        request.instrument_id,
+        ctx.instrument.id,
         request.source_timeframe,
         request.target_timeframe,
         &session_profile,
@@ -138,16 +135,14 @@ pub async fn aggregate_canonical_klines(
 
 pub fn aggregate_replay_window_rows(
     rows: &[CanonicalKlineRow],
-    instrument_id: Uuid,
+    ctx: &pa_instrument::InstrumentMarketDataContext,
     source_timeframe: Timeframe,
     target_timeframe: Timeframe,
-    market_code: Option<&str>,
-    market_timezone: Option<&str>,
 ) -> Result<Vec<AggregatedKline>, AppError> {
-    let session_profile = MarketSessionProfile::from_market(market_code, market_timezone);
+    let session_profile = MarketSessionProfile::from_market_record(&ctx.market);
     let mut source_rows = rows
         .iter()
-        .filter(|row| row.instrument_id == instrument_id)
+        .filter(|row| row.instrument_id == ctx.instrument.id)
         .filter(|row| row.timeframe == source_timeframe)
         .filter(|row| session_profile.accepts_bar_open(source_timeframe, row.open_time))
         .cloned()
@@ -159,7 +154,7 @@ pub fn aggregate_replay_window_rows(
                 message: format!(
                     "duplicate child row open_time={} for instrument {} timeframe {}",
                     duplicate_pair[0].open_time.to_rfc3339(),
-                    instrument_id,
+                    ctx.instrument.id,
                     source_timeframe,
                 ),
                 source: None,
@@ -169,7 +164,7 @@ pub fn aggregate_replay_window_rows(
 
     aggregate_rows(
         &source_rows,
-        instrument_id,
+        ctx.instrument.id,
         source_timeframe,
         target_timeframe,
         &session_profile,
