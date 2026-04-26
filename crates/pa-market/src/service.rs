@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use crate::{
     normalize_kline,
-    provider::ProviderRouter,
     repository::{CanonicalKlineQuery, CanonicalKlineRepository, CanonicalKlineRow},
     session::MarketSessionProfile,
 };
@@ -38,18 +37,6 @@ pub struct AggregateCanonicalKlinesRequest {
     pub limit: usize,
     pub market_code: Option<String>,
     pub market_timezone: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DeriveOpenBarRequest<'a> {
-    pub instrument_id: Uuid,
-    pub timeframe: Timeframe,
-    pub market_code: Option<String>,
-    pub market_timezone: Option<String>,
-    pub primary_provider: &'a str,
-    pub fallback_provider: &'a str,
-    pub primary_provider_symbol: &'a str,
-    pub fallback_provider_symbol: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -190,28 +177,19 @@ pub fn aggregate_replay_window_rows(
 }
 
 pub async fn derive_open_bar(
-    router: &ProviderRouter,
+    gateway: &crate::MarketGateway,
     repository: &dyn CanonicalKlineRepository,
-    request: DeriveOpenBarRequest<'_>,
+    ctx: &pa_instrument::InstrumentMarketDataContext,
+    timeframe: Timeframe,
 ) -> Result<Option<DerivedOpenBar>, AppError> {
-    let session_profile = MarketSessionProfile::from_market(
-        request.market_code.as_deref(),
-        request.market_timezone.as_deref(),
-    );
-    let routed_tick = router
-        .fetch_latest_tick_with_fallback_source(
-            request.primary_provider,
-            request.fallback_provider,
-            request.primary_provider_symbol,
-            request.fallback_provider_symbol,
-        )
-        .await?;
+    let session_profile = MarketSessionProfile::from_market_record(&ctx.market);
+    let routed_tick = gateway.fetch_latest_tick(ctx).await?;
     let Some(bucket) =
-        session_profile.current_bucket_for_tick(request.timeframe, routed_tick.tick.tick_time)?
+        session_profile.current_bucket_for_tick(timeframe, routed_tick.tick.tick_time)?
     else {
         return Ok(None);
     };
-    let source_timeframe = source_timeframe_for_open_bar(request.timeframe);
+    let source_timeframe = source_timeframe_for_open_bar(timeframe);
     let source_duration = duration_from_timeframe(source_timeframe)?;
     let bucket_end_open_time = bucket
         .close_time
@@ -219,18 +197,18 @@ pub async fn derive_open_bar(
         .ok_or_else(|| AppError::Validation {
             message: format!(
                 "failed to compute bucket end open time for {} {}",
-                request.timeframe,
+                timeframe,
                 bucket.close_time.to_rfc3339()
             ),
             source: None,
         })?;
     let bucket_rows = repository
         .list_canonical_klines(CanonicalKlineQuery {
-            instrument_id: request.instrument_id,
+            instrument_id: ctx.instrument.id,
             timeframe: source_timeframe,
             start_open_time: Some(bucket.open_time),
             end_open_time: Some(bucket_end_open_time),
-            limit: session_profile.expected_child_bar_count(source_timeframe, request.timeframe)?,
+            limit: session_profile.expected_child_bar_count(source_timeframe, timeframe)?,
             descending: false,
         })
         .await?
@@ -269,7 +247,7 @@ pub async fn derive_open_bar(
         )
     } else if let Some(previous_row) = latest_closed_row_before(
         repository,
-        request.instrument_id,
+        ctx.instrument.id,
         source_timeframe,
         bucket.open_time,
         &session_profile,
@@ -295,9 +273,9 @@ pub async fn derive_open_bar(
     low = low.min(routed_tick.tick.price);
 
     Ok(Some(DerivedOpenBar {
-        instrument_id: request.instrument_id,
+        instrument_id: ctx.instrument.id,
         source_timeframe,
-        timeframe: request.timeframe,
+        timeframe,
         open_time: bucket.open_time,
         close_time: bucket.close_time,
         latest_tick_time: routed_tick.tick.tick_time,

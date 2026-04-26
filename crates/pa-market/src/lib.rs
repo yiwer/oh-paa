@@ -20,7 +20,7 @@ pub use repository::{
 };
 pub use service::{
     AggregateCanonicalKlinesRequest, AggregatedKline,
-    DeriveOpenBarRequest, DerivedOpenBar, aggregate_canonical_klines, aggregate_replay_window_rows,
+    DerivedOpenBar, aggregate_canonical_klines, aggregate_replay_window_rows,
     backfill_canonical_klines, derive_open_bar, list_canonical_klines,
 };
 pub use session::{MarketSessionKind, MarketSessionProfile, SessionBucket};
