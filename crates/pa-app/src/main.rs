@@ -59,14 +59,16 @@ async fn main() -> Result<()> {
         &config.twelvedata_base_url,
         &config.twelvedata_api_key,
     )));
-    let market_gateway = Arc::new(MarketGateway::new(provider_router));
+    let (debug_tx, _) = broadcast::channel::<DebugEvent>(512);
+    let market_gateway = Arc::new(
+        MarketGateway::new(provider_router).with_debug_tx(debug_tx.clone()),
+    );
     let market_runtime = Arc::new(MarketRuntime::new(
         instrument_repository,
         canonical_kline_repository,
         market_gateway,
     ));
     let worker_executor = build_worker_executor_from_config(&config)?;
-    let (debug_tx, _) = broadcast::channel::<DebugEvent>(512);
     let state = AppState::with_dependencies(
         config.server_addr.clone(),
         Arc::clone(&orchestration_repository),
