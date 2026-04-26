@@ -198,10 +198,10 @@ histograms).
 
 | Metric | Type | Labels | Purpose |
 |---|---|---|---|
-| `orchestration_tasks_total` | counter | `status`, `prompt_key` | Task state transitions |
+| `orchestration_tasks_total` | counter | `status`, `prompt_key`, `market` | Task state transitions |
 | `orchestration_queue_depth` | gauge | `state` (pending\|claimed\|dead) | Queue health |
 | `orchestration_claim_duration_seconds` | histogram | — | `claim_next_pending_task` time, signals Pg row-lock contention |
-| `orchestration_task_duration_seconds` | histogram | `prompt_key`, `outcome` | End-to-end task time |
+| `orchestration_task_duration_seconds` | histogram | `prompt_key`, `outcome`, `market` | End-to-end task time |
 | `orchestration_attempts_per_task` | histogram | `prompt_key` | Retry distribution |
 | `orchestration_dead_letter_total` | counter | `reason` | DLQ entry causes |
 
@@ -209,7 +209,7 @@ histograms).
 
 | Metric | Type | Labels | Purpose |
 |---|---|---|---|
-| `llm_request_duration_seconds` | histogram | `provider`, `model`, `outcome` | Per-call latency |
+| `llm_request_duration_seconds` | histogram | `provider`, `model`, `outcome`, `market` | Per-call latency |
 | `llm_tokens_total` | counter | `provider`, `model`, `kind` (in\|out) | Cost observability |
 | `llm_schema_validation_total` | counter | `prompt_key`, `outcome` | Schema hit rate |
 | `llm_retry_total` | counter | `provider`, `reason` (transient\|rate_limited\|schema) | Retry pressure |
@@ -218,8 +218,8 @@ histograms).
 
 | Metric | Type | Labels | Purpose |
 |---|---|---|---|
-| `market_provider_requests_total` | counter | `provider`, `outcome` | Provider call volume |
-| `market_provider_duration_seconds` | histogram | `provider` | Provider latency |
+| `market_provider_requests_total` | counter | `provider`, `outcome`, `market` | Provider call volume |
+| `market_provider_duration_seconds` | histogram | `provider`, `market` | Provider latency |
 | `market_bars_ingested_total` | counter | `market`, `timeframe` | Ingestion volume |
 
 ### 6.4 API Domain
@@ -235,6 +235,26 @@ histograms).
 |---|---|---|---|
 | `pg_pool_connections` | gauge | `state` (idle\|active) | Pool saturation |
 | `process_*` | varied | — | Standard process metrics from `metrics-exporter-prometheus` |
+
+### 6.5.1 The `market` Label
+
+All metrics that carry a `market` label source the value from
+`InstrumentMarketDataContext::market.code`, populated by the
+`MarketGateway` introduced in sub-project B
+(`docs/superpowers/specs/2026-04-26-market-gateway-design.md`).
+
+Instrumentation points that genuinely have no instrument context
+(infrastructure metrics, OTLP exporter metrics, LLM calls dispatched
+without an instrument) emit the literal value `unknown`. This is a
+documented escape hatch, not a workaround for missing plumbing — the CI
+catalog check (§7.3) enforces that any newly-added metric carrying the
+`market` label appears in `signals.md` with `unknown` documented as a
+permitted value.
+
+The label uses the immutable, controlled vocabulary `Market.code`
+(e.g., `cn-a`, `continuous-utc`, `fx`), so cardinality is bounded by
+the number of supported markets — currently a handful, never user
+input.
 
 ### 6.6 Trace Spans
 
