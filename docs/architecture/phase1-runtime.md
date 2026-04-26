@@ -31,10 +31,14 @@ and serves the Axum router.
 
 - Shared bar analysis, shared daily context, and manual user analysis now enqueue durable
   orchestration tasks before any LLM execution happens.
-- The API and background worker currently share an in-memory orchestration repository, which
-  keeps the Phase 2 pipeline runnable while the market-data path is already production-backed.
+- The API and background worker now share the same PostgreSQL-backed orchestration repository in
+  the app runtime.
+- Startup recovery moves stale `running` orchestration tasks back to `retry_waiting` before worker
+  polling begins.
 - Workers execute strictly from persisted snapshot JSON and write attempts, results, or
   dead letters back to orchestration storage.
+- `InMemoryOrchestrationRepository` remains available for test and local fixture usage, but it is
+  no longer the primary runtime path.
 - Closed-bar tasks deduplicate by task identity while open-bar tasks remain repeatable by
   design.
 - Prompt registration is code-defined at startup, and the app runtime now binds each analysis

@@ -13,7 +13,10 @@ use pa_market::{
     CanonicalKlineRepository, MarketDataProvider, PgCanonicalKlineRepository, ProviderKline,
     ProviderRouter, ProviderTick,
 };
-use pa_orchestrator::{AnalysisResult, InMemoryOrchestrationRepository, OrchestrationRepository};
+use pa_orchestrator::{
+    AnalysisResult, InMemoryOrchestrationRepository, OrchestrationRepository,
+    PgOrchestrationRepository,
+};
 use serde_json::Value;
 use sqlx::PgPool;
 use tower::ServiceExt;
@@ -86,7 +89,7 @@ async fn healthz_and_phase2_analysis_routes_are_wired() {
 async fn admin_backfill_and_market_reads_flow_through_runtime() {
     let Some(pool) = test_pool().await else {
         eprintln!(
-            "skipping admin_backfill_and_market_reads_flow_through_runtime: PA_DATABASE_URL not set"
+            "skipping admin_backfill_and_market_reads_flow_through_runtime: PA_TEST_DATABASE_URL not set"
         );
         return;
     };
@@ -202,14 +205,16 @@ async fn admin_backfill_and_market_reads_flow_through_runtime() {
 async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results() {
     let Some(pool) = test_pool().await else {
         eprintln!(
-            "skipping analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results: PA_DATABASE_URL not set"
+            "skipping analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_results: PA_TEST_DATABASE_URL not set"
         );
         return;
     };
     let fixture = seed_runtime_fixture(&pool).await;
     let orchestration_repository = Arc::new(InMemoryOrchestrationRepository::default());
-    let app =
-        market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
+    let app = market_runtime_app_with_repository(
+        pool.clone(),
+        orchestration_repository.clone() as Arc<dyn OrchestrationRepository>,
+    );
 
     let backfill = request_json(
         &app,
@@ -506,14 +511,16 @@ async fn analysis_routes_can_assemble_inputs_from_market_runtime_and_shared_resu
 async fn shared_daily_requires_upstream_shared_pa_state() {
     let Some(pool) = test_pool().await else {
         eprintln!(
-            "skipping shared_daily_requires_upstream_shared_pa_state: PA_DATABASE_URL not set"
+            "skipping shared_daily_requires_upstream_shared_pa_state: PA_TEST_DATABASE_URL not set"
         );
         return;
     };
     let fixture = seed_runtime_fixture(&pool).await;
     let orchestration_repository = Arc::new(InMemoryOrchestrationRepository::default());
-    let app =
-        market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
+    let app = market_runtime_app_with_repository(
+        pool.clone(),
+        orchestration_repository.clone() as Arc<dyn OrchestrationRepository>,
+    );
 
     let backfill = request_json(
         &app,
@@ -554,13 +561,72 @@ async fn shared_daily_requires_upstream_shared_pa_state() {
     cleanup_runtime_fixture(&pool, &fixture).await;
 }
 
+#[tokio::test]
+async fn analysis_task_queries_work_with_pg_orchestration_repository() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping analysis_task_queries_work_with_pg_orchestration_repository: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let fixture = seed_runtime_fixture(&pool).await;
+    let orchestration_repository: Arc<dyn OrchestrationRepository> =
+        Arc::new(PgOrchestrationRepository::new(pool.clone()));
+    let app = market_runtime_app_with_repository(pool.clone(), Arc::clone(&orchestration_repository));
+
+    let backfill = request_json(
+        &app,
+        Method::POST,
+        "/admin/market/backfill",
+        &format!(
+            r#"{{
+                "instrument_id":"{}",
+                "timeframe":"15m",
+                "limit":4
+            }}"#,
+            fixture.instrument_id
+        ),
+    )
+    .await;
+    assert_eq!(backfill.status(), StatusCode::ACCEPTED);
+
+    let response = request_json(
+        &app,
+        Method::POST,
+        "/analysis/shared/pa-state",
+        &format!(
+            r#"{{
+                "instrument_id":"{}",
+                "timeframe":"1h",
+                "bar_state":"open"
+            }}"#,
+            fixture.instrument_id
+        ),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+
+    let task_json = response_json(response).await;
+    let task_id = task_json["task_id"]
+        .as_str()
+        .expect("task id should exist");
+
+    let get_task = request(&app, &format!("/analysis/tasks/{task_id}")).await;
+    assert_eq!(get_task.status(), StatusCode::OK);
+
+    cleanup_runtime_fixture(&pool, &fixture).await;
+}
+
 fn market_runtime_app(pool: PgPool) -> axum::Router {
-    market_runtime_app_with_repository(pool, Arc::new(InMemoryOrchestrationRepository::default()))
+    market_runtime_app_with_repository(
+        pool,
+        Arc::new(InMemoryOrchestrationRepository::default()) as Arc<dyn OrchestrationRepository>,
+    )
 }
 
 fn market_runtime_app_with_repository(
     pool: PgPool,
-    orchestration_repository: Arc<InMemoryOrchestrationRepository>,
+    orchestration_repository: Arc<dyn OrchestrationRepository>,
 ) -> axum::Router {
     let instrument_repository = InstrumentRepository::new(pool.clone());
     let canonical_repository: Arc<dyn CanonicalKlineRepository> =
@@ -639,9 +705,7 @@ fn assert_json_decimal_eq(value: &Value, expected: &str) {
 }
 
 async fn test_pool() -> Option<PgPool> {
-    let database_url = std::env::var("PA_DATABASE_URL")
-        .ok()
-        .or_else(|| std::env::var("DATABASE_URL").ok())?;
+    let database_url = std::env::var("PA_TEST_DATABASE_URL").ok()?;
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(5)
