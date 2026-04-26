@@ -2,3 +2,5 @@
 /.worktrees
 /config.toml
 /tmp
+web/node_modules/
+web/dist/
