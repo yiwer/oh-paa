@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import { color } from '@/theme';
+import { useWebSocket } from '@/ws/useWebSocket';
+import { useDebugEventStore } from '@/ws/debugEventStore';
 
 const Page = styled.div`
   display: flex;
@@ -16,7 +18,8 @@ const Main = styled.main`
 `;
 
 export default function AppShell() {
-  const wsConnected = false; // placeholder, wired in Task 10
+  useWebSocket();
+  const wsConnected = useDebugEventStore((s) => s.connected);
 
   return (
     <Page>
