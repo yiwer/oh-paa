@@ -45,6 +45,13 @@ pub trait OrchestrationRepository: Send + Sync {
 
     async fn release_claimed_task(&self, task_id: Uuid, message: &str) -> Result<(), AppError>;
 
+    async fn recover_stale_running_tasks(
+        &self,
+        started_before: chrono::DateTime<Utc>,
+        error_code: &str,
+        error_message: &str,
+    ) -> Result<u64, AppError>;
+
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError>;
 
     async fn persist_success_outcome(
@@ -591,6 +598,28 @@ impl OrchestrationRepository for InMemoryOrchestrationRepository {
 
         Ok(())
     }
+
+    async fn recover_stale_running_tasks(
+        &self,
+        started_before: chrono::DateTime<Utc>,
+        error_code: &str,
+        error_message: &str,
+    ) -> Result<u64, AppError> {
+        let mut state = self.lock_state();
+        let mut recovered = 0_u64;
+        for task in state.tasks.values_mut() {
+            if matches!(task.status, AnalysisTaskStatus::Running)
+                && task.started_at.is_some_and(|started_at| started_at < started_before)
+            {
+                task.status = AnalysisTaskStatus::RetryWaiting;
+                task.last_error_code = Some(error_code.to_string());
+                task.last_error_message = Some(error_message.to_string());
+                recovered += 1;
+            }
+        }
+
+        Ok(recovered)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -647,7 +676,7 @@ impl OrchestrationRepository for PgOrchestrationRepository {
             }
         }
 
-        sqlx::query(
+        let task_insert = sqlx::query(
             r#"
             INSERT INTO analysis_tasks (
                 id,
@@ -707,8 +736,23 @@ impl OrchestrationRepository for PgOrchestrationRepository {
         .bind(task.last_error_code.as_deref())
         .bind(task.last_error_message.as_deref())
         .execute(tx.as_mut())
-        .await
-        .map_err(storage_error("failed to insert analysis task"))?;
+        .await;
+
+        if let Err(err) = task_insert {
+            tx.rollback()
+                .await
+                .map_err(storage_error("failed to rollback task insert transaction"))?;
+
+            if is_unique_violation(&err)
+                && let Some(dedupe_key) = task.dedupe_key.as_deref()
+                && let Some(existing_task_id) =
+                    find_existing_task_id_by_dedupe(&self.pool, dedupe_key).await?
+            {
+                return Ok(InsertTaskResult::DuplicateExistingTask(existing_task_id));
+            }
+
+            return Err(storage_error("failed to insert analysis task")(err));
+        }
 
         sqlx::query(
             r#"
@@ -869,11 +913,110 @@ impl OrchestrationRepository for PgOrchestrationRepository {
     }
 
     async fn claim_next_pending_task(&self) -> Result<Option<AnalysisTask>, AppError> {
-        Err(Self::unsupported("claim_next_pending_task"))
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error("failed to begin claim transaction"))?;
+
+        let row = sqlx::query(
+            r#"
+            WITH candidate AS (
+                SELECT id
+                FROM analysis_tasks
+                WHERE status IN ('pending', 'retry_waiting')
+                ORDER BY scheduled_at ASC, id ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+            )
+            UPDATE analysis_tasks AS task
+            SET status = 'running',
+                started_at = COALESCE(task.started_at, NOW())
+            FROM candidate
+            WHERE task.id = candidate.id
+            RETURNING
+                task.id,
+                task.task_type,
+                task.status,
+                task.instrument_id,
+                task.user_id,
+                task.timeframe,
+                task.bar_state,
+                task.bar_open_time,
+                task.bar_close_time,
+                task.trading_date,
+                task.trigger_type,
+                task.prompt_key,
+                task.prompt_version,
+                task.snapshot_id,
+                task.dedupe_key,
+                task.attempt_count,
+                task.max_attempts,
+                task.scheduled_at,
+                task.started_at,
+                task.finished_at,
+                task.last_error_code,
+                task.last_error_message
+            "#,
+        )
+        .fetch_optional(tx.as_mut())
+        .await
+        .map_err(storage_error("failed to claim next pending analysis task"))?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error("failed to commit claim transaction"))?;
+
+        row.map(map_task_row).transpose()
     }
 
-    async fn release_claimed_task(&self, _task_id: Uuid, _message: &str) -> Result<(), AppError> {
-        Err(Self::unsupported("release_claimed_task"))
+    async fn release_claimed_task(&self, task_id: Uuid, message: &str) -> Result<(), AppError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE analysis_tasks
+            SET status = CASE WHEN status = 'running' THEN 'pending' ELSE status END,
+                last_error_code = 'claim_released',
+                last_error_message = $2
+            WHERE id = $1
+            "#,
+        )
+        .bind(task_id)
+        .bind(message)
+        .execute(&self.pool)
+        .await
+        .map_err(storage_error("failed to release claimed analysis task"))?;
+
+        ensure_rows_affected(
+            result.rows_affected(),
+            format!("task not found: {task_id}"),
+        )
+    }
+
+    async fn recover_stale_running_tasks(
+        &self,
+        started_before: chrono::DateTime<Utc>,
+        error_code: &str,
+        error_message: &str,
+    ) -> Result<u64, AppError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE analysis_tasks
+            SET status = 'retry_waiting',
+                last_error_code = $2,
+                last_error_message = $3
+            WHERE status = 'running'
+              AND started_at IS NOT NULL
+              AND started_at < $1
+            "#,
+        )
+        .bind(started_before)
+        .bind(error_code)
+        .bind(error_message)
+        .execute(&self.pool)
+        .await
+        .map_err(storage_error("failed to recover stale running analysis tasks"))?;
+
+        Ok(result.rows_affected())
     }
 
     async fn load_snapshot(&self, snapshot_id: Uuid) -> Result<AnalysisSnapshot, AppError> {
@@ -904,47 +1047,192 @@ impl OrchestrationRepository for PgOrchestrationRepository {
 
     async fn persist_success_outcome(
         &self,
-        _task_id: Uuid,
-        _attempt: AnalysisAttempt,
-        _result: AnalysisResult,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        result: AnalysisResult,
     ) -> Result<(), AppError> {
-        Err(Self::unsupported("persist_success_outcome"))
+        if attempt.task_id != task_id || result.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("outcome/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error("failed to begin success outcome transaction"))?;
+
+        insert_attempt_row(tx.as_mut(), &attempt).await?;
+        insert_result_row(tx.as_mut(), &result).await?;
+        update_task_outcome_row(
+            tx.as_mut(),
+            task_id,
+            AnalysisTaskStatus::Succeeded,
+            None,
+            None,
+            true,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error("failed to commit success outcome transaction"))?;
+        Ok(())
     }
 
     async fn persist_schema_validation_failure_outcome(
         &self,
-        _task_id: Uuid,
-        _attempt: AnalysisAttempt,
-        _message: &str,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
     ) -> Result<(), AppError> {
-        Err(Self::unsupported("persist_schema_validation_failure_outcome"))
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error(
+                "failed to begin schema validation failure transaction",
+            ))?;
+
+        insert_attempt_row(tx.as_mut(), &attempt).await?;
+        update_task_outcome_row(
+            tx.as_mut(),
+            task_id,
+            AnalysisTaskStatus::Failed,
+            Some("terminal_error"),
+            Some(message),
+            true,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error(
+                "failed to commit schema validation failure transaction",
+            ))?;
+        Ok(())
     }
 
     async fn persist_outbound_retry_outcome(
         &self,
-        _task_id: Uuid,
-        _attempt: AnalysisAttempt,
-        _message: &str,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
     ) -> Result<(), AppError> {
-        Err(Self::unsupported("persist_outbound_retry_outcome"))
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error("failed to begin outbound retry transaction"))?;
+
+        insert_attempt_row(tx.as_mut(), &attempt).await?;
+        update_task_outcome_row(
+            tx.as_mut(),
+            task_id,
+            AnalysisTaskStatus::RetryWaiting,
+            Some("retryable_error"),
+            Some(message),
+            false,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error("failed to commit outbound retry transaction"))?;
+        Ok(())
     }
 
     async fn persist_outbound_terminal_failure_outcome(
         &self,
-        _task_id: Uuid,
-        _attempt: AnalysisAttempt,
-        _message: &str,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        message: &str,
     ) -> Result<(), AppError> {
-        Err(Self::unsupported("persist_outbound_terminal_failure_outcome"))
+        if attempt.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("attempt/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error(
+                "failed to begin outbound terminal failure transaction",
+            ))?;
+
+        insert_attempt_row(tx.as_mut(), &attempt).await?;
+        update_task_outcome_row(
+            tx.as_mut(),
+            task_id,
+            AnalysisTaskStatus::Failed,
+            Some("terminal_error"),
+            Some(message),
+            true,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error(
+                "failed to commit outbound terminal failure transaction",
+            ))?;
+        Ok(())
     }
 
     async fn persist_outbound_dead_letter_outcome(
         &self,
-        _task_id: Uuid,
-        _attempt: AnalysisAttempt,
-        _dead_letter: AnalysisDeadLetter,
+        task_id: Uuid,
+        attempt: AnalysisAttempt,
+        dead_letter: AnalysisDeadLetter,
     ) -> Result<(), AppError> {
-        Err(Self::unsupported("persist_outbound_dead_letter_outcome"))
+        if attempt.task_id != task_id || dead_letter.task_id != task_id {
+            return Err(AppError::Storage {
+                message: format!("outcome/task mismatch for task: {task_id}"),
+                source: None,
+            });
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(storage_error("failed to begin outbound dead letter transaction"))?;
+
+        insert_attempt_row(tx.as_mut(), &attempt).await?;
+        insert_dead_letter_row(tx.as_mut(), &dead_letter).await?;
+        update_task_outcome_row(
+            tx.as_mut(),
+            task_id,
+            AnalysisTaskStatus::DeadLetter,
+            Some(dead_letter.final_error_type.as_str()),
+            Some(dead_letter.final_error_message.as_str()),
+            true,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(storage_error("failed to commit outbound dead letter transaction"))?;
+        Ok(())
     }
 
     async fn mark_task_running(&self, _task_id: Uuid) -> Result<(), AppError> {
@@ -980,6 +1268,224 @@ fn storage_error(message: &'static str) -> impl Fn(sqlx::Error) -> AppError {
     move |source| AppError::Storage {
         message: message.to_string(),
         source: Some(Box::new(source)),
+    }
+}
+
+async fn find_existing_task_id_by_dedupe(
+    connection: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
+    dedupe_key: &str,
+) -> Result<Option<Uuid>, AppError> {
+    sqlx::query_scalar::<_, Uuid>("SELECT id FROM analysis_tasks WHERE dedupe_key = $1 LIMIT 1")
+        .bind(dedupe_key)
+        .fetch_optional(connection)
+        .await
+        .map_err(storage_error("failed to query existing dedupe task"))
+}
+
+fn is_unique_violation(err: &sqlx::Error) -> bool {
+    matches!(
+        err,
+        sqlx::Error::Database(database_error) if database_error.code().as_deref() == Some("23505")
+    )
+}
+
+fn ensure_rows_affected(rows_affected: u64, message: String) -> Result<(), AppError> {
+    if rows_affected == 1 {
+        Ok(())
+    } else {
+        Err(AppError::Storage {
+            message,
+            source: None,
+        })
+    }
+}
+
+async fn insert_attempt_row(
+    connection: &mut sqlx::PgConnection,
+    attempt: &AnalysisAttempt,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        INSERT INTO analysis_attempts (
+            id,
+            task_id,
+            attempt_no,
+            worker_id,
+            llm_provider,
+            model,
+            request_payload_json,
+            raw_response_json,
+            parsed_output_json,
+            status,
+            error_type,
+            error_message,
+            started_at,
+            finished_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6,
+            CAST($7 AS jsonb),
+            CAST($8 AS jsonb),
+            CAST($9 AS jsonb),
+            $10, $11, $12, $13, $14
+        )
+        "#,
+    )
+    .bind(attempt.id)
+    .bind(attempt.task_id)
+    .bind(i32::try_from(attempt.attempt_no).map_err(|source| AppError::Validation {
+        message: "attempt_no exceeds PostgreSQL integer range".to_string(),
+        source: Some(Box::new(source)),
+    })?)
+    .bind(&attempt.worker_id)
+    .bind(&attempt.llm_provider)
+    .bind(&attempt.model)
+    .bind(attempt.request_payload_json.to_string())
+    .bind(
+        attempt
+            .raw_response_json
+            .as_ref()
+            .map(serde_json::Value::to_string),
+    )
+    .bind(
+        attempt
+            .parsed_output_json
+            .as_ref()
+            .map(serde_json::Value::to_string),
+    )
+    .bind(attempt_status_for_db(&attempt.status))
+    .bind(attempt.error_type.as_deref())
+    .bind(attempt.error_message.as_deref())
+    .bind(attempt.started_at)
+    .bind(attempt.finished_at)
+    .execute(connection)
+    .await
+    .map_err(storage_error("failed to insert analysis attempt"))?;
+
+    Ok(())
+}
+
+async fn insert_result_row(
+    connection: &mut sqlx::PgConnection,
+    result: &AnalysisResult,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        INSERT INTO analysis_results (
+            id,
+            task_id,
+            task_type,
+            instrument_id,
+            user_id,
+            timeframe,
+            bar_state,
+            bar_open_time,
+            bar_close_time,
+            trading_date,
+            prompt_key,
+            prompt_version,
+            output_json,
+            created_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11, $12, CAST($13 AS jsonb), $14
+        )
+        "#,
+    )
+    .bind(result.id)
+    .bind(result.task_id)
+    .bind(&result.task_type)
+    .bind(result.instrument_id)
+    .bind(result.user_id)
+    .bind(result.timeframe.map(|value| value.as_str().to_string()))
+    .bind(result.bar_state.as_str())
+    .bind(result.bar_open_time)
+    .bind(result.bar_close_time)
+    .bind(result.trading_date)
+    .bind(&result.prompt_key)
+    .bind(&result.prompt_version)
+    .bind(result.output_json.to_string())
+    .bind(result.created_at)
+    .execute(connection)
+    .await
+    .map_err(storage_error("failed to insert analysis result"))?;
+
+    Ok(())
+}
+
+async fn insert_dead_letter_row(
+    connection: &mut sqlx::PgConnection,
+    dead_letter: &AnalysisDeadLetter,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        INSERT INTO analysis_dead_letters (
+            id,
+            task_id,
+            final_error_type,
+            final_error_message,
+            last_attempt_id,
+            archived_snapshot_json,
+            created_at
+        ) VALUES ($1, $2, $3, $4, $5, CAST($6 AS jsonb), $7)
+        "#,
+    )
+    .bind(dead_letter.id)
+    .bind(dead_letter.task_id)
+    .bind(&dead_letter.final_error_type)
+    .bind(&dead_letter.final_error_message)
+    .bind(dead_letter.last_attempt_id)
+    .bind(dead_letter.archived_snapshot_json.to_string())
+    .bind(dead_letter.created_at)
+    .execute(connection)
+    .await
+    .map_err(storage_error("failed to insert analysis dead letter"))?;
+
+    Ok(())
+}
+
+async fn update_task_outcome_row(
+    connection: &mut sqlx::PgConnection,
+    task_id: Uuid,
+    status: AnalysisTaskStatus,
+    last_error_code: Option<&str>,
+    last_error_message: Option<&str>,
+    mark_finished: bool,
+) -> Result<(), AppError> {
+    let result = sqlx::query(
+        r#"
+        UPDATE analysis_tasks
+        SET status = $2,
+            attempt_count = attempt_count + 1,
+            finished_at = CASE WHEN $5 THEN NOW() ELSE finished_at END,
+            last_error_code = $3,
+            last_error_message = $4
+        WHERE id = $1
+        "#,
+    )
+    .bind(task_id)
+    .bind(status.as_str())
+    .bind(last_error_code)
+    .bind(last_error_message)
+    .bind(mark_finished)
+    .execute(connection)
+    .await
+    .map_err(storage_error("failed to update analysis task outcome"))?;
+
+    ensure_rows_affected(result.rows_affected(), format!("task not found: {task_id}"))
+}
+
+fn attempt_status_for_db(status: &str) -> &str {
+    match status {
+        "schema_validation_failed" | "outbound_failed" => "failed",
+        _ => status,
+    }
+}
+
+fn attempt_status_from_db(status: String, error_type: Option<&str>) -> String {
+    match (status.as_str(), error_type) {
+        ("failed", Some("validation")) => "schema_validation_failed".to_string(),
+        ("failed", Some("provider")) => "outbound_failed".to_string(),
+        _ => status,
     }
 }
 
@@ -1115,6 +1621,12 @@ fn map_attempt_row(row: sqlx::postgres::PgRow) -> Result<AnalysisAttempt, AppErr
     let attempt_no = row
         .try_get::<i32, _>("attempt_no")
         .map_err(|source| row_decode_error("failed to decode attempt_no", source))?;
+    let error_type = row
+        .try_get::<Option<String>, _>("error_type")
+        .map_err(|source| row_decode_error("failed to decode error_type", source))?;
+    let status =
+        row.try_get::<String, _>("status")
+            .map_err(|source| row_decode_error("failed to decode attempt status", source))?;
 
     Ok(AnalysisAttempt {
         id: row
@@ -1152,12 +1664,8 @@ fn map_attempt_row(row: sqlx::postgres::PgRow) -> Result<AnalysisAttempt, AppErr
             .map_err(|source| row_decode_error("failed to decode parsed_output_json", source))?
             .map(|value| parse_json_field("attempt parsed_output_json", value))
             .transpose()?,
-        status: row
-            .try_get("status")
-            .map_err(|source| row_decode_error("failed to decode attempt status", source))?,
-        error_type: row
-            .try_get("error_type")
-            .map_err(|source| row_decode_error("failed to decode error_type", source))?,
+        status: attempt_status_from_db(status, error_type.as_deref()),
+        error_type,
         error_message: row
             .try_get("error_message")
             .map_err(|source| row_decode_error("failed to decode error_message", source))?,

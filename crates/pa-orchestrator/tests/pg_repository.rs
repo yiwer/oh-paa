@@ -1,8 +1,9 @@
 use chrono::{DateTime, TimeZone, Utc};
 use pa_core::Timeframe;
 use pa_orchestrator::{
-    AnalysisBarState, AnalysisSnapshot, AnalysisTask, AnalysisTaskStatus, InsertTaskResult,
-    OrchestrationRepository, PgOrchestrationRepository,
+    AnalysisAttempt, AnalysisBarState, AnalysisDeadLetter, AnalysisResult, AnalysisSnapshot,
+    AnalysisTask, AnalysisTaskStatus, InsertTaskResult, OrchestrationRepository,
+    PgOrchestrationRepository,
 };
 use sqlx::PgPool;
 use std::path::Path;
@@ -55,6 +56,506 @@ async fn pg_repository_inserts_task_snapshot_and_queries_task_views() {
         repository.dead_letter_for_task(task.id).await.unwrap(),
         Some(seeded_dead_letter)
     );
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_claim_next_pending_task_transitions_one_row_to_running() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_claim_next_pending_task_transitions_one_row_to_running: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (first_task, first_snapshot) = fixture_task_and_snapshot(instrument_id);
+    let (mut second_task, second_snapshot) = fixture_task_and_snapshot_with_dedupe(
+        instrument_id,
+        "pg:test:closed:shared:m15:second",
+    );
+    second_task.scheduled_at = utc("2026-04-21T10:05:00Z");
+    second_task.status = AnalysisTaskStatus::RetryWaiting;
+
+    repository
+        .insert_task_with_snapshot(first_task.clone(), first_snapshot)
+        .await
+        .expect("first task insert should succeed");
+    repository
+        .insert_task_with_snapshot(second_task.clone(), second_snapshot)
+        .await
+        .expect("second task insert should succeed");
+
+    let claimed = repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("one task should be claimed");
+
+    assert_eq!(claimed.id, first_task.id);
+    assert_eq!(claimed.status, AnalysisTaskStatus::Running);
+    assert!(claimed.started_at.is_some());
+
+    let persisted_first = repository
+        .task(first_task.id)
+        .await
+        .expect("query should succeed")
+        .expect("first task should exist");
+    let persisted_second = repository
+        .task(second_task.id)
+        .await
+        .expect("query should succeed")
+        .expect("second task should exist");
+
+    assert_eq!(persisted_first.status, AnalysisTaskStatus::Running);
+    assert!(persisted_first.started_at.is_some());
+    assert_eq!(persisted_second.status, AnalysisTaskStatus::RetryWaiting);
+    assert!(persisted_second.started_at.is_none());
+
+    cleanup_task_graph(&pool, first_task.id).await;
+    cleanup_task_graph(&pool, second_task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_persist_success_outcome_writes_attempt_result_and_task_state() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_persist_success_outcome_writes_attempt_result_and_task_state: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot)
+        .await
+        .expect("task insert should succeed");
+    let claimed = repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+    assert_eq!(claimed.status, AnalysisTaskStatus::Running);
+
+    let attempt = fixture_attempt(task.id, 1, "succeeded");
+    let result = fixture_result(&task, serde_json::json!({"summary": "analysis complete"}));
+
+    repository
+        .persist_success_outcome(task.id, attempt.clone(), result.clone())
+        .await
+        .expect("success outcome should persist");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+    let persisted_attempts = repository
+        .attempts_for_task(task.id)
+        .await
+        .expect("attempt query should succeed");
+    let persisted_result = repository
+        .result_for_task(task.id)
+        .await
+        .expect("result query should succeed");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::Succeeded);
+    assert_eq!(persisted_task.attempt_count, 1);
+    assert!(persisted_task.finished_at.is_some());
+    assert_eq!(persisted_task.last_error_code, None);
+    assert_eq!(persisted_task.last_error_message, None);
+    assert_eq!(persisted_attempts, vec![attempt]);
+    assert_eq!(persisted_result, Some(result));
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_recovers_stale_running_tasks_to_retry_waiting() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_recovers_stale_running_tasks_to_retry_waiting: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (mut stale_task, stale_snapshot) = fixture_task_and_snapshot(instrument_id);
+    stale_task.status = AnalysisTaskStatus::Running;
+    stale_task.started_at = Some(utc("2026-04-21T08:00:00Z"));
+    let (mut fresh_task, fresh_snapshot) = fixture_task_and_snapshot_with_dedupe(
+        instrument_id,
+        "pg:test:closed:shared:m15:fresh",
+    );
+    fresh_task.status = AnalysisTaskStatus::Running;
+    fresh_task.started_at = Some(utc("2026-04-21T11:30:00Z"));
+
+    repository
+        .insert_task_with_snapshot(stale_task.clone(), stale_snapshot)
+        .await
+        .expect("stale task insert should succeed");
+    repository
+        .insert_task_with_snapshot(fresh_task.clone(), fresh_snapshot)
+        .await
+        .expect("fresh task insert should succeed");
+
+    let recovered = repository
+        .recover_stale_running_tasks(
+            utc("2026-04-21T10:00:00Z"),
+            "startup_recovery",
+            "Recovered stale running task on startup",
+        )
+        .await
+        .expect("recovery should succeed");
+
+    assert_eq!(recovered, 1);
+
+    let persisted_stale = repository
+        .task(stale_task.id)
+        .await
+        .expect("query should succeed")
+        .expect("stale task should exist");
+    let persisted_fresh = repository
+        .task(fresh_task.id)
+        .await
+        .expect("query should succeed")
+        .expect("fresh task should exist");
+
+    assert_eq!(persisted_stale.status, AnalysisTaskStatus::RetryWaiting);
+    assert_eq!(
+        persisted_stale.last_error_code.as_deref(),
+        Some("startup_recovery")
+    );
+    assert_eq!(
+        persisted_stale.last_error_message.as_deref(),
+        Some("Recovered stale running task on startup")
+    );
+    assert_eq!(persisted_fresh.status, AnalysisTaskStatus::Running);
+    assert_eq!(persisted_fresh.last_error_code, None);
+    assert_eq!(persisted_fresh.last_error_message, None);
+
+    cleanup_task_graph(&pool, stale_task.id).await;
+    cleanup_task_graph(&pool, fresh_task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_release_claimed_task_returns_running_task_to_pending() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_release_claimed_task_returns_running_task_to_pending: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot)
+        .await
+        .expect("task insert should succeed");
+    repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+
+    repository
+        .release_claimed_task(task.id, "snapshot load failed")
+        .await
+        .expect("release should succeed");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::Pending);
+    assert!(persisted_task.started_at.is_some());
+    assert_eq!(
+        persisted_task.last_error_code.as_deref(),
+        Some("claim_released")
+    );
+    assert_eq!(
+        persisted_task.last_error_message.as_deref(),
+        Some("snapshot load failed")
+    );
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_persist_schema_validation_failure_marks_task_failed() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_persist_schema_validation_failure_marks_task_failed: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot)
+        .await
+        .expect("task insert should succeed");
+    repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+
+    let mut attempt = fixture_attempt(task.id, 1, "schema_validation_failed");
+    attempt.error_type = Some("validation".to_string());
+    attempt.error_message = Some("missing bearish_case".to_string());
+
+    repository
+        .persist_schema_validation_failure_outcome(task.id, attempt.clone(), "missing bearish_case")
+        .await
+        .expect("schema validation failure should persist");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+    let persisted_attempts = repository
+        .attempts_for_task(task.id)
+        .await
+        .expect("attempt query should succeed");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::Failed);
+    assert_eq!(persisted_task.attempt_count, 1);
+    assert!(persisted_task.finished_at.is_some());
+    assert_eq!(
+        persisted_task.last_error_code.as_deref(),
+        Some("terminal_error")
+    );
+    assert_eq!(
+        persisted_task.last_error_message.as_deref(),
+        Some("missing bearish_case")
+    );
+    assert_eq!(persisted_attempts, vec![attempt]);
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_persist_outbound_retry_marks_task_retry_waiting() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_persist_outbound_retry_marks_task_retry_waiting: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot)
+        .await
+        .expect("task insert should succeed");
+    repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+
+    let mut attempt = fixture_attempt(task.id, 1, "outbound_failed");
+    attempt.error_type = Some("provider".to_string());
+    attempt.error_message = Some("provider request timed out".to_string());
+
+    repository
+        .persist_outbound_retry_outcome(task.id, attempt.clone(), "provider request timed out")
+        .await
+        .expect("retry outcome should persist");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+    let persisted_attempts = repository
+        .attempts_for_task(task.id)
+        .await
+        .expect("attempt query should succeed");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::RetryWaiting);
+    assert_eq!(persisted_task.attempt_count, 1);
+    assert_eq!(persisted_task.finished_at, None);
+    assert_eq!(
+        persisted_task.last_error_code.as_deref(),
+        Some("retryable_error")
+    );
+    assert_eq!(
+        persisted_task.last_error_message.as_deref(),
+        Some("provider request timed out")
+    );
+    assert_eq!(persisted_attempts, vec![attempt]);
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_persist_outbound_terminal_failure_marks_task_failed() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_persist_outbound_terminal_failure_marks_task_failed: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot)
+        .await
+        .expect("task insert should succeed");
+    repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+
+    let mut attempt = fixture_attempt(task.id, 1, "outbound_failed");
+    attempt.error_type = Some("provider".to_string());
+    attempt.error_message = Some("provider rejected request".to_string());
+
+    repository
+        .persist_outbound_terminal_failure_outcome(
+            task.id,
+            attempt.clone(),
+            "provider rejected request",
+        )
+        .await
+        .expect("terminal failure outcome should persist");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+    let persisted_attempts = repository
+        .attempts_for_task(task.id)
+        .await
+        .expect("attempt query should succeed");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::Failed);
+    assert_eq!(persisted_task.attempt_count, 1);
+    assert!(persisted_task.finished_at.is_some());
+    assert_eq!(
+        persisted_task.last_error_code.as_deref(),
+        Some("terminal_error")
+    );
+    assert_eq!(
+        persisted_task.last_error_message.as_deref(),
+        Some("provider rejected request")
+    );
+    assert_eq!(persisted_attempts, vec![attempt]);
+
+    cleanup_task_graph(&pool, task.id).await;
+    cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
+}
+
+#[tokio::test]
+async fn pg_repository_persist_outbound_dead_letter_writes_attempt_and_dead_letter() {
+    let Some(pool) = test_pool().await else {
+        eprintln!(
+            "skipping pg_repository_persist_outbound_dead_letter_writes_attempt_and_dead_letter: PA_TEST_DATABASE_URL not set"
+        );
+        return;
+    };
+    let repository = PgOrchestrationRepository::new(pool.clone());
+    let market_id = Uuid::new_v4();
+    let instrument_id = Uuid::new_v4();
+
+    ensure_market_and_instrument(&pool, market_id, instrument_id).await;
+
+    let (task, snapshot) = fixture_task_and_snapshot(instrument_id);
+    repository
+        .insert_task_with_snapshot(task.clone(), snapshot.clone())
+        .await
+        .expect("task insert should succeed");
+    repository
+        .claim_next_pending_task()
+        .await
+        .expect("claim should succeed")
+        .expect("task should be claimed");
+
+    let mut attempt = fixture_attempt(task.id, 1, "outbound_failed");
+    attempt.error_type = Some("provider".to_string());
+    attempt.error_message = Some("max retries exceeded".to_string());
+    let dead_letter = fixture_dead_letter(task.id, attempt.id, snapshot.input_json.clone());
+
+    repository
+        .persist_outbound_dead_letter_outcome(task.id, attempt.clone(), dead_letter.clone())
+        .await
+        .expect("dead letter outcome should persist");
+
+    let persisted_task = repository
+        .task(task.id)
+        .await
+        .expect("query should succeed")
+        .expect("task should exist");
+    let persisted_attempts = repository
+        .attempts_for_task(task.id)
+        .await
+        .expect("attempt query should succeed");
+    let persisted_dead_letter = repository
+        .dead_letter_for_task(task.id)
+        .await
+        .expect("dead letter query should succeed");
+
+    assert_eq!(persisted_task.status, AnalysisTaskStatus::DeadLetter);
+    assert_eq!(persisted_task.attempt_count, 1);
+    assert!(persisted_task.finished_at.is_some());
+    assert_eq!(
+        persisted_task.last_error_code.as_deref(),
+        Some(dead_letter.final_error_type.as_str())
+    );
+    assert_eq!(
+        persisted_task.last_error_message.as_deref(),
+        Some(dead_letter.final_error_message.as_str())
+    );
+    assert_eq!(persisted_attempts, vec![attempt]);
+    assert_eq!(persisted_dead_letter, Some(dead_letter));
 
     cleanup_task_graph(&pool, task.id).await;
     cleanup_market_and_instrument(&pool, market_id, instrument_id).await;
@@ -326,6 +827,13 @@ fn test_pool_requires_explicit_test_database_url() {
 }
 
 fn fixture_task_and_snapshot(instrument_id: Uuid) -> (AnalysisTask, AnalysisSnapshot) {
+    fixture_task_and_snapshot_with_dedupe(instrument_id, "pg:test:closed:shared:m15")
+}
+
+fn fixture_task_and_snapshot_with_dedupe(
+    instrument_id: Uuid,
+    dedupe_key: &str,
+) -> (AnalysisTask, AnalysisSnapshot) {
     let task_id = Uuid::new_v4();
     let snapshot_id = Uuid::new_v4();
 
@@ -345,7 +853,7 @@ fn fixture_task_and_snapshot(instrument_id: Uuid) -> (AnalysisTask, AnalysisSnap
             prompt_key: "shared_bar_analysis".to_string(),
             prompt_version: "v1".to_string(),
             snapshot_id,
-            dedupe_key: Some("pg:test:closed:shared:m15".to_string()),
+            dedupe_key: Some(dedupe_key.to_string()),
             attempt_count: 0,
             max_attempts: 3,
             scheduled_at: utc("2026-04-21T10:00:00Z"),
@@ -367,6 +875,67 @@ fn fixture_task_and_snapshot(instrument_id: Uuid) -> (AnalysisTask, AnalysisSnap
             created_at: utc("2026-04-21T10:00:01Z"),
         },
     )
+}
+
+fn fixture_attempt(task_id: Uuid, attempt_no: u32, status: &str) -> AnalysisAttempt {
+    AnalysisAttempt {
+        id: Uuid::new_v4(),
+        task_id,
+        attempt_no,
+        worker_id: "worker-1".to_string(),
+        llm_provider: "openai".to_string(),
+        model: "gpt-test".to_string(),
+        request_payload_json: serde_json::json!({
+            "messages": [{"role": "user", "content": "analyze"}]
+        }),
+        raw_response_json: Some(serde_json::json!({
+            "id": "resp_123",
+            "output_text": "ok"
+        })),
+        parsed_output_json: Some(serde_json::json!({
+            "sentiment": "bullish"
+        })),
+        status: status.to_string(),
+        error_type: None,
+        error_message: None,
+        started_at: utc("2026-04-21T10:01:00Z"),
+        finished_at: Some(utc("2026-04-21T10:01:04Z")),
+    }
+}
+
+fn fixture_result(task: &AnalysisTask, output_json: serde_json::Value) -> AnalysisResult {
+    AnalysisResult {
+        id: Uuid::new_v4(),
+        task_id: task.id,
+        task_type: task.task_type.clone(),
+        instrument_id: task.instrument_id,
+        user_id: task.user_id,
+        timeframe: task.timeframe,
+        bar_state: task.bar_state,
+        bar_open_time: task.bar_open_time,
+        bar_close_time: task.bar_close_time,
+        trading_date: task.trading_date,
+        prompt_key: task.prompt_key.clone(),
+        prompt_version: task.prompt_version.clone(),
+        output_json,
+        created_at: utc("2026-04-21T10:02:00Z"),
+    }
+}
+
+fn fixture_dead_letter(
+    task_id: Uuid,
+    last_attempt_id: Uuid,
+    archived_snapshot_json: serde_json::Value,
+) -> AnalysisDeadLetter {
+    AnalysisDeadLetter {
+        id: Uuid::new_v4(),
+        task_id,
+        final_error_type: "provider".to_string(),
+        final_error_message: "max retries exceeded".to_string(),
+        last_attempt_id: Some(last_attempt_id),
+        archived_snapshot_json,
+        created_at: utc("2026-04-21T10:03:00Z"),
+    }
 }
 
 fn utc(value: &str) -> DateTime<Utc> {
