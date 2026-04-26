@@ -921,7 +921,10 @@ fn build_replay_context(
     market_code: &str,
 ) -> InstrumentMarketDataContext {
     let now = chrono::Utc::now();
-    let market_id = Uuid::new_v4();
+    // Synthetic context — only ctx.instrument.id and ctx.market.code are read
+    // by aggregate_replay_window_rows. Other ID fields use Uuid::nil() to
+    // signal that they are not load-bearing.
+    let market_id = Uuid::nil();
     let market = Market {
         id: market_id,
         code: market_code.to_string(),
@@ -940,7 +943,7 @@ fn build_replay_context(
         updated_at: now,
     };
     let bindings = vec![InstrumentSymbolBinding {
-        id: Uuid::new_v4(),
+        id: Uuid::nil(),
         instrument_id: sample.instrument_id,
         provider: sample.provider.clone(),
         provider_symbol: sample.provider_symbol.clone(),
