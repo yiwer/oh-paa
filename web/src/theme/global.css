@@ -1,0 +1,13 @@
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "JetBrains Mono", "PingFang SC", "Microsoft YaHei", monospace;
+  background: #F4EFEA;
+  background-image: radial-gradient(circle at 1px 1px, rgba(56,56,56,0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+  color: #383838;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; text-transform: uppercase; }
+a { color: inherit; text-decoration: none; }
+::selection { background: #6FC2FF; color: #383838; }

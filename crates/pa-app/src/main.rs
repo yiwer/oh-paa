@@ -3,6 +3,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 use anyhow::Result;
 use pa_api::{AppState, MarketRuntime, app_router};
 use pa_app::build_worker_executor_from_config;
+use pa_core::DebugEvent;
 use pa_instrument::InstrumentRepository;
 use pa_market::{
     MarketGateway, PgCanonicalKlineRepository, ProviderRouter,
@@ -13,6 +14,7 @@ use pa_orchestrator::{
     run_single_task,
 };
 use sqlx::postgres::PgPoolOptions;
+use tokio::sync::broadcast;
 use tracing_subscriber::EnvFilter;
 
 fn init_tracing() {
@@ -57,7 +59,10 @@ async fn main() -> Result<()> {
         &config.twelvedata_base_url,
         &config.twelvedata_api_key,
     )));
-    let market_gateway = Arc::new(MarketGateway::new(provider_router));
+    let (debug_tx, _) = broadcast::channel::<DebugEvent>(512);
+    let market_gateway = Arc::new(
+        MarketGateway::new(provider_router).with_debug_tx(debug_tx.clone()),
+    );
     let market_runtime = Arc::new(MarketRuntime::new(
         instrument_repository,
         canonical_kline_repository,
@@ -68,6 +73,7 @@ async fn main() -> Result<()> {
         config.server_addr.clone(),
         Arc::clone(&orchestration_repository),
         Some(market_runtime),
+        debug_tx.clone(),
     );
     let worker_repository = Arc::clone(&orchestration_repository);
     let app = app_router(state);
