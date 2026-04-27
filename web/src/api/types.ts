@@ -118,3 +118,32 @@ export interface SessionProfile {
   market_timezone: string;
   session_kind: string;
 }
+
+export interface BarReading {
+  instrument_id: string;
+  timeframe: string;
+  bar_close_time: string;
+  bar_reading_label: string;
+  bar_reading_color: 'red' | 'green' | 'gray' | 'yellow';
+  bar_summary: string;
+  pattern: string;
+  structure: string;
+  bias: string;
+  source: string;
+}
+
+export interface KeyLevel {
+  price: string;
+  label: string;
+  type: 'support' | 'resistance' | 'target';
+}
+
+export interface OpenBar {
+  instrument_id: string;
+  timeframe: string;
+  open_time: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+}
