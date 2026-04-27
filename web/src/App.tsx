@@ -4,6 +4,7 @@ import AppShell from '@/layout/AppShell';
 import PipelinePage from '@/pages/PipelinePage';
 import KLinePage from '@/pages/KLinePage';
 import LlmTracePage from '@/pages/LlmTracePage';
+import TaskDetailPage from '@/pages/TaskDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/pipeline" element={<PipelinePage />} />
             <Route path="/kline" element={<KLinePage />} />
             <Route path="/llm-trace" element={<LlmTracePage />} />
+            <Route path="/llm-trace/:taskId" element={<TaskDetailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
