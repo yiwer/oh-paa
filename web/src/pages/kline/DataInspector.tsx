@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { color, font, size, space, border } from '@/theme';
 import type { CanonicalKline } from '@/api/types';
@@ -103,7 +104,7 @@ export default function DataInspector({ kline }: Props) {
 
       <BottomRow>
         <CopyBtn onClick={handleCopy}>Copy</CopyBtn>
-        <TraceLink href="/llm-trace">Open in LLM Trace &rarr;</TraceLink>
+        <TraceLink to="/llm-trace">Open in LLM Trace &rarr;</TraceLink>
       </BottomRow>
     </Root>
   );
@@ -267,7 +268,7 @@ const CopyBtn = styled.button`
   }
 `;
 
-const TraceLink = styled.a`
+const TraceLink = styled(Link)`
   font-size: ${size.caption}px;
   color: ${color.bluePrimary};
   text-decoration: none;

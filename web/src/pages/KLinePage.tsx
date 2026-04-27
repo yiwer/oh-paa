@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { color, font, size, space, border } from '@/theme';
 import { useInstruments } from '@/api/hooks/usePipeline';
@@ -29,10 +30,17 @@ const CHART_HEIGHT = 500;
 
 export default function KLinePage() {
   const { data: instruments = [] } = useInstruments();
+  const [searchParams] = useSearchParams();
 
-  /* ---- state ---- */
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>('');
-  const [timeframe, setTimeframe] = useState<Timeframe>('1h');
+  /* ---- state (seeded from URL search params) ---- */
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
+    () => searchParams.get('instrument') ?? '',
+  );
+  const [timeframe, setTimeframe] = useState<Timeframe>(() => {
+    const param = searchParams.get('timeframe');
+    if (param === '15m' || param === '1h' || param === '1d') return param;
+    return '1h';
+  });
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
   const [showPaOverlay, setShowPaOverlay] = useState(false);
   const [showKeyLevels, setShowKeyLevels] = useState(false);

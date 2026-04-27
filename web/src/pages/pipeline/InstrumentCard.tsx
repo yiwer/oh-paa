@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { color, border, space, size } from '@/theme';
 import type { Instrument, DebugEvent } from '@/api/types';
@@ -17,7 +18,12 @@ export default function InstrumentCard({ instrument, events, hasError }: Props) 
     <Card $hasError={hasError} onClick={() => setExpanded((v) => !v)}>
       <Header>
         <Left>
-          <Symbol>{instrument.symbol}</Symbol>
+          <SymbolLink
+            to={`/kline?instrument=${instrument.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {instrument.symbol}
+          </SymbolLink>
           <Name>{instrument.name}</Name>
         </Left>
         <Arrow $expanded={expanded}>{'\u25B6'}</Arrow>
@@ -77,10 +83,12 @@ const Left = styled.div`
   gap: ${space.px8}px;
 `;
 
-const Symbol = styled.span`
+const SymbolLink = styled(Link)`
   font-size: ${size.h3}px;
   font-weight: 700;
-  color: ${color.textDark};
+  color: ${color.bluePrimary};
+  text-decoration: none;
+  cursor: pointer;
 `;
 
 const Name = styled.span`

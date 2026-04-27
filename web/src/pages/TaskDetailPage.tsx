@@ -70,6 +70,11 @@ export default function TaskDetailPage() {
             <StatusBadge style={{ background: statusColor(task.status) }}>
               {task.status}
             </StatusBadge>
+            <KLineLink
+              to={`/kline?instrument=${task.instrument_id}${task.timeframe ? `&timeframe=${task.timeframe}` : ''}`}
+            >
+              View in K-Line &rarr;
+            </KLineLink>
           </HeaderRow>
           <HeaderMeta>
             {attempt && <span>{attempt.llm_provider}</span>}
@@ -211,6 +216,19 @@ const StatusBadge = styled.span`
   letter-spacing: 0.5px;
   padding: 2px ${space.px8}px;
   color: ${color.bgWhite};
+`;
+
+const KLineLink = styled(Link)`
+  margin-left: auto;
+  font-family: ${font.mono};
+  font-size: ${size.caption}px;
+  font-weight: 700;
+  color: ${color.bluePrimary};
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const HeaderMeta = styled.div`
