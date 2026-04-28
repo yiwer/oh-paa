@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import styled from 'styled-components';
-import { color, font, border, space, size } from '@/theme';
+import { color, font, space } from '@/theme';
 import MetricCard, { MetricStrip } from '@/components/MetricCard/MetricCard';
-import InstrumentSwitcher from '@/components/InstrumentSwitcher/InstrumentSwitcher';
+import InstrumentDropdown from '@/components/Dropdown/Dropdown';
+import Segmented from '@/components/Segmented/Segmented';
 import { useInstruments } from '@/api/hooks/usePipeline';
 import { useTasks } from '@/api/hooks/useLlmTrace';
 import TriggerRow from '@/pages/llm-trace/TriggerRow';
@@ -114,22 +115,18 @@ export default function LlmTracePage() {
       <Subtitle>{'LLM 分析任务链路追踪'}</Subtitle>
 
       <ControlBar>
-        <InstrumentSwitcher
+        <InstrumentDropdown
           instruments={instruments}
           selectedId={instrumentId}
           onSelect={setSelectedId}
+          label="Instrument"
         />
-        <FilterRow>
-          {FILTER_OPTIONS.map((opt) => (
-            <FilterPill
-              key={opt}
-              $active={filter === opt}
-              onClick={() => setFilter(opt)}
-            >
-              {opt}
-            </FilterPill>
-          ))}
-        </FilterRow>
+        <Segmented<FilterOption>
+          options={[...FILTER_OPTIONS].map((opt) => ({ value: opt, label: opt }))}
+          value={filter}
+          onChange={setFilter}
+          variant="ui"
+        />
       </ControlBar>
 
       <MetricStrip style={{ marginBottom: space.px24 }}>
@@ -161,16 +158,19 @@ const Root = styled.div`
   flex-direction: column;
 `;
 
-const Title = styled.h2`
-  font-size: ${size.h2}px;
-  font-weight: 800;
-  color: ${color.textDark};
+const Title = styled.h1`
+  font-family: ${font.ui};
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: ${color.text1};
   margin: 0 0 ${space.px4}px 0;
 `;
 
 const Subtitle = styled.p`
-  font-size: ${size.bodySm}px;
-  color: ${color.textGray};
+  font-family: ${font.ui};
+  font-size: 12px;
+  color: ${color.text3};
   margin: 0 0 ${space.px20}px 0;
 `;
 
@@ -183,37 +183,15 @@ const ControlBar = styled.div`
   margin-bottom: ${space.px16}px;
 `;
 
-const FilterRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${space.px4}px;
-`;
-
-const FilterPill = styled.button<{ $active: boolean }>`
-  all: unset;
-  cursor: pointer;
-  font-family: ${font.mono};
-  font-size: 11px;
-  font-weight: 700;
-  padding: ${space.px4}px ${space.px8}px;
-  border: ${border.std};
-  border-radius: 0px;
-  background: ${(p) => (p.$active ? color.textDark : color.bgWhite)};
-  color: ${(p) => (p.$active ? color.yellowPrimary : color.textDark)};
-  transition: background-color 0.15s, color 0.15s;
-
-  &:hover {
-    background: ${(p) => (p.$active ? color.textDark : color.bgLightGray)};
-  }
-`;
-
 const TriggerList = styled.div`
   display: flex;
   flex-direction: column;
+  gap: ${space.px8}px;
 `;
 
 const EmptyLabel = styled.div`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text3};
   padding: ${space.px20}px 0;
 `;
