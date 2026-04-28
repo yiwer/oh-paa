@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { color, font, size, space, border } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import type { BarReading } from '@/api/types';
 
 interface Props {
@@ -7,16 +7,16 @@ interface Props {
 }
 
 const COLOR_MAP: Record<string, string> = {
-  green: color.tealAccent,
-  red: color.redAccent,
-  gray: color.textGray,
-  yellow: color.yellowPrimary,
+  green: color.teal,
+  red: color.red,
+  gray: color.text3,
+  yellow: color.yellow,
 };
 
 const BIAS_COLOR: Record<string, string> = {
-  bullish: color.tealAccent,
-  bearish: color.redAccent,
-  neutral: color.textGray,
+  bullish: color.teal,
+  bearish: color.red,
+  neutral: color.text3,
 };
 
 function fmtTime(iso: string): string {
@@ -68,32 +68,35 @@ export default function PaBarReading({ barReading }: Props) {
 /* ---- styled ---- */
 
 const Root = styled.div`
-  background: ${color.bgWhite};
-  border: ${border.std};
-  padding: ${space.px16}px;
-  font-family: ${font.mono};
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
+  padding: ${space.px12}px ${space.px16}px;
+  font-family: ${font.ui};
   min-height: 140px;
   display: flex;
   flex-direction: column;
 `;
 
 const Title = styled.h4`
-  font-size: ${size.eyebrow}px;
+  font-family: ${font.ui};
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: ${color.textGray};
+  letter-spacing: 0.06em;
+  color: ${color.text1};
   margin: 0 0 ${space.px8}px 0;
 `;
 
 const EmptyHint = styled.span`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-size: 13px;
+  color: ${color.text3};
 `;
 
 const ContentArea = styled.div`
-  border: ${border.dashedSection};
-  padding: ${space.px12}px;
+  padding-top: ${space.px8}px;
+  border-top: ${border.dashed};
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -110,24 +113,28 @@ const ColorDot = styled.span`
   display: inline-block;
   width: 10px;
   height: 10px;
+  border-radius: 50%;
   flex-shrink: 0;
 `;
 
 const PatternName = styled.span`
-  font-size: ${size.body}px;
+  font-family: ${font.ui};
+  font-size: 14px;
   font-weight: 700;
-  color: ${color.textDark};
+  color: ${color.text1};
 `;
 
 const BarTime = styled.span`
-  font-size: ${size.caption}px;
-  color: ${color.textLightGray};
+  font-family: ${font.mono};
+  font-size: 11px;
+  color: ${color.text3};
   margin-left: auto;
 `;
 
 const Summary = styled.p`
-  font-size: ${size.bodySm}px;
-  color: ${color.textDark};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text1};
   line-height: 1.5;
   margin: 0;
 `;
@@ -142,12 +149,13 @@ const Footer = styled.div`
 `;
 
 const Tag = styled.span`
-  font-size: ${size.caption}px;
-  color: ${color.textGray};
+  font-family: ${font.mono};
+  font-size: 11px;
+  color: ${color.text2};
 `;
 
 const TagSep = styled.span`
-  font-size: ${size.caption}px;
-  color: ${color.textLightGray};
+  font-size: 11px;
+  color: ${color.textDisabled};
   user-select: none;
 `;

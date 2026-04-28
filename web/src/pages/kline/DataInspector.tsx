@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { color, font, size, space, border } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import type { CanonicalKline } from '@/api/types';
 
 interface Props {
@@ -81,19 +81,19 @@ export default function DataInspector({ kline }: Props) {
             <KvRow
               label="High"
               value={fmtPrice(kline.high)}
-              valueColor={color.tealAccent}
+              valueColor={color.tealText}
             />
             <KvRow
               label="Low"
               value={fmtPrice(kline.low)}
-              valueColor={color.redAccent}
+              valueColor={color.redText}
             />
             <KvRow label="Close" value={fmtPrice(kline.close)} />
             <KvRow
               label="Source Provider"
               value={kline.source_provider}
               badge
-              badgeBg={color.tealAccent}
+              badgeBg={color.tealSoft}
             />
             <KvRow label="Bar State" value="Closed" badge />
           </tbody>
@@ -130,7 +130,7 @@ function KvRow({
       <FieldTd>{label}</FieldTd>
       <ValueTd>
         {badge ? (
-          <Badge style={badgeBg ? { background: badgeBg, color: color.textDark } : undefined}>
+          <Badge style={badgeBg ? { background: badgeBg, color: color.tealText } : undefined}>
             {value}
           </Badge>
         ) : (
@@ -146,60 +146,65 @@ function KvRow({
 /* ---- styled ---- */
 
 const Root = styled.div`
-  background: ${color.bgWhite};
-  border: ${border.std};
-  padding: ${space.px16}px;
-  font-family: ${font.mono};
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
+  padding: ${space.px12}px ${space.px16}px;
+  font-family: ${font.ui};
   min-height: 140px;
   display: flex;
   flex-direction: column;
 `;
 
 const Title = styled.h4`
-  font-size: ${size.eyebrow}px;
+  font-family: ${font.ui};
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: ${color.textGray};
+  letter-spacing: 0.06em;
+  color: ${color.text1};
   margin: 0 0 ${space.px8}px 0;
 `;
 
 const EmptyHint = styled.span`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-size: 13px;
+  color: ${color.text3};
 `;
 
 const TabRow = styled.div`
-  display: flex;
-  gap: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.control};
   margin-bottom: ${space.px10}px;
 `;
 
 const TabBtn = styled.button<{ $active: boolean }>`
   all: unset;
   cursor: pointer;
-  font-family: ${font.mono};
-  font-size: ${size.caption}px;
-  font-weight: 700;
-  padding: ${space.px4}px ${space.px8}px;
-  border: ${border.std};
-  border-right: none;
-  background: ${(p) => (p.$active ? color.yellowPrimary : color.bgWhite)};
-  color: ${color.textDark};
-
-  &:last-child {
-    border-right: ${border.std};
-  }
+  font-family: ${font.ui};
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px ${space.px8}px;
+  border-radius: 4px;
+  background: ${(p) => (p.$active ? color.yellow : 'transparent')};
+  color: ${(p) => (p.$active ? color.text1 : color.text2)};
 
   &:hover {
-    background: ${(p) => (p.$active ? color.yellowPrimary : color.bgLightGray)};
+    color: ${color.text1};
+    background: ${(p) => (p.$active ? color.yellow : color.bgSoft)};
   }
 `;
 
 const KvTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: ${size.caption}px;
+  font-family: ${font.mono};
+  font-size: 11px;
 `;
 
 const Tr = styled.tr`
@@ -211,27 +216,29 @@ const Tr = styled.tr`
 `;
 
 const FieldTd = styled.td`
-  padding: ${space.px4}px 0;
-  color: ${color.textGray};
-  font-size: ${size.caption}px;
+  padding: 4px 0;
+  color: ${color.text2};
+  font-family: ${font.ui};
+  font-size: 11px;
   white-space: nowrap;
 `;
 
 const ValueTd = styled.td`
-  padding: ${space.px4}px 0;
+  padding: 4px 0;
   text-align: right;
-  color: ${color.textDark};
-  font-size: ${size.bodyXs}px;
+  color: ${color.text1};
+  font-size: 12px;
 `;
 
 const Badge = styled.span`
   display: inline-block;
-  font-size: ${size.mini}px;
-  font-weight: 700;
-  padding: 1px ${space.px6}px;
-  border: ${border.thin};
-  background: ${color.bgLightGray};
-  color: ${color.textDark};
+  font-family: ${font.ui};
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px ${space.px8}px;
+  border-radius: ${radius.tag};
+  background: ${color.bgSoft};
+  color: ${color.text2};
 `;
 
 const ComingSoon = styled.div`
@@ -239,8 +246,8 @@ const ComingSoon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${color.textLightGray};
-  font-size: ${size.bodySm}px;
+  color: ${color.text3};
+  font-size: 13px;
 `;
 
 const BottomRow = styled.div`
@@ -248,31 +255,33 @@ const BottomRow = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: ${space.px10}px;
+  padding-top: ${space.px8}px;
   border-top: ${border.dashed};
 `;
 
 const CopyBtn = styled.button`
   all: unset;
   cursor: pointer;
-  font-family: ${font.mono};
-  font-size: ${size.caption}px;
-  font-weight: 700;
-  padding: ${space.px4}px ${space.px8}px;
-  border: ${border.std};
-  background: ${color.bgWhite};
-  color: ${color.textDark};
+  font-family: ${font.ui};
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px ${space.px10}px;
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.control};
+  color: ${color.text1};
 
   &:hover {
-    background: ${color.bgLightGray};
+    background: ${color.bgSoft};
   }
 `;
 
 const TraceLink = styled(Link)`
-  font-size: ${size.caption}px;
-  color: ${color.bluePrimary};
+  font-family: ${font.ui};
+  font-size: 11px;
+  color: ${color.blueText};
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
 
   &:hover {
     text-decoration: underline;
