@@ -339,6 +339,18 @@ fn load_from_path_parses_config_example_toml_with_bootstrap_flag_disabled() {
     assert_eq!(config.bootstrap_local_test_instruments, false);
 }
 
+#[test]
+fn load_from_path_parses_repo_config_toml_with_local_bootstrap_enabled() {
+    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("config.toml");
+
+    let config = AppConfig::load_from_path(&config_path).expect("repo config.toml should parse");
+
+    assert_eq!(config.bootstrap_local_test_instruments, true);
+}
+
 fn create_temp_dir(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use pa_api::{AppState, MarketRuntime, app_router};
-use pa_app::build_worker_executor_from_config;
+use pa_app::{bootstrap::seed_local_test_instruments_if_empty, build_worker_executor_from_config};
 use pa_core::DebugEvent;
 use pa_instrument::InstrumentRepository;
 use pa_market::{
@@ -43,6 +43,7 @@ async fn main() -> Result<()> {
         .await?
         .run(&pool)
         .await?;
+    seed_local_test_instruments_if_empty(&pool, config.bootstrap_local_test_instruments).await?;
     let orchestration_repository: Arc<dyn OrchestrationRepository> =
         Arc::new(PgOrchestrationRepository::new(pool.clone()));
     orchestration_repository
