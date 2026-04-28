@@ -1,14 +1,14 @@
 import styled, { keyframes } from 'styled-components';
-import { color, border, space } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 
 export type MetricAccent = 'teal' | 'blue' | 'yellow' | 'red' | 'gray';
 
 const accentColors: Record<MetricAccent, string> = {
-  teal: color.tealAccent,
-  blue: color.bluePrimary,
-  yellow: color.yellowPrimary,
-  red: color.redAccent,
-  gray: color.textGray,
+  teal: color.teal,
+  blue: color.blue,
+  yellow: color.yellow,
+  red: color.red,
+  gray: color.text3,
 };
 
 interface Props {
@@ -20,7 +20,8 @@ interface Props {
 
 export default function MetricCard({ accent = 'gray', eyebrow, value, sub }: Props) {
   return (
-    <Card $accent={accent}>
+    <Card>
+      <AccentBar $accent={accent} />
       <Eyebrow>{eyebrow}</Eyebrow>
       <Value>{value}</Value>
       {sub && <Sub>{sub}</Sub>}
@@ -34,32 +35,47 @@ export function MetricStrip({ children, ...rest }: React.HTMLAttributes<HTMLDivE
 
 /* ---- styled ---- */
 
-const Card = styled.div<{ $accent: MetricAccent }>`
-  background: ${color.bgWhite};
-  border: ${border.std};
-  border-left: 4px solid ${(p) => accentColors[p.$accent]};
-  padding: ${space.px10}px ${space.px12}px;
+const Card = styled.div`
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
+  padding: ${space.px12}px ${space.px16}px;
+  position: relative;
+  flex: 1;
+`;
+
+const AccentBar = styled.span<{ $accent: MetricAccent }>`
+  display: block;
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: ${(p) => accentColors[p.$accent]};
+  margin-bottom: ${space.px8}px;
 `;
 
 const Eyebrow = styled.div`
+  font-family: ${font.ui};
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: ${color.textGray};
+  letter-spacing: 0.06em;
+  color: ${color.text3};
   margin-bottom: 2px;
 `;
 
 const Value = styled.div`
+  font-family: ${font.mono};
   font-size: 22px;
-  font-weight: 800;
-  color: ${color.textDark};
+  font-weight: 600;
+  color: ${color.text1};
   line-height: 1.2;
 `;
 
 const Sub = styled.div`
+  font-family: ${font.ui};
   font-size: 11px;
-  color: ${color.textGray};
+  color: ${color.text2};
   margin-top: 2px;
 `;
 
@@ -77,7 +93,7 @@ const fadeIn = keyframes`
 const Strip = styled.div`
   display: flex;
   flex-direction: row;
-  gap: ${space.px10}px;
+  gap: ${space.px12}px;
 
   & > * {
     animation: ${fadeIn} 0.3s ease-out both;
