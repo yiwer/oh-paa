@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import styled from 'styled-components';
-import { color, font, border, space, transition } from '@/theme';
+import { color, font, border, radius, space, transition } from '@/theme';
 
 const navItems = [
   { to: '/pipeline', label: 'Pipeline', icon: 'P' },
@@ -13,22 +13,33 @@ interface Props {
 }
 
 const Wrap = styled.aside`
-  width: 200px;
+  width: 196px;
   min-height: 100vh;
-  background: ${color.darkSurface};
+  background: ${color.bgSide};
   display: flex;
   flex-direction: column;
-  border-right: ${border.std};
+  border-right: 1px solid #E2DAC9;
 `;
 
 const Brand = styled.div`
-  font-family: ${font.mono};
-  font-size: 20px;
-  font-weight: 800;
-  color: ${color.yellowPrimary};
-  text-transform: uppercase;
+  font-family: ${font.ui};
+  font-size: 18px;
+  font-weight: 700;
+  color: ${color.text1};
   padding: ${space.px20}px ${space.px16}px;
-  letter-spacing: 2px;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: ${space.px8}px;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${color.yellow};
+  }
 `;
 
 const Nav = styled.nav`
@@ -43,25 +54,26 @@ const StyledNavLink = styled(NavLink)`
   display: flex;
   align-items: center;
   gap: ${space.px10}px;
-  padding: ${space.px10}px ${space.px12}px;
-  font-family: ${font.mono};
+  padding: ${space.px8}px ${space.px10}px;
+  font-family: ${font.ui};
   font-size: 13px;
   font-weight: 500;
-  color: ${color.bgBeige};
+  color: ${color.text2};
   border: 2px solid transparent;
-  border-radius: ${border.radius};
-  transition: ${transition.nav};
+  border-radius: ${radius.control};
+  transition: ${transition.control};
   text-decoration: none;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(26, 26, 26, 0.04);
+    color: ${color.text1};
   }
 
   &.active {
-    background: ${color.yellowPrimary};
-    color: ${color.textDark};
-    font-weight: 700;
-    border-color: ${color.textDark};
+    background: ${color.yellow};
+    color: ${color.text1};
+    font-weight: 600;
+    border-color: ${color.text1};
   }
 `;
 
@@ -71,28 +83,28 @@ const IconBox = styled.span`
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: ${color.bgWhite};
-  color: ${color.textDark};
+  background: ${color.bgSurface};
+  color: ${color.text1};
   font-weight: 700;
   font-size: 12px;
-  border: ${border.std};
-  border-radius: ${border.radius};
+  border: ${border.default};
+  border-radius: ${radius.control};
 `;
 
 const Footer = styled.div`
   padding: ${space.px16}px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: ${border.dashed};
 `;
 
 const StatusDot = styled.span<{ $connected: boolean }>`
-  color: ${(p) => (p.$connected ? color.tealAccent : color.redAccent)};
+  color: ${(p) => (p.$connected ? color.teal : color.red)};
   font-size: 10px;
 `;
 
 const StatusText = styled.span`
   font-family: ${font.mono};
   font-size: 11px;
-  color: ${color.textLightGray};
+  color: ${color.text2};
 `;
 
 export default function Sidebar({ wsConnected }: Props) {
