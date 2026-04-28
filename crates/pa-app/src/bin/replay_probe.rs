@@ -1,5 +1,6 @@
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    pa_app::load_dotenv();
     pa_app::init_cli_tracing();
     let args = pa_app::replay_probe::parse_probe_cli_args(std::env::args())?;
     tracing::info!(step_key = %args.step_key, step_version = %args.step_version, "replay_probe starting");

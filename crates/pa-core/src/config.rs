@@ -75,10 +75,13 @@ impl AppConfig {
             source: Some(Box::new(source)),
         })?;
 
-        let config: AppConfig = toml::from_str(&raw).map_err(|source| AppError::Validation {
-            message: format!("failed to parse config file at {}", path.display()),
-            source: Some(Box::new(source)),
-        })?;
+        let resolved = resolve_env_vars(&raw);
+
+        let config: AppConfig =
+            toml::from_str(&resolved).map_err(|source| AppError::Validation {
+                message: format!("failed to parse config file at {}", path.display()),
+                source: Some(Box::new(source)),
+            })?;
 
         config.validate_llm_bindings()?;
 
@@ -120,4 +123,20 @@ impl AppConfig {
 
 pub fn load() -> Result<AppConfig, AppError> {
     AppConfig::load()
+}
+
+/// Replace `${ENV_VAR}` patterns in a string with their environment variable values.
+/// Unset variables are replaced with an empty string.
+fn resolve_env_vars(input: &str) -> String {
+    let mut result = input.to_string();
+    while let Some(start) = result.find("${") {
+        let Some(end) = result[start..].find('}') else {
+            break;
+        };
+        let end = start + end;
+        let var_name = &result[start + 2..end];
+        let value = std::env::var(var_name).unwrap_or_default();
+        result.replace_range(start..=end, &value);
+    }
+    result
 }

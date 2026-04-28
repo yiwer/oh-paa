@@ -15,6 +15,13 @@ pub mod replay_live;
 pub mod replay_probe;
 pub mod replay_score;
 
+/// Load `.env` from the current working directory (or any ancestor) into the process
+/// environment. Missing file is intentionally not an error — production deployments are
+/// expected to use real environment variables instead.
+pub fn load_dotenv() {
+    let _ = dotenvy::dotenv();
+}
+
 pub fn init_cli_tracing() {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 

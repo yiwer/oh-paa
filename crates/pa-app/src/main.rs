@@ -29,6 +29,7 @@ fn init_tracing() {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    pa_app::load_dotenv();
     init_tracing();
 
     let config = pa_core::config::load()?;
