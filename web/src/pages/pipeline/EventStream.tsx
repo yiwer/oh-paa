@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { color, border, space, size } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import type { DebugEvent, DebugEventType } from '@/api/types';
 
 interface Props {
@@ -8,16 +8,16 @@ interface Props {
 }
 
 const dotColors: Record<DebugEventType, string> = {
-  kline_ingested: color.tealAccent,
-  provider_fallback: color.yellowPrimary,
-  normalization_result: color.redAccent,
-  task_status_changed: color.bluePrimary,
-  attempt_completed: color.bluePrimary,
-  open_bar_update: color.tealAccent,
+  kline_ingested: color.teal,
+  provider_fallback: color.yellow,
+  normalization_result: color.red,
+  task_status_changed: color.blue,
+  attempt_completed: color.blue,
+  open_bar_update: color.teal,
 };
 
 function dotColor(type: string): string {
-  return dotColors[type as DebugEventType] ?? color.textGray;
+  return dotColors[type as DebugEventType] ?? color.text3;
 }
 
 export default function EventStream({ events }: Props) {
@@ -70,8 +70,10 @@ export default function EventStream({ events }: Props) {
 /* ---- styled ---- */
 
 const Wrapper = styled.div`
-  background: ${color.bgWhite};
-  border: ${border.std};
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
 `;
 
 const PanelHeader = styled.div`
@@ -84,28 +86,28 @@ const PanelHeader = styled.div`
 `;
 
 const PanelTitle = styled.span`
-  font-size: ${size.h3}px;
+  font-family: ${font.ui};
+  font-size: 14px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: ${color.textDark};
+  color: ${color.text1};
 `;
 
 const Toggle = styled.span`
   font-size: 10px;
-  color: ${color.textGray};
+  color: ${color.text3};
 `;
 
 const Body = styled.div`
-  max-height: 180px;
+  max-height: 220px;
   overflow-y: auto;
-  padding: 0 ${space.px16}px ${space.px10}px;
+  padding: ${space.px8}px ${space.px16}px ${space.px10}px;
   border-top: ${border.dashed};
 `;
 
 const Waiting = styled.div`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text3};
   padding: ${space.px10}px 0;
 `;
 
@@ -113,8 +115,14 @@ const Row = styled.div`
   display: flex;
   align-items: center;
   gap: ${space.px8}px;
-  padding: 3px 0;
-  font-size: ${size.bodyXs}px;
+  padding: 4px 0;
+  font-family: ${font.mono};
+  font-size: 11px;
+  border-bottom: 1px dashed ${color.borderSoft};
+
+  &:last-child {
+    border-bottom: none;
+  }
 `;
 
 const Dot = styled.span<{ $color: string }>`
@@ -127,10 +135,10 @@ const Dot = styled.span<{ $color: string }>`
 
 const TypeLabel = styled.span`
   font-weight: 600;
-  color: ${color.textDark};
+  color: ${color.text1};
   min-width: 120px;
 `;
 
 const Detail = styled.span`
-  color: ${color.textGray};
+  color: ${color.text2};
 `;
