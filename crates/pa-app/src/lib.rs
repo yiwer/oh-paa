@@ -9,6 +9,7 @@ use pa_orchestrator::{
 };
 use tracing_subscriber::EnvFilter;
 
+pub mod bootstrap;
 pub mod replay;
 pub mod replay_config;
 pub mod replay_live;
@@ -250,6 +251,7 @@ mod tests {
         AppConfig {
             database_url: "postgres://postgres:pgsql@localhost:5432/oh_paa".to_string(),
             server_addr: "127.0.0.1:3000".to_string(),
+            bootstrap_local_test_instruments: false,
             eastmoney_base_url: "https://push2his.eastmoney.com/".to_string(),
             twelvedata_base_url: "https://api.twelvedata.com/".to_string(),
             twelvedata_api_key: "replace-with-real-key".to_string(),
