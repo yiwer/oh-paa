@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { color, border, space, size } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import type { Instrument, DebugEvent } from '@/api/types';
 
 interface Props {
@@ -64,11 +64,26 @@ export default function InstrumentCard({ instrument, events, hasError }: Props) 
 /* ---- styled ---- */
 
 const Card = styled.div<{ $hasError: boolean }>`
-  background: ${color.bgWhite};
-  border: 2px solid ${(p) => (p.$hasError ? color.redAccent : color.textDark)};
-  padding: ${space.px12}px ${space.px16}px;
+  position: relative;
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
+  padding: ${space.px12}px ${space.px16}px ${space.px12}px ${space.px20}px;
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: ${(p) => (p.$hasError ? color.red : color.teal)};
+  }
 `;
 
 const Header = styled.div`
@@ -84,21 +99,23 @@ const Left = styled.div`
 `;
 
 const SymbolLink = styled(Link)`
-  font-size: ${size.h3}px;
+  font-family: ${font.mono};
+  font-size: 14px;
   font-weight: 700;
-  color: ${color.bluePrimary};
+  color: ${color.blueText};
   text-decoration: none;
   cursor: pointer;
 `;
 
 const Name = styled.span`
-  font-size: ${size.bodySm}px;
-  color: ${color.textGray};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text2};
 `;
 
 const Arrow = styled.span<{ $expanded: boolean }>`
   font-size: 10px;
-  color: ${color.textGray};
+  color: ${color.text3};
   transition: transform 0.15s ease;
   transform: rotate(${(p) => (p.$expanded ? '90deg' : '0deg')});
 `;
@@ -106,37 +123,45 @@ const Arrow = styled.span<{ $expanded: boolean }>`
 const ExpandedSection = styled.div`
   margin-top: ${space.px10}px;
   padding-top: ${space.px10}px;
-  border-top: ${border.dashedSection};
+  border-top: ${border.dashed};
 `;
 
 const SectionTitle = styled.div`
-  font-size: ${size.caption}px;
+  font-family: ${font.ui};
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: ${color.textGray};
+  letter-spacing: 0.06em;
+  color: ${color.text3};
   margin-bottom: ${space.px6}px;
 `;
 
 const EmptyLabel = styled.div`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text3};
 `;
 
 const EventRow = styled.div`
   display: flex;
   align-items: center;
   gap: ${space.px8}px;
-  padding: 2px 0;
-  font-size: ${size.bodyXs}px;
+  padding: 3px 0;
+  font-family: ${font.mono};
+  font-size: 11px;
+  border-bottom: 1px dashed ${color.borderSoft};
+
+  &:last-child {
+    border-bottom: none;
+  }
 `;
 
 const EventType = styled.span`
   font-weight: 600;
-  color: ${color.textDark};
+  color: ${color.text1};
   min-width: 120px;
 `;
 
 const EventDetail = styled.span`
-  color: ${color.textGray};
+  color: ${color.text2};
 `;
