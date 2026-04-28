@@ -8,7 +8,7 @@ import { useDebugEventStore } from '@/ws/debugEventStore';
 const Page = styled.div`
   display: flex;
   min-height: 100vh;
-  background: ${color.bgBeige};
+  background: ${color.bgPage};
 `;
 
 const Main = styled.main`
