@@ -126,6 +126,7 @@ fn normalize_legacy_config(
     AppConfig {
         database_url: DEFAULT_DATABASE_URL.to_string(),
         server_addr: DEFAULT_SERVER_ADDR.to_string(),
+        bootstrap_local_test_instruments: false,
         eastmoney_base_url: DEFAULT_EASTMONEY_BASE_URL.to_string(),
         twelvedata_base_url,
         twelvedata_api_key,

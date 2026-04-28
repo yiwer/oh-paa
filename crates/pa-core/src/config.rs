@@ -9,6 +9,7 @@ use crate::error::AppError;
 pub struct AppConfig {
     pub database_url: String,
     pub server_addr: String,
+    pub bootstrap_local_test_instruments: bool,
     pub eastmoney_base_url: String,
     pub twelvedata_base_url: String,
     pub twelvedata_api_key: String,

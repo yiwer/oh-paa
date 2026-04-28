@@ -17,6 +17,7 @@ fn load_from_path_reads_expected_fields() {
         r#"
 database_url = "sqlite::memory:"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://eastmoney.example"
 twelvedata_base_url = "https://twelvedata.example"
 twelvedata_api_key = "secret"
@@ -63,6 +64,7 @@ fn load_from_path_rejects_unknown_keys_and_preserves_parse_source() {
         r#"
 database_url = "sqlite::memory:"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://eastmoney.example"
 twelvedata_base_url = "https://twelvedata.example"
 twelvedata_api_key = "secret"
@@ -118,6 +120,7 @@ fn load_from_path_reads_llm_provider_profiles_and_bindings() {
         r#"
 database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://push2his.eastmoney.com/"
 twelvedata_base_url = "https://api.twelvedata.com/"
 twelvedata_api_key = "demo"
@@ -281,6 +284,61 @@ fn load_from_path_parses_config_example_toml() {
     );
 }
 
+#[test]
+fn load_from_path_reads_bootstrap_local_test_instruments_flag() {
+    let temp_dir = create_temp_dir("bootstrap-flag");
+    let config_path = temp_dir.join("config.toml");
+
+    fs::write(
+        &config_path,
+        r#"
+database_url = "sqlite::memory:"
+server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = true
+eastmoney_base_url = "https://eastmoney.example"
+twelvedata_base_url = "https://twelvedata.example"
+twelvedata_api_key = "secret"
+
+[llm.providers.default]
+base_url = "https://api.example.com"
+api_key = "secret-key"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.default]
+provider = "default"
+model = "demo-model"
+max_tokens = 1000
+max_retries = 1
+per_call_timeout_secs = 30
+retry_initial_backoff_ms = 100
+supports_json_schema = false
+supports_reasoning = false
+
+[llm.step_bindings.default]
+execution_profile = "default"
+"#,
+    )
+    .expect("config should be written");
+
+    let config = AppConfig::load_from_path(&config_path).expect("config should parse");
+
+    assert_eq!(config.bootstrap_local_test_instruments, true);
+
+    cleanup_temp_dir(&temp_dir);
+}
+
+#[test]
+fn load_from_path_parses_config_example_toml_with_bootstrap_flag_disabled() {
+    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("config.example.toml");
+
+    let config = AppConfig::load_from_path(&config_path).expect("example config should parse");
+
+    assert_eq!(config.bootstrap_local_test_instruments, false);
+}
+
 fn create_temp_dir(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -302,6 +360,7 @@ fn valid_llm_config_toml() -> String {
     r#"
 database_url = "sqlite::memory:"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://eastmoney.example"
 twelvedata_base_url = "https://twelvedata.example"
 twelvedata_api_key = "secret"

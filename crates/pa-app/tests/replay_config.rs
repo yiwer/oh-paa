@@ -15,6 +15,7 @@ fn load_replay_config_keeps_current_oh_paa_shape_unchanged() {
         r#"
 database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://push2his.eastmoney.com/"
 twelvedata_base_url = "https://api.twelvedata.com/"
 twelvedata_api_key = "demo-key"
@@ -263,12 +264,59 @@ retry_initial_backoff_ms = 1000
 }
 
 #[test]
+fn load_replay_config_keeps_bootstrap_flag_disabled_for_current_shape() {
+    let path = write_temp_toml(
+        "current-shape-bootstrap-flag",
+        r#"
+database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
+server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
+eastmoney_base_url = "https://push2his.eastmoney.com/"
+twelvedata_base_url = "https://api.twelvedata.com/"
+twelvedata_api_key = "demo-key"
+
+[llm.providers.default]
+base_url = "https://api.deepseek.com"
+api_key = "deepseek-demo"
+openai_api_style = "chat_completions"
+
+[llm.execution_profiles.default]
+provider = "default"
+model = "deepseek-reasoner"
+max_tokens = 32765
+max_retries = 2
+per_call_timeout_secs = 600
+retry_initial_backoff_ms = 1000
+supports_json_schema = false
+supports_reasoning = true
+
+[llm.step_bindings.shared_pa_state_bar_v1]
+execution_profile = "default"
+
+[llm.step_bindings.shared_bar_analysis_v2]
+execution_profile = "default"
+
+[llm.step_bindings.shared_daily_context_v2]
+execution_profile = "default"
+
+[llm.step_bindings.user_position_advice_v2]
+execution_profile = "default"
+"#,
+    );
+
+    let resolved = pa_app::replay_config::load_replay_config(&path).expect("loader should pass");
+
+    assert_eq!(resolved.app_config.bootstrap_local_test_instruments, false);
+}
+
+#[test]
 fn load_replay_config_preserves_current_shape_parse_details_when_legacy_fallback_fails() {
     let path = write_temp_toml(
         "invalid-current-shape",
         r#"
 database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://push2his.eastmoney.com/"
 twelvedata_base_url = "https://api.twelvedata.com/"
 twelvedata_api_key = "demo-key"

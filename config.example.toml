@@ -1,5 +1,6 @@
 database_url = "postgres://postgres:pgsql@localhost:5432/oh_paa"
 server_addr = "127.0.0.1:3000"
+bootstrap_local_test_instruments = false
 eastmoney_base_url = "https://push2his.eastmoney.com/"
 twelvedata_base_url = "https://api.twelvedata.com/"
 twelvedata_api_key = "replace-with-real-key"
