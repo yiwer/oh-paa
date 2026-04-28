@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { color, font, size, space, border } from '@/theme';
+import { color, font, border, space } from '@/theme';
 import { useTask, useAttempts, useResult, useDeadLetter } from '@/api/hooks/useLlmTrace';
+import StatusPill, { type StatusVariant } from '@/components/StatusPill/StatusPill';
+import Segmented from '@/components/Segmented/Segmented';
 import TimelineCard from '@/pages/task-detail/TimelineCard';
 import PromptInputCard from '@/pages/task-detail/PromptInputCard';
 import LlmResponseCard from '@/pages/task-detail/LlmResponseCard';
@@ -15,12 +17,12 @@ const TASK_TYPE_LABELS: Record<string, string> = {
   shared_daily_context: 'Daily Context',
 };
 
-function statusColor(status: string): string {
+function statusVariant(status: string): StatusVariant {
   const s = status.toLowerCase();
-  if (s === 'succeeded' || s === 'completed') return color.tealAccent;
-  if (s === 'failed' || s === 'dead_letter') return color.redAccent;
-  if (s === 'running' || s === 'in_progress') return color.bluePrimary;
-  return color.textLightGray;
+  if (s === 'succeeded' || s === 'completed') return 'ok';
+  if (s === 'running' || s === 'in_progress') return 'info';
+  if (s === 'failed' || s === 'dead_letter') return 'err';
+  return 'neutral';
 }
 
 function formatLatency(startedAt: string | null, finishedAt: string | null): string | null {
@@ -67,9 +69,7 @@ export default function TaskDetailPage() {
         <HeaderCard>
           <HeaderRow>
             <TaskType>{label}</TaskType>
-            <StatusBadge style={{ background: statusColor(task.status) }}>
-              {task.status}
-            </StatusBadge>
+            <StatusPill variant={statusVariant(task.status)}>{task.status}</StatusPill>
             <KLineLink
               to={`/kline?instrument=${task.instrument_id}${task.timeframe ? `&timeframe=${task.timeframe}` : ''}`}
             >
@@ -88,18 +88,17 @@ export default function TaskDetailPage() {
 
       {/* Attempt tabs */}
       {attempts && attempts.length > 1 && (
-        <TabRow>
-          {attempts.map((a, i) => (
-            <AttemptTab
-              key={a.id}
-              $active={i === selectedAttemptIndex}
-              onClick={() => setSelectedAttemptIndex(i)}
-            >
-              Attempt {a.attempt_number} &middot; {attemptLatency(a)} &middot;{' '}
-              {a.error_type ? a.error_type : 'success'}
-            </AttemptTab>
-          ))}
-        </TabRow>
+        <AttemptTabsWrap>
+          <Segmented
+            options={attempts.map((a, i) => ({
+              value: String(i),
+              label: `Attempt ${a.attempt_number} · ${attemptLatency(a)} · ${a.error_type ?? 'success'}`,
+            }))}
+            value={String(selectedAttemptIndex)}
+            onChange={(v) => setSelectedAttemptIndex(Number(v))}
+            variant="ui"
+          />
+        </AttemptTabsWrap>
       )}
 
       {/* Timeline */}
@@ -107,8 +106,8 @@ export default function TaskDetailPage() {
         <TimelineColumn>
           <TimelineCard
             icon={'\u2192'}
-            bgColor={color.darkSurface}
-            iconColor={color.bgWhite}
+            bgColor={color.text1}
+            iconColor={color.bgSurface}
           >
             <PromptInputCard task={task} />
           </TimelineCard>
@@ -116,8 +115,8 @@ export default function TaskDetailPage() {
           {attempt && (
             <TimelineCard
               icon={'\u2190'}
-              bgColor={color.darkSurface}
-              iconColor={color.bgWhite}
+              bgColor={color.text1}
+              iconColor={color.bgSurface}
             >
               <LlmResponseCard attempt={attempt} />
             </TimelineCard>
@@ -126,8 +125,8 @@ export default function TaskDetailPage() {
           {attempt && (
             <TimelineCard
               icon={hasError ? '\u2717' : '\u2713'}
-              bgColor={hasError ? color.redAccent : color.tealAccent}
-              iconColor={color.bgWhite}
+              bgColor={hasError ? color.red : color.teal}
+              iconColor={color.bgSurface}
             >
               <ValidationCard attempt={attempt} task={task} />
             </TimelineCard>
@@ -135,8 +134,8 @@ export default function TaskDetailPage() {
 
           <TimelineCard
             icon={isDead ? '\u2620' : '\u25CE'}
-            bgColor={isDead ? color.darkSurface : color.yellowPrimary}
-            iconColor={isDead ? color.redAccent : color.textDark}
+            bgColor={isDead ? color.text1 : color.yellow}
+            iconColor={isDead ? color.red : color.text1}
             isLast
           >
             <ResultCard result={result} deadLetter={deadLetter} task={task} />
@@ -165,9 +164,9 @@ const Breadcrumb = styled.div`
 
 const BreadcrumbLink = styled(Link)`
   font-family: ${font.mono};
-  font-size: ${size.bodySm}px;
-  font-weight: 700;
-  color: ${color.bluePrimary};
+  font-size: 12px;
+  font-weight: 600;
+  color: ${color.blueText};
   text-decoration: none;
 
   &:hover {
@@ -176,20 +175,22 @@ const BreadcrumbLink = styled(Link)`
 `;
 
 const BreadcrumbSep = styled.span`
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-size: 12px;
+  color: ${color.textDisabled};
 `;
 
 const BreadcrumbCurrent = styled.span`
   font-family: ${font.mono};
-  font-size: ${size.bodySm}px;
-  font-weight: 700;
-  color: ${color.textDark};
+  font-size: 12px;
+  font-weight: 600;
+  color: ${color.text1};
 `;
 
 const HeaderCard = styled.div`
-  background: ${color.bgWhite};
-  border: ${border.std};
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(28,25,20,.04);
   padding: ${space.px16}px;
   margin-bottom: ${space.px16}px;
 `;
@@ -203,27 +204,17 @@ const HeaderRow = styled.div`
 
 const TaskType = styled.span`
   font-family: ${font.mono};
-  font-size: 18px;
-  font-weight: 800;
-  color: ${color.textDark};
-`;
-
-const StatusBadge = styled.span`
-  font-family: ${font.mono};
-  font-size: 9px;
+  font-size: 16px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px ${space.px8}px;
-  color: ${color.bgWhite};
+  color: ${color.text1};
 `;
 
 const KLineLink = styled(Link)`
   margin-left: auto;
   font-family: ${font.mono};
-  font-size: ${size.caption}px;
-  font-weight: 700;
-  color: ${color.bluePrimary};
+  font-size: 11px;
+  font-weight: 600;
+  color: ${color.blueText};
   text-decoration: none;
 
   &:hover {
@@ -235,35 +226,12 @@ const HeaderMeta = styled.div`
   display: flex;
   gap: ${space.px10}px;
   font-family: ${font.mono};
-  font-size: ${size.bodyXs}px;
-  color: ${color.textGray};
+  font-size: 11px;
+  color: ${color.text2};
 `;
 
-const TabRow = styled.div`
-  display: flex;
-  gap: 0;
+const AttemptTabsWrap = styled.div`
   margin-bottom: ${space.px16}px;
-`;
-
-const AttemptTab = styled.button<{ $active: boolean }>`
-  all: unset;
-  cursor: pointer;
-  font-family: ${font.mono};
-  font-size: ${size.caption}px;
-  font-weight: 700;
-  padding: ${space.px6}px ${space.px12}px;
-  border: ${border.std};
-  border-right: none;
-  background: ${(p) => (p.$active ? color.yellowPrimary : color.bgWhite)};
-  color: ${color.textDark};
-
-  &:last-child {
-    border-right: ${border.std};
-  }
-
-  &:hover {
-    background: ${(p) => (p.$active ? color.yellowPrimary : color.bgLightGray)};
-  }
 `;
 
 const TimelineColumn = styled.div`
@@ -272,8 +240,8 @@ const TimelineColumn = styled.div`
 `;
 
 const Loading = styled.div`
-  font-family: ${font.mono};
-  font-size: ${size.bodySm}px;
-  color: ${color.textLightGray};
+  font-family: ${font.ui};
+  font-size: 13px;
+  color: ${color.text3};
   padding: ${space.px20}px 0;
 `;
