@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import styled from 'styled-components';
-import { color, space, size } from '@/theme';
+import { color, font, border, space } from '@/theme';
 import MetricCard, { MetricStrip } from '@/components/MetricCard/MetricCard';
 import { useDebugEventStore } from '@/ws/debugEventStore';
 import { useInstruments } from '@/api/hooks/usePipeline';
@@ -84,7 +84,9 @@ export default function PipelinePage() {
 
       {crypto.length > 0 && (
         <section>
-          <GroupTitle>Crypto</GroupTitle>
+          <GroupTitle>
+            Crypto <CountChip>{`(${crypto.length})`}</CountChip>
+          </GroupTitle>
           <CardGrid>
             {crypto.map((inst) => {
               const instEvents = eventsForInstrument(events, inst.id);
@@ -103,7 +105,9 @@ export default function PipelinePage() {
 
       {forex.length > 0 && (
         <section>
-          <GroupTitle>Forex</GroupTitle>
+          <GroupTitle>
+            Forex <CountChip>{`(${forex.length})`}</CountChip>
+          </GroupTitle>
           <CardGrid>
             {forex.map((inst) => {
               const instEvents = eventsForInstrument(events, inst.id);
@@ -134,32 +138,49 @@ const Root = styled.div`
   flex-direction: column;
 `;
 
-const Title = styled.h2`
-  font-size: ${size.h2}px;
-  font-weight: 800;
-  color: ${color.textDark};
+const Title = styled.h1`
+  font-family: ${font.ui};
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: ${color.text1};
   margin: 0 0 ${space.px4}px 0;
 `;
 
 const Subtitle = styled.p`
-  font-size: ${size.bodySm}px;
-  color: ${color.textGray};
+  font-family: ${font.ui};
+  font-size: 12px;
+  color: ${color.text3};
   margin: 0 0 ${space.px20}px 0;
 `;
 
 const GroupTitle = styled.h3`
-  font-size: ${size.eyebrow}px;
+  font-family: ${font.ui};
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: ${color.textGray};
+  letter-spacing: 0.08em;
+  color: ${color.text2};
   margin: 0 0 ${space.px8}px 0;
+  display: flex;
+  align-items: baseline;
+  gap: ${space.px6}px;
+  padding-bottom: ${space.px6}px;
+  border-bottom: ${border.default};
+`;
+
+const CountChip = styled.span`
+  font-family: ${font.mono};
+  font-size: 10px;
+  font-weight: 500;
+  color: ${color.text3};
 `;
 
 const CardGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: ${space.px10}px;
+  gap: ${space.px12}px;
+  margin-top: ${space.px8}px;
   margin-bottom: ${space.px24}px;
 `;
 
