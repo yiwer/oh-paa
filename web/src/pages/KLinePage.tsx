@@ -1,13 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { color, font, size, space, border } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import { useInstruments } from '@/api/hooks/usePipeline';
 import { useCanonicalKlines } from '@/api/hooks/useKline';
-import InstrumentSwitcher from '@/components/InstrumentSwitcher/InstrumentSwitcher';
+import InstrumentDropdown from '@/components/Dropdown/Dropdown';
+import Segmented from '@/components/Segmented/Segmented';
 import KLineChart from '@/charts/KLineChart';
 import PaBarReading from '@/pages/kline/PaBarReading';
 import DataInspector from '@/pages/kline/DataInspector';
+import KeyLevels from '@/pages/kline/KeyLevels';
 import type { BarReading, KeyLevel } from '@/api/types';
 
 /* ------------------------------------------------------------------ */
@@ -22,7 +24,7 @@ const TF_OPTIONS: { value: Timeframe; label: string }[] = [
   { value: '1d', label: 'D1' },
 ];
 
-const CHART_HEIGHT = 500;
+const CHART_HEIGHT = 480;
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -87,41 +89,37 @@ export default function KLinePage() {
       <TopBar>
         <TopBarLeft>
           {instruments.length > 0 && (
-            <InstrumentSwitcher
+            <InstrumentDropdown
               instruments={instruments}
               selectedId={instrumentId}
               onSelect={handleInstrumentSelect}
+              label="Instrument"
             />
           )}
         </TopBarLeft>
         <TopBarRight>
-          <CheckboxLabel>
+          <CheckboxPill $on={showPaOverlay}>
             <input
               type="checkbox"
               checked={showPaOverlay}
               onChange={(e) => setShowPaOverlay(e.target.checked)}
             />
             PA Overlay
-          </CheckboxLabel>
-          <CheckboxLabel>
+          </CheckboxPill>
+          <CheckboxPill $on={showKeyLevels}>
             <input
               type="checkbox"
               checked={showKeyLevels}
               onChange={(e) => setShowKeyLevels(e.target.checked)}
             />
             Key Levels
-          </CheckboxLabel>
-          <TfRow>
-            {TF_OPTIONS.map((opt) => (
-              <TfBtn
-                key={opt.value}
-                $active={timeframe === opt.value}
-                onClick={() => handleTimeframeChange(opt.value)}
-              >
-                {opt.label}
-              </TfBtn>
-            ))}
-          </TfRow>
+          </CheckboxPill>
+          <Segmented<Timeframe>
+            options={TF_OPTIONS}
+            value={timeframe}
+            onChange={handleTimeframeChange}
+            variant="mono"
+          />
         </TopBarRight>
       </TopBar>
 
@@ -146,12 +144,9 @@ export default function KLinePage() {
 
       {/* Bottom Panels */}
       <BottomPanels>
-        <PanelLeft>
-          <PaBarReading barReading={selectedBarReading} />
-        </PanelLeft>
-        <PanelRight>
-          <DataInspector kline={selectedKline} />
-        </PanelRight>
+        <PaBarReading barReading={selectedBarReading} />
+        <DataInspector kline={selectedKline} />
+        <KeyLevels kline={selectedKline} keyLevels={keyLevels} />
       </BottomPanels>
     </Root>
   );
@@ -162,7 +157,7 @@ export default function KLinePage() {
 const Root = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${space.px10}px;
+  gap: ${space.px12}px;
 `;
 
 const TopBar = styled.div`
@@ -170,7 +165,7 @@ const TopBar = styled.div`
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: ${space.px10}px;
+  gap: ${space.px12}px;
 `;
 
 const TopBarLeft = styled.div`
@@ -182,50 +177,31 @@ const TopBarLeft = styled.div`
 const TopBarRight = styled.div`
   display: flex;
   align-items: center;
-  gap: ${space.px12}px;
+  gap: ${space.px8}px;
 `;
 
-const CheckboxLabel = styled.label`
-  display: flex;
+const CheckboxPill = styled.label<{ $on: boolean }>`
+  display: inline-flex;
   align-items: center;
-  gap: ${space.px4}px;
-  font-family: ${font.mono};
-  font-size: ${size.caption}px;
-  color: ${color.textGray};
+  gap: ${space.px6}px;
+  padding: 5px ${space.px10}px;
+  font-family: ${font.ui};
+  font-size: 12px;
+  color: ${(p) => (p.$on ? color.text1 : color.text2)};
+  background: ${(p) => (p.$on ? color.bgSurface : 'transparent')};
+  border: ${(p) => (p.$on ? border.default : '1px solid transparent')};
+  border-radius: ${radius.control};
   cursor: pointer;
   user-select: none;
 `;
 
-const TfRow = styled.div`
-  display: flex;
-`;
-
-const TfBtn = styled.button<{ $active: boolean }>`
-  all: unset;
-  cursor: pointer;
-  font-family: ${font.mono};
-  font-size: 11px;
-  font-weight: 700;
-  padding: ${space.px4}px ${space.px8}px;
-  border: ${border.std};
-  border-right: none;
-  background: ${(p) => (p.$active ? color.textDark : color.bgWhite)};
-  color: ${(p) => (p.$active ? color.yellowPrimary : color.textDark)};
-  transition: background-color 0.15s, color 0.15s;
-
-  &:last-child {
-    border-right: ${border.std};
-  }
-
-  &:hover {
-    background: ${(p) => (p.$active ? color.textDark : color.bgLightGray)};
-  }
-`;
-
 const ChartArea = styled.div`
-  border: ${border.std};
-  background: ${color.bgWhite};
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
   min-height: ${CHART_HEIGHT}px;
+  padding: ${space.px8}px;
 `;
 
 const ChartEmpty = styled.div`
@@ -233,25 +209,17 @@ const ChartEmpty = styled.div`
   align-items: center;
   justify-content: center;
   height: ${CHART_HEIGHT}px;
-  color: ${color.textLightGray};
-  font-family: ${font.mono};
-  font-size: ${size.bodySm}px;
+  color: ${color.text3};
+  font-family: ${font.ui};
+  font-size: 13px;
 `;
 
 const BottomPanels = styled.div`
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: ${space.px10}px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: ${space.px12}px;
 
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
-`;
-
-const PanelLeft = styled.div`
-  min-width: 0;
-`;
-
-const PanelRight = styled.div`
-  min-width: 0;
 `;
