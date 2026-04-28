@@ -85,7 +85,7 @@ const Row = styled.div`
 
 const Arrow = styled.span`
   font-size: 10px;
-  color: ${color.textLightGray};
+  color: ${color.textDisabled};
   margin: 0 ${space.px4}px;
   user-select: none;
 `;
@@ -98,16 +98,16 @@ const DotWrap = styled.span`
 
 function dotColor(variant: DotVariant) {
   switch (variant) {
-    case 'succeeded': return color.tealAccent;
-    case 'running': return color.bluePrimary;
-    case 'failed': return color.redAccent;
+    case 'succeeded': return color.teal;
+    case 'running': return color.blue;
+    case 'failed': return color.red;
     case 'na': return 'transparent';
-    case 'cascade': return color.textLightGray;
+    case 'cascade': return color.text3;
   }
 }
 
 function dotBorder(variant: DotVariant) {
-  if (variant === 'na') return `1.5px dashed ${color.textLightGray}`;
+  if (variant === 'na') return `1.5px dashed ${color.borderHairline}`;
   return 'none';
 }
 
@@ -125,5 +125,5 @@ const AttemptCount = styled.span`
   font-family: ${font.mono};
   font-size: 9px;
   font-weight: 600;
-  color: ${color.redAccent};
+  color: ${color.redText};
 `;

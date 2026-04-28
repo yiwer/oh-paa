@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styled from 'styled-components';
-import { color, font, border, space, size } from '@/theme';
+import { color, font, border, radius, shadow, space } from '@/theme';
 import type { AnalysisTask } from '@/api/types';
 import PipelineStatusDots from './PipelineStatusDots';
 import TaskChainNode from './TaskChainNode';
@@ -78,6 +78,32 @@ function sortedTasks(tasks: AnalysisTask[]) {
   );
 }
 
+type AccentState = 'error' | 'passed' | 'progress' | 'pending';
+
+function accentState(tasks: AnalysisTask[]): AccentState {
+  if (hasError(tasks)) return 'error';
+  if (
+    tasks.some(
+      (t) =>
+        t.status.toLowerCase() === 'running' ||
+        t.status.toLowerCase() === 'in_progress',
+    )
+  ) {
+    return 'progress';
+  }
+  if (
+    tasks.length > 0 &&
+    tasks.every(
+      (t) =>
+        t.status.toLowerCase() === 'succeeded' ||
+        t.status.toLowerCase() === 'completed',
+    )
+  ) {
+    return 'passed';
+  }
+  return 'pending';
+}
+
 interface Props {
   tasks: AnalysisTask[];
   triggerKey: string;
@@ -85,7 +111,7 @@ interface Props {
 
 export default function TriggerRow({ tasks, triggerKey: _triggerKey }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const isError = hasError(tasks);
+  const accent = accentState(tasks);
   const latency = totalLatency(tasks);
   const status = statusText(tasks);
   const timeframe = extractTimeframe(tasks);
@@ -94,7 +120,7 @@ export default function TriggerRow({ tasks, triggerKey: _triggerKey }: Props) {
   const ordered = sortedTasks(tasks);
 
   return (
-    <Card $isError={isError}>
+    <Card $accent={accent}>
       <Header onClick={() => setExpanded((v) => !v)}>
         <Left>
           <TimeframeBadge>{timeframe}</TimeframeBadge>
@@ -122,17 +148,39 @@ export default function TriggerRow({ tasks, triggerKey: _triggerKey }: Props) {
 
 /* ---- styled ---- */
 
-const Card = styled.div<{ $isError: boolean }>`
-  background: ${(p) => (p.$isError ? '#FFF5F5' : color.bgWhite)};
-  border: 2px solid ${(p) => (p.$isError ? color.redAccent : color.textDark)};
+const Card = styled.div<{ $accent: AccentState }>`
+  position: relative;
+  background: ${color.bgSurface};
+  border: ${border.default};
+  border-radius: ${radius.card};
+  box-shadow: ${shadow.card};
   margin-bottom: ${space.px8}px;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: ${(p) => {
+      switch (p.$accent) {
+        case 'error': return color.red;
+        case 'passed': return color.teal;
+        case 'progress': return color.blue;
+        case 'pending': return color.text3;
+      }
+    }};
+  }
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${space.px10}px ${space.px12}px;
+  padding: ${space.px10}px ${space.px16}px;
   cursor: pointer;
   user-select: none;
 `;
@@ -153,41 +201,43 @@ const TimeframeBadge = styled.span`
   font-family: ${font.mono};
   font-size: 11px;
   font-weight: 700;
-  padding: 1px ${space.px6}px;
-  background: ${color.bgLightGray};
-  color: ${color.textDark};
+  letter-spacing: 0.04em;
+  padding: 2px ${space.px6}px;
+  border-radius: ${radius.tag};
+  background: ${color.text1};
+  color: ${color.yellow};
   text-transform: uppercase;
 `;
 
 const BarCloseTime = styled.span`
   font-family: ${font.mono};
-  font-size: ${size.bodySm}px;
+  font-size: 13px;
   font-weight: 700;
-  color: ${color.textDark};
+  color: ${color.text1};
 `;
 
 const BarState = styled.span`
   font-family: ${font.mono};
-  font-size: ${size.bodyXs}px;
-  color: ${color.textGray};
+  font-size: 12px;
+  color: ${color.text2};
 `;
 
 const LatencyText = styled.span`
   font-family: ${font.mono};
-  font-size: ${size.bodyXs}px;
-  color: ${color.textGray};
+  font-size: 12px;
+  color: ${color.text2};
   min-width: 60px;
   text-align: right;
 `;
 
 const Arrow = styled.span<{ $expanded: boolean }>`
   font-size: 10px;
-  color: ${color.textGray};
+  color: ${color.text3};
   transition: transform 0.15s ease;
   transform: rotate(${(p) => (p.$expanded ? '90deg' : '0deg')});
 `;
 
 const ExpandedSection = styled.div`
   padding: ${space.px12}px ${space.px16}px;
-  border-top: ${border.dashedSection};
+  border-top: 1px dashed ${color.borderSoft};
 `;
