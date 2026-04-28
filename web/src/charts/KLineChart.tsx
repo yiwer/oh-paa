@@ -53,16 +53,16 @@ interface KLineChartProps {
 /* ------------------------------------------------------------------ */
 
 const PA_COLOR_MAP: Record<string, string> = {
-  green: color.tealAccent,
-  red: color.redAccent,
-  gray: color.textGray,
-  yellow: color.yellowPrimary,
+  green: color.teal,
+  red: color.red,
+  gray: color.text2,
+  yellow: color.yellow,
 };
 
 const KEY_LEVEL_COLOR: Record<string, string> = {
-  support: color.tealAccent,
-  resistance: color.redAccent,
-  target: color.yellowPrimary,
+  support: color.teal,
+  resistance: color.red,
+  target: color.yellow,
 };
 
 /** Format ISO datetime to compact axis label. */
@@ -175,10 +175,10 @@ export default function KLineChart({
         return {
           value: [b.open, b.close, b.low, b.high],
           itemStyle: {
-            color: isUp ? 'rgba(83,219,201,0.3)' : 'rgba(255,113,105,0.3)',
-            color0: isUp ? 'rgba(83,219,201,0.3)' : 'rgba(255,113,105,0.3)',
-            borderColor: isUp ? color.tealAccent : color.redAccent,
-            borderColor0: isUp ? color.tealAccent : color.redAccent,
+            color: isUp ? 'rgba(47,184,154,0.3)' : 'rgba(229,104,91,0.3)',
+            color0: isUp ? 'rgba(47,184,154,0.3)' : 'rgba(229,104,91,0.3)',
+            borderColor: isUp ? color.tealText : color.redText,
+            borderColor0: isUp ? color.tealText : color.redText,
             borderType: 'dashed' as const,
             borderWidth: 2,
           },
@@ -189,8 +189,8 @@ export default function KLineChart({
         return {
           value: [b.open, b.close, b.low, b.high],
           itemStyle: {
-            borderColor: color.yellowPrimary,
-            borderColor0: color.yellowPrimary,
+            borderColor: color.yellow,
+            borderColor0: color.yellow,
             borderWidth: 2,
           },
         };
@@ -213,7 +213,7 @@ export default function KLineChart({
           paScatterData.push({
             value: [i, yPos],
             itemStyle: {
-              color: PA_COLOR_MAP[reading.bar_reading_color] ?? color.textGray,
+              color: PA_COLOR_MAP[reading.bar_reading_color] ?? color.text2,
             },
           });
         } else {
@@ -237,7 +237,7 @@ export default function KLineChart({
 
     if (showKeyLevels && keyLevels) {
       for (const kl of keyLevels) {
-        const clr = KEY_LEVEL_COLOR[kl.type] ?? color.textGray;
+        const clr = KEY_LEVEL_COLOR[kl.type] ?? color.text2;
         markLineData.push({
           yAxis: Number(kl.price),
           name: kl.label,
@@ -269,38 +269,38 @@ export default function KLineChart({
       const change = c - o;
       const changePct = o !== 0 ? (change / o) * 100 : 0;
       const isUp = change >= 0;
-      const changeColor = isUp ? color.tealAccent : color.redAccent;
+      const changeColor = isUp ? color.teal : color.red;
       const state = bar.isOpen ? 'Open' : 'Closed';
       const reading = readingForIndex(idx);
 
       let paHtml = '';
       if (reading) {
         const dotColor =
-          PA_COLOR_MAP[reading.bar_reading_color] ?? color.textGray;
+          PA_COLOR_MAP[reading.bar_reading_color] ?? color.text2;
         paHtml = `
           <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
             <span style="display:inline-block;width:8px;height:8px;background:${dotColor};flex-shrink:0;"></span>
             <span style="color:${dotColor};font-weight:700;">${escapeHtml(reading.pattern)}</span>
           </div>
-          <div style="font-size:10px;color:${color.textLightGray};margin-top:2px;">
+          <div style="font-size:10px;color:${color.text3};margin-top:2px;">
             ${escapeHtml(reading.bar_summary)}
           </div>`;
       }
 
       return `<div style="font-family:${font.mono};font-size:12px;width:180px;overflow:hidden;">
-  <div style="padding:6px 10px;background:${color.darkSurface};color:${color.bgBeige};border-radius:0;">
+  <div style="padding:6px 10px;background:${color.text1};color:${color.bgPage};border-radius:0;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;">
       <b>${fmtAxisTime(bar.time)}</b>
-      <span style="font-size:9px;color:${color.textLightGray};">${escapeHtml(timeframe)} &middot; ${state}</span>
+      <span style="font-size:9px;color:${color.text3};">${escapeHtml(timeframe)} &middot; ${state}</span>
     </div>${paHtml}
   </div>
-  <div style="padding:8px 10px;line-height:1.9;color:${color.textDark};">
+  <div style="padding:8px 10px;line-height:1.9;color:${color.text1};">
     <div>Open <span style="float:right;">${fmtPrice(o)}</span></div>
-    <div style="color:${color.tealAccent};">High <span style="float:right;">${fmtPrice(h)}</span></div>
-    <div style="color:${color.redAccent};">Low <span style="float:right;">${fmtPrice(l)}</span></div>
+    <div style="color:${color.teal};">High <span style="float:right;">${fmtPrice(h)}</span></div>
+    <div style="color:${color.red};">Low <span style="float:right;">${fmtPrice(l)}</span></div>
     <div>Close <span style="float:right;">${fmtPrice(c)}</span></div>
   </div>
-  <div style="padding:6px 10px;border-top:1px dashed ${color.bgLightGray};color:${changeColor};font-weight:700;">
+  <div style="padding:6px 10px;border-top:1px dashed ${color.borderSoft};color:${changeColor};font-weight:700;">
     Change <span style="float:right;">${isUp ? '+' : ''}${fmtPrice(change)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)</span>
   </div>
 </div>`;
@@ -312,10 +312,10 @@ export default function KLineChart({
         type: 'candlestick',
         data: itemStyles,
         itemStyle: {
-          color: color.tealAccent,
-          color0: color.redAccent,
-          borderColor: color.tealAccent,
-          borderColor0: color.redAccent,
+          color: color.teal,
+          color0: color.red,
+          borderColor: color.tealText,
+          borderColor0: color.redText,
         },
         ...(markLineData.length > 0
           ? {
@@ -352,17 +352,17 @@ export default function KLineChart({
       xAxis: {
         type: 'category',
         data: categoryData,
-        axisLine: { lineStyle: { color: color.bgLightGray } },
+        axisLine: { lineStyle: { color: color.borderHairline } },
         axisTick: { show: false },
         axisLabel: {
-          color: color.textGray,
+          color: color.text2,
           fontSize: 10,
           fontFamily: font.mono,
         },
         axisPointer: {
           label: {
-            backgroundColor: color.darkSurface,
-            color: color.yellowPrimary,
+            backgroundColor: color.text1,
+            color: color.yellow,
             fontFamily: font.mono,
             fontSize: 10,
           },
@@ -372,19 +372,19 @@ export default function KLineChart({
         type: 'value',
         position: 'right',
         scale: true,
-        splitLine: { lineStyle: { color: color.bgLightGray, type: 'dashed' } },
+        splitLine: { lineStyle: { color: color.borderSoft, type: 'dashed' } },
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: {
-          color: color.textGray,
+          color: color.text2,
           fontSize: 10,
           fontFamily: font.mono,
           formatter: (v: number) => fmtPrice(v),
         },
         axisPointer: {
           label: {
-            backgroundColor: color.darkSurface,
-            color: color.yellowPrimary,
+            backgroundColor: color.text1,
+            color: color.yellow,
             fontFamily: font.mono,
             fontSize: 10,
           },
@@ -393,21 +393,21 @@ export default function KLineChart({
       axisPointer: {
         link: [{ xAxisIndex: 'all' }],
         lineStyle: {
-          color: color.textLightGray,
+          color: color.text3,
           type: 'dashed',
         },
       },
       tooltip: {
         trigger: 'axis',
         show: true,
-        backgroundColor: color.bgWhite,
-        borderColor: color.bgLightGray,
+        backgroundColor: color.bgSurface,
+        borderColor: color.borderHairline,
         borderWidth: 1,
         padding: 0,
         formatter: tooltipFormatter as never,
         axisPointer: {
           type: 'cross',
-          crossStyle: { color: color.textLightGray },
+          crossStyle: { color: color.text3 },
         },
       },
       dataZoom: [
@@ -417,13 +417,13 @@ export default function KLineChart({
           xAxisIndex: 0,
           bottom: 10,
           height: 20,
-          borderColor: color.bgLightGray,
-          fillerColor: 'rgba(107,194,255,0.12)',
-          handleStyle: { color: color.bluePrimary, borderColor: color.bluePrimary },
-          textStyle: { color: color.textGray, fontSize: 10, fontFamily: font.mono },
+          borderColor: color.borderHairline,
+          fillerColor: 'rgba(79,143,232,0.12)',
+          handleStyle: { color: color.blue, borderColor: color.blue },
+          textStyle: { color: color.text2, fontSize: 10, fontFamily: font.mono },
           dataBackground: {
-            lineStyle: { color: color.bgLightGray },
-            areaStyle: { color: color.bgLightGray, opacity: 0.2 },
+            lineStyle: { color: color.borderHairline },
+            areaStyle: { color: color.borderHairline, opacity: 0.2 },
           },
         },
       ],
