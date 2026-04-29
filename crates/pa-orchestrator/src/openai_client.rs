@@ -43,6 +43,24 @@ impl OpenAiCompatibleClient {
             payload.insert("response_format".to_string(), response_format);
         }
 
+        if request.provider == "deepseek" {
+            if request.supports_reasoning {
+                payload.insert(
+                    "thinking".to_string(),
+                    json!({ "type": "enabled" }),
+                );
+                payload.insert(
+                    "reasoning_effort".to_string(),
+                    Value::String("high".to_string()),
+                );
+            } else {
+                payload.insert(
+                    "thinking".to_string(),
+                    json!({ "type": "disabled" }),
+                );
+            }
+        }
+
         Value::Object(payload)
     }
 
@@ -272,6 +290,7 @@ mod tests {
                     "symbol": { "type": "string" }
                 }
             })),
+            supports_reasoning: false,
         }
     }
 
@@ -376,6 +395,46 @@ mod tests {
             .unwrap();
 
         assert_eq!(parsed, json!({"symbol": "000001.SZ"}));
+    }
+
+    #[test]
+    fn build_payload_emits_thinking_enabled_for_deepseek_reasoning_profile() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let mut request = sample_request(StructuredOutputMode::JsonObject);
+        request.provider = "deepseek".to_string();
+        request.model = "deepseek-v4-pro".to_string();
+        request.supports_reasoning = true;
+
+        let payload = client.build_payload(&request);
+
+        assert_eq!(payload["thinking"], json!({ "type": "enabled" }));
+        assert_eq!(payload["reasoning_effort"], json!("high"));
+    }
+
+    #[test]
+    fn build_payload_emits_thinking_disabled_for_deepseek_non_reasoning_profile() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let mut request = sample_request(StructuredOutputMode::JsonObject);
+        request.provider = "deepseek".to_string();
+        request.model = "deepseek-v4-flash".to_string();
+        request.supports_reasoning = false;
+
+        let payload = client.build_payload(&request);
+
+        assert_eq!(payload["thinking"], json!({ "type": "disabled" }));
+        assert!(payload.get("reasoning_effort").is_none());
+    }
+
+    #[test]
+    fn build_payload_omits_thinking_fields_for_non_deepseek_provider() {
+        let client = OpenAiCompatibleClient::new(BTreeMap::new());
+        let mut request = sample_request(StructuredOutputMode::JsonObject);
+        request.supports_reasoning = true;
+
+        let payload = client.build_payload(&request);
+
+        assert!(payload.get("thinking").is_none());
+        assert!(payload.get("reasoning_effort").is_none());
     }
 
     #[test]

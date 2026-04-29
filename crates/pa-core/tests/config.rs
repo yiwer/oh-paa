@@ -137,7 +137,7 @@ openai_api_style = "chat_completions"
 
 [llm.execution_profiles.shared_bar_reasoner]
 provider = "deepseek"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32768
 max_retries = 2
 per_call_timeout_secs = 600
@@ -170,7 +170,7 @@ execution_profile = "pa_state_extract_fast"
     );
     assert_eq!(
         config.llm.execution_profiles["shared_bar_reasoner"].model,
-        "deepseek-reasoner"
+        "deepseek-v4-pro"
     );
     assert_eq!(
         config.llm.step_bindings["shared_pa_state_bar_v1"].execution_profile,

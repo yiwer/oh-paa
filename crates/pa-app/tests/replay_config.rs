@@ -27,7 +27,7 @@ openai_api_style = "chat_completions"
 
 [llm.execution_profiles.default]
 provider = "default"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600
@@ -157,7 +157,7 @@ retry_initial_backoff_ms = 1000
 [llm.deepseek]
 base_url = "https://api.deepseek.com"
 api_key = "deepseek-demo"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600
@@ -186,7 +186,7 @@ twelvedata_api_key = "demo-key"
 [llm]
 base_url = "https://api.deepseek.com"
 api_key = "deepseek-demo"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600
@@ -224,7 +224,7 @@ retry_initial_backoff_ms = 1000
     );
     assert_eq!(
         resolved.app_config.llm.execution_profiles["baseline_a_default"].model,
-        "deepseek-reasoner"
+        "deepseek-v4-pro"
     );
 
     assert_baseline_steps_bound_to(
@@ -245,7 +245,7 @@ twelvedata_api_key = "demo-key"
 [llm]
 base_url = "https://api.deepseek.com"
 api_key = "deepseek-demo"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600
@@ -282,7 +282,7 @@ openai_api_style = "chat_completions"
 
 [llm.execution_profiles.default]
 provider = "default"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600
@@ -328,7 +328,7 @@ openai_api_style = "legacy_completions"
 
 [llm.execution_profiles.default]
 provider = "default"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 max_tokens = 32765
 max_retries = 2
 per_call_timeout_secs = 600

@@ -22,6 +22,7 @@ pub struct LlmRequest {
     pub max_tokens: u32,
     pub timeout_secs: u64,
     pub structured_output_mode: StructuredOutputMode,
+    pub supports_reasoning: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,6 +153,10 @@ pub(crate) fn request_payload_json(request: &LlmRequest) -> Value {
         (
             "structured_output_mode".to_string(),
             Value::String(structured_output_mode_name(request.structured_output_mode).to_string()),
+        ),
+        (
+            "supports_reasoning".to_string(),
+            Value::Bool(request.supports_reasoning),
         ),
     ]);
 

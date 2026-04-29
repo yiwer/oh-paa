@@ -41,7 +41,7 @@ supports_reasoning = false
 
 [llm.execution_profiles.user_position_reasoner]
 provider = "deepseek"
-model = "deepseek-v3.2"
+model = "deepseek-v4-flash"
 max_tokens = 4096
 max_retries = 2
 per_call_timeout_secs = 300

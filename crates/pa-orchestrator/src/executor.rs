@@ -84,6 +84,7 @@ where
             max_tokens: resolved.profile.max_tokens,
             timeout_secs: resolved.profile.timeout_secs,
             structured_output_mode: choose_structured_output_mode(resolved.profile),
+            supports_reasoning: resolved.profile.supports_reasoning,
         };
 
         let llm_outcome = self.llm_client.generate_json(&llm_request).await;
@@ -151,6 +152,7 @@ where
             max_tokens: 0,
             timeout_secs: 0,
             structured_output_mode: StructuredOutputMode::PromptEnforcedJson,
+            supports_reasoning: false,
         };
 
         let llm_outcome = self.llm_client.generate_json(&llm_request).await;

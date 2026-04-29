@@ -226,7 +226,8 @@ async fn executor_fails_when_output_does_not_match_schema() {
                     },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
-                    "structured_output_mode": "native_json_schema"
+                    "structured_output_mode": "native_json_schema",
+                    "supports_reasoning": false
                 })
             );
             assert_eq!(
@@ -296,7 +297,8 @@ async fn executor_returns_valid_structured_output() {
                     },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
-                    "structured_output_mode": "native_json_schema"
+                    "structured_output_mode": "native_json_schema",
+                    "supports_reasoning": false
                 })
             );
             assert_eq!(attempt.raw_response_json, Some(expected.clone()));
@@ -454,7 +456,8 @@ async fn executor_returns_outbound_failure_with_attempt_context() {
                     },
                     "max_tokens": 4096,
                     "timeout_secs": 60,
-                    "structured_output_mode": "native_json_schema"
+                    "structured_output_mode": "native_json_schema",
+                    "supports_reasoning": false
                 })
             );
             assert_eq!(attempt.raw_response_json, None);

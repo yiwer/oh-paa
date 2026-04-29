@@ -292,7 +292,7 @@ mod tests {
                         "shared_bar_reasoner".to_string(),
                         LlmExecutionProfileConfig {
                             provider: "deepseek".to_string(),
-                            model: "deepseek-reasoner".to_string(),
+                            model: "deepseek-v4-pro".to_string(),
                             max_tokens: 32768,
                             max_retries: 2,
                             per_call_timeout_secs: 600,
@@ -305,7 +305,7 @@ mod tests {
                         "user_position_reasoner".to_string(),
                         LlmExecutionProfileConfig {
                             provider: "deepseek".to_string(),
-                            model: "deepseek-chat".to_string(),
+                            model: "deepseek-v4-flash".to_string(),
                             max_tokens: 16384,
                             max_retries: 2,
                             per_call_timeout_secs: 300,
