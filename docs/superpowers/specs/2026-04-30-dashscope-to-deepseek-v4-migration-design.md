@@ -29,26 +29,56 @@ Remove dashscope from the example configs so the project's example LLM surface i
 |---|---|---|
 | Q1 | Which model replaces qwen-plus for `pa_state_extract_fast`? | **deepseek-v4-flash** — the profile's role is fast, low-latency state extraction; flash matches that envelope. |
 | Q2 | Drop the deepseek-only `thinking` / `reasoning_effort` branch in `openai_client.rs`? | **No** — leave `crates/pa-orchestrator/src/openai_client.rs` untouched. The deepseek `thinking: { type: enabled/disabled }` extension stays. Out of scope for this migration. |
-| Q3 | How thoroughly to scrub dashscope from the repo? | **Delete the `[llm.providers.dashscope]` blocks from the two example configs only.** Test/source string fixtures referencing `"dashscope"` are opaque envelope labels with no behavioral impact and remain untouched. |
+| Q3 | How thoroughly to scrub dashscope from the repo? | **Delete the `[llm.providers.dashscope]` blocks from the two example configs.** Test/source string fixtures referencing `"dashscope"` are opaque envelope labels and remain untouched **except** for two regression assertions that read `config.example.toml` directly and must track the new content (see "Q3 correction" below). |
 | Q4 | How to handle the replay-quality template, which had distinct low-cost parameters? | **Align with main config** — replace dashscope/qwen3-max with deepseek-v4-pro at the same params as the main config. The template's "low-cost / reasoning disabled" stance is intentionally dropped. |
+
+## Q3 correction (added during execution)
+
+The original Q3 framing assumed every `*.rs` reference to `"dashscope"` was an opaque envelope label. Implementation discovered two assertions that are real regression checks coupled to `config.example.toml` content:
+
+1. **`crates/pa-core/tests/config.rs:272`** — inside `load_from_path_parses_config_example_toml`:
+   ```rust
+   assert!(config.llm.providers.contains_key("dashscope"));
+   ```
+   This loads the actual `config.example.toml` from disk and asserts the dashscope provider key is present. After deletion of that block, this assertion fails.
+
+2. **`crates/pa-app/tests/replay.rs:73-74`** — inside `replay_runner_records_variant_step_outputs_and_scores`:
+   ```rust
+   assert_eq!(first.llm_provider, "dashscope");
+   assert_eq!(first.model, "qwen-plus");
+   ```
+   The fixture replay path calls `load_example_config()` (`crates/pa-app/src/replay.rs:238`), which reads `config.example.toml` and injects the profile's provider/model into each step-run envelope. After the migration, the first step's envelope reads `llm_provider="deepseek"` and `model="deepseek-v4-flash"`.
+
+Both assertions must be updated to match the new example-config content:
+- `config.rs:272`: drop the `dashscope` assertion (or replace with a `deepseek` provider check; the test already asserts `deepseek` on line 271).
+- `replay.rs:73-74`: `"dashscope"` → `"deepseek"`, `"qwen-plus"` → `"deepseek-v4-flash"`.
+
+All other `"dashscope"` string references across tests/sources remain untouched, consistent with the original Q3=A intent for inert envelope labels.
+
+### Out-of-scope test failure (documented)
+
+`crates/pa-core/tests/config.rs:343-352` (`load_from_path_parses_repo_config_toml_with_local_bootstrap_enabled`) loads the gitignored local `config.toml` and asserts `bootstrap_local_test_instruments == true`. This test is environment-dependent (reads the user's local config) and is failing pre-migration as well. Not in this migration's scope.
 
 ## Scope
 
-### In scope (2 files)
+### In scope (2 files + 2 test files post-correction)
 
 - `config.example.toml`
 - `config.live-replay-quality.example.toml`
+- `crates/pa-core/tests/config.rs` (Q3 correction — 1 assertion)
+- `crates/pa-app/tests/replay.rs` (Q3 correction — 2 assertions)
 
 ### Out of scope
 
 - `crates/pa-orchestrator/src/openai_client.rs` — including its deepseek `thinking` branch (Q2).
-- All `*.rs` test/source fixtures containing the string `"dashscope"` (Q3) — including:
+- Inert `"dashscope"` envelope-label fixtures (Q3, original intent — these remain untouched):
   - `crates/pa-orchestrator/tests/{executor.rs,models.rs}`
   - `crates/pa-orchestrator/src/openai_client.rs` (test module)
-  - `crates/pa-core/tests/config.rs` (inline TOML fixture independent of the example files)
+  - `crates/pa-core/tests/config.rs` (inline TOML fixture string `"dashscope"`, independent of the example files — distinct from the line-272 assertion which IS updated per Q3 correction)
   - `crates/pa-app/src/{lib.rs,replay.rs,replay_probe.rs}`
-  - `crates/pa-app/tests/{replay_config.rs,replay.rs,probe.rs,live_replay.rs}`
+  - `crates/pa-app/tests/{replay_config.rs,probe.rs,live_replay.rs}` (note: `replay.rs` IS updated per Q3 correction)
 - `config.toml` — gitignored local runtime config; the user updates it locally to mirror the example.
+- The pre-existing failure of `load_from_path_parses_repo_config_toml_with_local_bootstrap_enabled` (see Q3 correction section).
 
 ## Changes
 
