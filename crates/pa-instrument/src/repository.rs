@@ -47,6 +47,21 @@ impl InstrumentRepository {
         &self.pool
     }
 
+    pub async fn list_instruments(&self) -> Result<Vec<Instrument>, AppError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, market_id, symbol, name, instrument_type, created_at, updated_at
+            FROM instruments
+            ORDER BY symbol ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(storage_query_error("failed to list instruments"))?;
+
+        rows.into_iter().map(map_instrument_row).collect()
+    }
+
     pub async fn resolve_market_data_context(
         &self,
         instrument_id: Uuid,

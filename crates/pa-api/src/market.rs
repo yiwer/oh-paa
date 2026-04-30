@@ -20,11 +20,27 @@ use crate::{
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/instruments", get(get_instruments))
         .route("/canonical", get(get_canonical_klines))
         .route("/aggregated", get(get_aggregated_klines))
         .route("/session-profile", get(get_session_profile))
         .route("/tick", get(get_latest_tick))
         .route("/open-bar", get(get_open_bar))
+}
+
+async fn get_instruments(State(state): State<AppState>) -> ApiResult<Json<Value>> {
+    let runtime = market_runtime(&state)?;
+    let rows = runtime.instrument_repository.list_instruments().await?;
+
+    Ok(Json(json!({
+        "rows": rows.into_iter().map(|instrument| json!({
+            "id": instrument.id,
+            "market_id": instrument.market_id,
+            "symbol": instrument.symbol,
+            "name": instrument.name,
+            "instrument_type": instrument.instrument_type,
+        })).collect::<Vec<_>>()
+    })))
 }
 
 #[derive(Debug, Deserialize)]
