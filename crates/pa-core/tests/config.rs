@@ -269,7 +269,6 @@ fn load_from_path_parses_config_example_toml() {
     let config = AppConfig::load_from_path(&config_path).expect("example config should parse");
 
     assert!(config.llm.providers.contains_key("deepseek"));
-    assert!(config.llm.providers.contains_key("dashscope"));
     assert!(
         config
             .llm

@@ -70,8 +70,8 @@ async fn replay_runner_records_variant_step_outputs_and_scores() {
     assert_eq!(first.step_key, "shared_pa_state_bar");
     assert_eq!(first.step_version, "v1");
     assert_eq!(first.prompt_version, "v1");
-    assert_eq!(first.llm_provider, "dashscope");
-    assert_eq!(first.model, "qwen-plus");
+    assert_eq!(first.llm_provider, "deepseek");
+    assert_eq!(first.model, "deepseek-v4-flash");
     assert!(first.schema_valid);
     assert!(first.schema_validation_error.is_none());
     assert_eq!(first.latency_ms, Some(210));
